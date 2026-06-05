@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "TMPDIR=/tmp nuxt dev",
     "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
