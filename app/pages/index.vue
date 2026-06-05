@@ -1,10 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Dashboard', icon: 'i-lucide-layout-dashboard' })
 
-const [{ data: projects, refresh: refreshProjects }, { data: tasks, refresh: refreshTasks }] = await Promise.all([
-  useAsyncData('dash-projects', () => queryCollection('projects').all()),
-  useAsyncData('dash-tasks', () => queryCollection('tasks').all()),
-])
+const { projects, tasks, refreshAll } = await useProjectTasks({ projects: 'dash-projects', tasks: 'dash-tasks' })
+
+const showCreateProject = ref(false)
 
 const stats = computed(() => {
   const t = tasks.value ?? []
@@ -42,15 +41,25 @@ function handleStatClick(stat: typeof stats.value[0]) {
   activeStatusId.value = activeStatusId.value === stat.statusId ? null : stat.statusId
 }
 
-async function refreshAll() {
-  await Promise.all([refreshProjects(), refreshTasks()])
-}
 </script>
 
 <template>
   <AppPageBase
     title="Dashboard"
     icon="i-lucide-layout-dashboard"
+    :empty="!(projects?.length ?? 0)"
+    :empty-state="{
+      icon: 'i-lucide-folder',
+      title: 'No projects yet',
+      description: 'Create your first project to get started.',
+      actions: [
+        {
+          label: 'New Project',
+          icon: 'i-lucide-plus',
+          onClick: () => showCreateProject = true,
+        }
+      ],
+    }"
   >
     <div class="p-4 sm:p-6 space-y-6">
       <!-- Stats -->
@@ -101,12 +110,19 @@ async function refreshAll() {
           </NuxtLink>
         </div>
         <AppTaskList
-          :tasks="(tasks ?? []) as any[]"
-          :projects="(projects ?? []) as any[]"
-          :preset-statuses="(presetStatuses as any[])"
+          :tasks="((tasks ?? []) as any[])"
+          :projects="((projects ?? []) as any[])"
+          :preset-statuses="((presetStatuses ?? []) as any[])"
           @refresh="refreshAll"
         />
       </div>
     </div>
+    <template #overlays>
+      <ProjectForm
+        v-if="showCreateProject"
+        @close="showCreateProject = false"
+        @saved="() => { showCreateProject = false; refreshAll() }"
+      />
+    </template>
   </AppPageBase>
 </template>

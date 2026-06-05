@@ -1,21 +1,22 @@
 <script setup lang="ts">
 const { data: projects } = await useAsyncData('sidebar-projects', () =>
-  queryCollection('projects').select('path', 'title').order('title', 'ASC').all(),
+  queryCollection('projects').select('path', 'title', 'icon').order('title', 'ASC').all(),
 )
 
 const navigation = computed(() => [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
-  { label: 'Tasks', icon: 'i-lucide-list-checks', to: '/tasks' },
+  ...(projects.value?.length ? [{ label: 'Tasks', icon: 'i-lucide-list-checks', to: '/tasks' }] : []),
   {
     label: 'Projects',
-    icon: 'i-lucide-folder',
+    icon: 'i-lucide-notebook',
     to: '/projects',
     ...(projects.value?.length
       ? {
+          defaultOpen: true,
           children: projects.value.map(p => ({
             label: p.title,
-            icon: 'i-lucide-folder-open',
-            to: `/projects/${p.path.split('/').at(-1)}`,
+            icon: (p as any).icon || 'i-lucide-folder',
+            to: `/projects/${slugFromPath(p.path)}`,
           })),
         }
       : {}),
@@ -31,6 +32,41 @@ function toggleColorMode() {
 const colorModeIcon = computed(() =>
   colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun',
 )
+
+const { callHook } = useNuxtApp()
+function openSearch() {
+  callHook('dashboard:search:toggle' as any)
+}
+
+async function triggerDownload(path: string, fallbackName: string) {
+  const res = await fetch(path)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  a.href = url
+  a.download = match?.[1] ?? fallbackName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const exportItems = [
+  [
+    {
+      label: 'As archive',
+      icon: 'i-lucide-archive',
+      description: 'Exports the full content directory as-is. Useful if you ever expect to re-import your data.',
+      onSelect: () => triggerDownload('/api/export/archive', 'mdpm-content.zip'),
+    },
+    {
+      label: 'Single-file',
+      icon: 'i-lucide-file-text',
+      description: 'Exports a single .md file with all projects and tasks inline. Great for when you need to migrate.',
+      onSelect: () => triggerDownload('/api/export/markdown', 'mdpm-export.md'),
+    },
+  ],
+]
 </script>
 
 <template>
@@ -64,10 +100,43 @@ const colorModeIcon = computed(() =>
     </template>
 
     <template #default>
+      <UButton
+        label="Search"
+        icon="i-lucide-search"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        @click="openSearch"
+      >
+        <template #trailing>
+          <div class="ms-auto me-0 inline-flex gap-x-1">
+            <UKbd>⌘</UKbd>
+            <UKbd>K</UKbd>
+          </div>
+        </template>
+      </UButton>
       <UNavigationMenu
         :items="navigation"
+        :collapsed="false"
         orientation="vertical"
       />
+    </template>
+
+    <template #footer>
+      <UDropdownMenu
+        :items="exportItems"
+        :ui="{ content: 'max-w-72 lg:max-w-120', itemDescription: 'whitespace-normal text-muted' }"
+      >
+        <UButton
+          label="Export"
+          icon="i-lucide-download"
+          trailing-icon="i-lucide-chevron-up"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          block
+        />
+      </UDropdownMenu>
     </template>
   </UDashboardSidebar>
 </template>

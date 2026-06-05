@@ -4,6 +4,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{
     title?: string
     status?: string
+    icon?: string | null
     description?: string
     tags?: string[]
   }>(event)

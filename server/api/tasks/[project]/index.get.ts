@@ -15,7 +15,8 @@ export default defineEventHandler((event) => {
         slug,
         title: (file?.data?.title as string) ?? slug,
         status: (file?.data?.status as string) ?? 'todo',
+        order: (file?.data?.order as number) ?? 0,
       }
     })
-    .sort((a, b) => a.title.localeCompare(b.title))
+    .sort((a, b) => a.order - b.order)
 })

@@ -42,6 +42,8 @@ async function deleteTask() {
   }
 }
 
+useHead(() => ({ title: task.value?.title ?? taskSlug.value }))
+
 const breadcrumb = computed(() => [
   { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
   { label: projectSlug.value, to: `/projects/${projectSlug.value}`, icon: 'i-lucide-folder-open' },
@@ -72,7 +74,7 @@ const breadcrumb = computed(() => [
       />
     </template>
 
-    <div class="p-4 sm:p-6 max-w-3xl space-y-6">
+    <div class="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div class="space-y-3">
         <h1 class="text-2xl font-bold leading-tight">
           {{ task!.title }}
@@ -193,29 +195,16 @@ const breadcrumb = computed(() => [
         :task="task!"
         @close="() => { showEdit = false; refresh() }"
       />
-      <UModal
+      <AppConfirmDialog
         :open="showDeleteConfirm"
         title="Delete task?"
-        description="This cannot be undone."
+        message="This cannot be undone."
+        confirm-label="Delete"
+        :loading="deleting"
         @update:open="showDeleteConfirm = false"
-      >
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              @click="showDeleteConfirm = false"
-            />
-            <UButton
-              label="Delete"
-              color="error"
-              :loading="deleting"
-              @click="deleteTask"
-            />
-          </div>
-        </template>
-      </UModal>
+        @confirm="deleteTask"
+        @cancel="showDeleteConfirm = false"
+      />
     </template>
   </AppPageBase>
 </template>

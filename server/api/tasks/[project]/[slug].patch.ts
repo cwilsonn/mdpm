@@ -2,7 +2,17 @@
 export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
-  const body = await readBody(event)
+  const body = await readBody<{
+    title?: string
+    status?: string
+    priority?: string
+    tags?: string[]
+    assignees?: string[]
+    due?: string
+    dependencies?: string[]
+    description?: string
+    order?: number
+  }>(event)
 
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Task not found' })

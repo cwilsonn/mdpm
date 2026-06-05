@@ -16,6 +16,7 @@ export default defineContentConfig({
       schema: z.object({
         title: z.string(),
         status: z.enum(['active', 'archived', 'on-hold']).default('active'),
+        icon: z.string().optional(),
         tags: z.array(z.string()).default([]),
         description: z.string().optional(),
         createdAt: z.string(),

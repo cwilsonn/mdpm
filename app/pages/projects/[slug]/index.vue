@@ -33,13 +33,7 @@ const filterStatuses = ref<SelectItem[]>([])   // empty = all columns visible
 const filterPriorities = ref<SelectItem[]>([]) // empty = all priorities
 const filterAssignees = ref<SelectItem[]>([])  // empty = all assignees
 
-const allAssignees = computed(() => {
-  const set = new Set<string>()
-  for (const t of tasks.value ?? []) {
-    for (const a of (t as any).assignees ?? []) set.add(a as string)
-  }
-  return [...set].sort()
-})
+const allAssignees = computed(() => getAssigneeNames((tasks.value ?? []) as Array<{ assignees?: string[] }>))
 
 const assigneeFilterItems = computed<SelectItem[]>(() =>
   allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
@@ -79,23 +73,10 @@ watch(filterAssignees, () => syncColumns(tasks.value), { deep: true })
 watch(searchQuery, () => syncColumns(tasks.value))
 
 // Mark done
-const markingDone = ref<string | null>(null)
+const { markingDone, markDone: _markDone } = useMarkDone()
 
 async function markTaskDone(tSlug: string) {
-  markingDone.value = tSlug
-  try {
-    await $fetch(`/api/tasks/${slug.value}/${tSlug}`, {
-      method: 'PATCH',
-      body: { status: 'done' },
-    })
-    await refreshTasks()
-  }
-  catch {
-    await refreshTasks()
-  }
-  finally {
-    markingDone.value = null
-  }
+  await _markDone(slug.value, `/projects/${slug.value}/tasks/${tSlug}`, refreshTasks)
 }
 
 const totalVisible = computed(() => visibleColumns.value.reduce((s, c) => s + columns[c.id].length, 0))
@@ -103,7 +84,7 @@ const totalVisible = computed(() => visibleColumns.value.reduce((s, c) => s + co
 const tasksBySlug = computed(() => {
   const map: Record<string, Task> = {}
   for (const col of STATUS_CONFIG) {
-    for (const t of columns[col.id]) map[taskSlug(t.path)] = t
+    for (const t of columns[col.id]) map[slugFromPath(t.path)] = t
   }
   return map
 })
@@ -119,7 +100,7 @@ const updating = ref<string | null>(null)
 async function persistOrder() {
   const order: Record<string, string[]> = {}
   for (const col of STATUS_CONFIG) {
-    order[col.id] = columns[col.id].map(t => taskSlug(t.path))
+    order[col.id] = columns[col.id].map(t => slugFromPath(t.path))
   }
   await $fetch('/api/tasks/reorder', {
     method: 'POST',
@@ -130,7 +111,7 @@ async function persistOrder() {
 async function onColumnAdd(colId: ColId, evt: { newIndex: number }) {
   const task = columns[colId][evt.newIndex]
   if (!task) return
-  const tSlug = taskSlug(task.path)
+  const tSlug = slugFromPath(task.path)
   task.status = colId
   updating.value = task.path
   try {
@@ -182,20 +163,19 @@ async function deleteTask() {
   try {
     await $fetch(`/api/tasks/${slug.value}/${taskToDelete.value}`, { method: 'DELETE' })
     await refreshTasks()
+    taskToDelete.value = null
   }
   finally {
     deleting.value = false
-    taskToDelete.value = null
   }
 }
 
-function taskSlug(path: string) {
-  return path.split('/').at(-1)!
-}
+
+useHead(() => ({ title: project.value?.title ?? slug.value }))
 
 const breadcrumb = computed(() => [
   { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
-  { label: project.value?.title ?? slug.value },
+  { label: project.value?.title ?? slug.value, icon: (project.value as any)?.icon || undefined },
 ])
 </script>
 
@@ -321,10 +301,10 @@ const breadcrumb = computed(() => [
               :key="task.path"
               :task="task"
               :has-blocking-deps="hasBlockingDeps(task)"
-              :loading="updating === task.path || markingDone === taskSlug(task.path)"
+              :loading="updating === task.path || markingDone === task.path"
               @click="editTask = task"
-              @mark-done="markTaskDone(taskSlug(task.path))"
-              @delete="confirmDeleteTask(taskSlug(task.path))"
+              @mark-done="markTaskDone(slugFromPath(task.path))"
+              @delete="confirmDeleteTask(slugFromPath(task.path))"
             />
           </VueDraggable>
         </div>
@@ -350,29 +330,16 @@ const breadcrumb = computed(() => [
         :project="project!"
         @close="() => { showEditProject = false; refreshProject() }"
       />
-      <UModal
+      <AppConfirmDialog
         :open="!!taskToDelete"
         title="Delete task?"
-        description="This cannot be undone."
+        message="This cannot be undone."
+        confirm-label="Delete"
+        :loading="deleting"
         @update:open="taskToDelete = null"
-      >
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              @click="taskToDelete = null"
-            />
-            <UButton
-              label="Delete"
-              color="error"
-              :loading="deleting"
-              @click="deleteTask"
-            />
-          </div>
-        </template>
-      </UModal>
+        @confirm="deleteTask"
+        @cancel="taskToDelete = null"
+      />
     </template>
   </AppPageBase>
 </template>

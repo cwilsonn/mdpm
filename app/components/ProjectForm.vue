@@ -3,7 +3,8 @@ const props = defineProps<{
   project?: {
     path: string
     title: string
-    status: string
+    status?: string
+    icon?: string
     description?: string
     tags?: string[]
   }
@@ -19,74 +20,35 @@ const isEdit = computed(() => !!props.project)
 const form = reactive({
   title: props.project?.title ?? '',
   status: (props.project?.status ?? 'active') as 'active' | 'archived' | 'on-hold',
+  icon: props.project?.icon ?? '',
   description: props.project?.description ?? '',
   tags: [...(props.project?.tags ?? [])] as string[],
 })
 
-// auto-save state
-const loaded = ref(false)
-const saving = ref(false)
-const savedAt = ref<Date | null>(null)
-const saveError = ref<string | null>(null)
-const now = ref(Date.now())
-let ticker: ReturnType<typeof setInterval> | null = null
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-
-const savedAgo = computed(() => {
-  if (!savedAt.value) return null
-  const diff = Math.floor((now.value - savedAt.value.getTime()) / 1000)
-  if (diff < 10) return 'just now'
-  if (diff < 60) return `${diff}s ago`
-  return `${Math.floor(diff / 60)}m ago`
-})
-
-onMounted(() => {
-  loaded.value = true
-  if (isEdit.value) {
-    ticker = setInterval(() => now.value = Date.now(), 5000)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (ticker) clearInterval(ticker)
-  if (saveTimer) flushSave()
-})
-
-function scheduleSave() {
-  if (!isEdit.value || !loaded.value) return
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => flushSave(), 800)
-}
-
-async function flushSave() {
-  if (!isEdit.value || !loaded.value || saving.value) return
-  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-  saving.value = true
-  saveError.value = null
-  try {
-    const slug = props.project!.path.split('/').at(-1)
+const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
+  isEdit,
+  async () => {
+    const slug = slugFromPath(props.project!.path)
     await $fetch(`/api/projects/${slug}`, {
       method: 'PATCH',
       body: {
         title: form.title,
         status: form.status,
+        icon: form.icon || null,
         description: form.description || undefined,
         tags: form.tags,
       },
     })
-    savedAt.value = new Date()
-  }
-  catch (e: unknown) {
-    saveError.value = (e as { data?: { message?: string } })?.data?.message ?? 'Save failed'
-  }
-  finally {
-    saving.value = false
-  }
-}
+  },
+)
+
+onMounted(() => initAutoSave())
+onBeforeUnmount(() => cleanupAutoSave())
 
 watch(() => form.title, () => scheduleSave())
 watch(() => form.description, () => scheduleSave())
 watch(() => form.status, () => flushSave())
+watch(() => form.icon, () => flushSave())
 watch(() => form.tags, () => flushSave(), { deep: true })
 
 // create mode
@@ -102,6 +64,7 @@ async function create() {
       body: {
         title: form.title,
         status: form.status,
+        icon: form.icon || undefined,
         description: form.description || undefined,
         tags: form.tags,
       },
@@ -156,6 +119,10 @@ async function create() {
             value-key="value"
             class="w-full"
           />
+        </UFormField>
+
+        <UFormField label="Icon">
+          <AppIconPicker v-model="form.icon" />
         </UFormField>
 
         <UFormField label="Description">

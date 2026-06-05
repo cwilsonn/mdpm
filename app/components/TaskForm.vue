@@ -23,11 +23,10 @@ const isEdit = computed(() => !!props.task)
 
 const taskPageUrl = computed(() => {
   if (!props.task) return null
-  const tSlug = props.task.path.split('/').at(-1)!
-  return `/projects/${props.projectSlug}/tasks/${tSlug}`
+  return `/projects/${props.projectSlug}/tasks/${slugFromPath(props.task.path)}`
 })
 
-const currentTaskSlug = computed(() => props.task?.path.split('/').at(-1) ?? null)
+const currentTaskSlug = computed(() => props.task ? slugFromPath(props.task.path) : null)
 
 const form = reactive({
   title: props.task?.title ?? '',
@@ -51,70 +50,10 @@ const description = ref('')
 const descriptionLoading = ref(false)
 const authorNames = ref<string[]>([])
 
-// auto-save state
-const loaded = ref(false)
-const saving = ref(false)
-const savedAt = ref<Date | null>(null)
-const saveError = ref<string | null>(null)
-const now = ref(Date.now())
-let ticker: ReturnType<typeof setInterval> | null = null
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-
-const savedAgo = computed(() => {
-  if (!savedAt.value) return null
-  const diff = Math.floor((now.value - savedAt.value.getTime()) / 1000)
-  if (diff < 10) return 'just now'
-  if (diff < 60) return `${diff}s ago`
-  return `${Math.floor(diff / 60)}m ago`
-})
-
-onMounted(async () => {
-  $fetch<{ name: string }[]>('/api/authors').then((data) => {
-    authorNames.value = data.map(a => a.name)
-  })
-
-  $fetch<ProjectTask[]>(`/api/tasks/${props.projectSlug}`).then((data) => {
-    projectTasks.value = data
-  })
-
-  if (isEdit.value && props.task) {
-    const tSlug = props.task.path.split('/').at(-1)!
-    descriptionLoading.value = true
-    try {
-      const raw = await $fetch<{ body: string }>(`/api/tasks/${props.projectSlug}/${tSlug}`)
-      description.value = raw.body ?? ''
-    }
-    catch {}
-    finally {
-      descriptionLoading.value = false
-    }
-  }
-
-  loaded.value = true
-
-  if (isEdit.value) {
-    ticker = setInterval(() => now.value = Date.now(), 5000)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (ticker) clearInterval(ticker)
-  if (saveTimer) flushSave()
-})
-
-function scheduleSave() {
-  if (!isEdit.value || !loaded.value) return
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => flushSave(), 800)
-}
-
-async function flushSave() {
-  if (!isEdit.value || !loaded.value || saving.value) return
-  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-  saving.value = true
-  saveError.value = null
-  try {
-    const slug = props.task!.path.split('/').at(-1)
+const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
+  isEdit,
+  async () => {
+    const slug = slugFromPath(props.task!.path)
     await $fetch(`/api/tasks/${props.projectSlug}/${slug}`, {
       method: 'PATCH',
       body: {
@@ -128,15 +67,36 @@ async function flushSave() {
         description: description.value,
       },
     })
-    savedAt.value = new Date()
+  },
+)
+
+onMounted(async () => {
+  $fetch<{ name: string }[]>('/api/authors').then((data) => {
+    authorNames.value = data.map(a => a.name)
+  })
+
+  $fetch<ProjectTask[]>(`/api/tasks/${props.projectSlug}`).then((data) => {
+    projectTasks.value = data
+  })
+
+  if (isEdit.value && props.task) {
+    const tSlug = slugFromPath(props.task.path)
+    descriptionLoading.value = true
+    try {
+      const raw = await $fetch<{ body: string }>(`/api/tasks/${props.projectSlug}/${tSlug}`)
+      description.value = raw.body ?? ''
+    }
+    catch {}
+    finally {
+      descriptionLoading.value = false
+    }
   }
-  catch (e: unknown) {
-    saveError.value = (e as { data?: { message?: string } })?.data?.message ?? 'Save failed'
-  }
-  finally {
-    saving.value = false
-  }
-}
+
+  initAutoSave()
+})
+
+onBeforeUnmount(() => cleanupAutoSave())
+
 
 watch(() => form.title, () => scheduleSave())
 watch(() => form.status, () => flushSave())

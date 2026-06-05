@@ -4,6 +4,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{
     title: string
     status?: string
+    icon?: string
     description?: string
     tags?: string[]
   }>(event)
@@ -20,6 +21,7 @@ export default defineEventHandler(async (event) => {
   writeMarkdown(`projects/${slug}/index.md`, {
     title: body.title.trim(),
     status: body.status ?? 'active',
+    ...(body.icon ? { icon: body.icon } : {}),
     ...(body.description ? { description: body.description } : {}),
     tags: body.tags ?? [],
     createdAt: new Date().toISOString().split('T')[0],

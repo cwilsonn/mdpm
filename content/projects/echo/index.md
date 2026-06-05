@@ -9,6 +9,7 @@ tags:
   - Postgres
   - '@nuxt/ui'
 createdAt: '2026-06-05'
-updatedAt: '2026-06-05T18:49:40.916Z'
+updatedAt: '2026-06-05T21:07:29.239Z'
+icon: i-lucide-puzzle
 ---
 

@@ -61,6 +61,11 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
 
     <!-- Priority + due + tags -->
     <div class="flex items-center gap-1.5 flex-wrap">
+      <span
+        v-if="dueInfo"
+        class="text-xs tabular-nums"
+        :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
+      >{{ dueInfo.label }}</span>
       <UBadge
         v-if="priority"
         :label="priority.label"
@@ -69,11 +74,6 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         variant="subtle"
         size="xs"
       />
-      <span
-        v-if="dueInfo"
-        class="text-xs tabular-nums"
-        :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
-      >{{ dueInfo.label }}</span>
       <UBadge
         v-for="tag in tags.slice(0, 2)"
         :key="tag"
@@ -95,7 +95,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :class="hasBlockingDeps ? 'text-error' : 'text-muted'"
         :title="hasBlockingDeps ? 'Unresolved dependencies' : 'All dependencies resolved'"
       >
-        <UIcon name="i-lucide-git-branch" class="size-3 shrink-0" />
+        <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" />
         {{ depCount }}
       </span>
       <div

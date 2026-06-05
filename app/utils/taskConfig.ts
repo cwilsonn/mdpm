@@ -57,3 +57,15 @@ export const PROJECT_STATUS_SELECT_ITEMS = PROJECT_STATUS_CONFIG.map(s => ({
   value: s.id,
   chip: { color: s.color },
 }))
+
+export function slugFromPath(path: string): string {
+  return path.split('/').at(-1) ?? ''
+}
+
+export function getAssigneeNames(tasks: Array<{ assignees?: string[] }>): string[] {
+  const set = new Set<string>()
+  for (const t of tasks) {
+    for (const a of t.assignees ?? []) set.add(a)
+  }
+  return [...set].sort()
+}

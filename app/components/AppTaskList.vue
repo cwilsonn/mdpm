@@ -14,6 +14,7 @@ interface Task {
 interface Project {
   path: string
   title: string
+  icon?: string
 }
 
 const props = defineProps<{
@@ -40,17 +41,11 @@ const filterAssignees = ref<SelectItem[]>([])
 const projectSelectItems = computed(() =>
   props.projects.map(p => ({
     label: p.title,
-    value: p.path.split('/').at(-1)!,
+    value: slugFromPath(p.path),
   })),
 )
 
-const allAssignees = computed(() => {
-  const set = new Set<string>()
-  for (const t of props.tasks) {
-    for (const a of t.assignees ?? []) set.add(a)
-  }
-  return [...set].sort()
-})
+const allAssignees = computed(() => getAssigneeNames(props.tasks))
 
 const assigneeFilterItems = computed<SelectItem[]>(() =>
   allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
@@ -86,11 +81,15 @@ function sortedTasks(list: Task[]): Task[] {
 }
 
 function projectSlugOf(path: string) {
-  return path.split('/')[2]
+  return path.split('/')[2] ?? ''
 }
 
 function projectNameOf(slug: string) {
-  return props.projects.find(p => p.path.split('/').at(-1) === slug)?.title ?? slug
+  return props.projects.find(p => slugFromPath(p.path) === slug)?.title ?? slug
+}
+
+function projectIconOf(slug: string) {
+  return props.projects.find(p => slugFromPath(p.path) === slug)?.icon ?? 'i-lucide-folder-open'
 }
 
 // Filtering — empty array = no constraint
@@ -111,8 +110,9 @@ const grouped = computed(() => {
   for (const task of filtered.value) {
     const pSlug = projectSlugOf(task.path)
     if (!result[pSlug]) result[pSlug] = {}
-    if (!result[pSlug][task.status]) result[pSlug][task.status] = []
-    result[pSlug][task.status].push(task)
+    const sId = task.status ?? 'todo'
+    if (!result[pSlug][sId]) result[pSlug][sId] = []
+    result[pSlug][sId]!.push(task)
   }
   return result
 })
@@ -127,7 +127,7 @@ function projectTaskCount(pSlug: string) {
   return Object.values(grouped.value[pSlug] ?? {}).reduce((s, t) => s + t.length, 0)
 }
 
-// Collapsible state — open by default
+// Collapsible projects — open by default
 const openProjects = ref<string[]>([])
 
 watch(projectSlugs, (slugs) => {
@@ -142,25 +142,35 @@ function toggleProject(pSlug: string) {
   else openProjects.value.push(pSlug)
 }
 
+// Collapsible status subgroups — open by default, keyed as `pSlug:statusId`
+const openStatuses = ref<string[]>([])
+
+watch(grouped, (g) => {
+  for (const pSlug of Object.keys(g)) {
+    for (const statusId of Object.keys(g[pSlug] ?? {})) {
+      const key = `${pSlug}:${statusId}`
+      if (!openStatuses.value.includes(key)) openStatuses.value.push(key)
+    }
+  }
+}, { immediate: true })
+
+function statusKey(pSlug: string, statusId: string) {
+  return `${pSlug}:${statusId}`
+}
+
+function toggleStatus(pSlug: string, statusId: string) {
+  const key = statusKey(pSlug, statusId)
+  const idx = openStatuses.value.indexOf(key)
+  if (idx >= 0) openStatuses.value.splice(idx, 1)
+  else openStatuses.value.push(key)
+}
+
 // Mark done
-const markingDone = ref<string | null>(null)
+const { markingDone, markDone: _markDone } = useMarkDone()
 
 async function markDone(task: Task) {
   if (task.status === 'done') return
-  const pSlug = projectSlugOf(task.path)
-  const tSlug = task.path.split('/').at(-1)!
-  markingDone.value = task.path
-  try {
-    await $fetch(`/api/tasks/${pSlug}/${tSlug}`, {
-      method: 'PATCH',
-      body: { status: 'done' },
-    })
-    emit('refresh')
-  }
-  catch {}
-  finally {
-    markingDone.value = null
-  }
+  await _markDone(projectSlugOf(task.path), task.path, () => emit('refresh'))
 }
 
 // Edit modal
@@ -238,16 +248,12 @@ function clearFilters() {
   </div>
 
   <!-- Empty state -->
-  <div
+  <UEmpty
     v-if="!projectSlugs.length"
-    class="flex justify-center py-12"
-  >
-    <UEmpty
-      icon="i-lucide-check-circle-2"
-      title="No tasks"
-      :description="hasActiveFilter ? 'No tasks match the current filters.' : 'No tasks yet.'"
-    />
-  </div>
+    icon="i-lucide-check-circle-2"
+    title="No tasks"
+    :description="hasActiveFilter ? 'No tasks match the current filters.' : 'No tasks yet.'"
+  />
 
   <!-- Grouped list -->
   <div
@@ -261,7 +267,7 @@ function clearFilters() {
     >
       <!-- Project header -->
       <button
-        class="flex items-center gap-2 w-full px-4 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+        class="flex items-center gap-2 w-full px-4 py-2.5 hover:bg-muted transition-colors text-left border-b border-default"
         @click="toggleProject(pSlug)"
       >
         <UIcon
@@ -269,6 +275,7 @@ function clearFilters() {
           class="size-3.5 shrink-0 transition-transform duration-150"
           :class="openProjects.includes(pSlug) ? 'rotate-90' : ''"
         />
+        <UIcon :name="projectIconOf(pSlug)" class="size-4 shrink-0 text-primary" />
         <span class="font-medium text-sm flex-1 truncate">{{ projectNameOf(pSlug) }}</span>
         <UBadge
           :label="String(projectTaskCount(pSlug))"
@@ -295,18 +302,29 @@ function clearFilters() {
           v-for="statusCfg in statusesForProject(pSlug)"
           :key="statusCfg.id"
         >
-          <div class="flex items-center gap-1.5 px-4 py-1.5 bg-muted/20">
+          <button
+            class="flex items-center gap-1.5 w-full px-4 py-1.5 bg-muted hover:bg-elevated transition-colors text-left border-b border-default"
+            @click="toggleStatus(pSlug, statusCfg.id)"
+          >
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-3 shrink-0 transition-transform duration-150"
+              :class="openStatuses.includes(statusKey(pSlug, statusCfg.id)) ? 'rotate-90' : ''"
+            />
             <UIcon
               :name="statusCfg.icon"
               :class="`text-${statusCfg.color}`"
               class="size-3.5 shrink-0"
             />
             <span class="text-xs font-medium text-muted">{{ statusCfg.label }}</span>
-            <span class="text-xs text-muted">({{ grouped[pSlug][statusCfg.id].length }})</span>
-          </div>
-          <div class="divide-y divide-default/50">
+            <span class="text-xs text-muted">({{ grouped[pSlug]?.[statusCfg.id]?.length ?? 0 }})</span>
+          </button>
+          <div
+            v-if="openStatuses.includes(statusKey(pSlug, statusCfg.id))"
+            class="divide-y divide-default/50"
+          >
             <TaskDisplayLine
-              v-for="task in sortedTasks(grouped[pSlug][statusCfg.id])"
+              v-for="task in sortedTasks(grouped[pSlug]?.[statusCfg.id] ?? [])"
               :key="task.path"
               :task="task"
               :loading="markingDone === task.path"
