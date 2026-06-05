@@ -1,0 +1,397 @@
+<script setup lang="ts">
+const props = defineProps<{
+  projectSlug: string
+  initialStatus?: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked'
+  task?: {
+    path: string
+    title: string
+    status: string
+    priority: string
+    tags?: string[]
+    assignees?: string[]
+    due?: string
+    dependencies?: string[]
+  }
+}>()
+
+const emit = defineEmits<{
+  close: []
+  saved: []
+}>()
+
+const isEdit = computed(() => !!props.task)
+
+const taskPageUrl = computed(() => {
+  if (!props.task) return null
+  const tSlug = props.task.path.split('/').at(-1)!
+  return `/projects/${props.projectSlug}/tasks/${tSlug}`
+})
+
+const currentTaskSlug = computed(() => props.task?.path.split('/').at(-1) ?? null)
+
+const form = reactive({
+  title: props.task?.title ?? '',
+  status: (props.task?.status ?? props.initialStatus ?? 'todo') as 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked',
+  priority: (props.task?.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
+  tags: [...(props.task?.tags ?? [])] as string[],
+  assignees: [...(props.task?.assignees ?? [])] as string[],
+  due: props.task?.due ?? '',
+  dependencies: [...(props.task?.dependencies ?? [])] as string[],
+})
+
+type ProjectTask = { slug: string, title: string, status: string }
+const projectTasks = ref<ProjectTask[]>([])
+const dependencyItems = computed(() =>
+  projectTasks.value
+    .filter(t => t.slug !== currentTaskSlug.value)
+    .map(t => ({ label: t.title, value: t.slug })),
+)
+
+const description = ref('')
+const descriptionLoading = ref(false)
+const authorNames = ref<string[]>([])
+
+// auto-save state
+const loaded = ref(false)
+const saving = ref(false)
+const savedAt = ref<Date | null>(null)
+const saveError = ref<string | null>(null)
+const now = ref(Date.now())
+let ticker: ReturnType<typeof setInterval> | null = null
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+const savedAgo = computed(() => {
+  if (!savedAt.value) return null
+  const diff = Math.floor((now.value - savedAt.value.getTime()) / 1000)
+  if (diff < 10) return 'just now'
+  if (diff < 60) return `${diff}s ago`
+  return `${Math.floor(diff / 60)}m ago`
+})
+
+onMounted(async () => {
+  $fetch<{ name: string }[]>('/api/authors').then((data) => {
+    authorNames.value = data.map(a => a.name)
+  })
+
+  $fetch<ProjectTask[]>(`/api/tasks/${props.projectSlug}`).then((data) => {
+    projectTasks.value = data
+  })
+
+  if (isEdit.value && props.task) {
+    const tSlug = props.task.path.split('/').at(-1)!
+    descriptionLoading.value = true
+    try {
+      const raw = await $fetch<{ body: string }>(`/api/tasks/${props.projectSlug}/${tSlug}`)
+      description.value = raw.body ?? ''
+    }
+    catch {}
+    finally {
+      descriptionLoading.value = false
+    }
+  }
+
+  loaded.value = true
+
+  if (isEdit.value) {
+    ticker = setInterval(() => now.value = Date.now(), 5000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (ticker) clearInterval(ticker)
+  if (saveTimer) flushSave()
+})
+
+function scheduleSave() {
+  if (!isEdit.value || !loaded.value) return
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => flushSave(), 800)
+}
+
+async function flushSave() {
+  if (!isEdit.value || !loaded.value || saving.value) return
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+  saving.value = true
+  saveError.value = null
+  try {
+    const slug = props.task!.path.split('/').at(-1)
+    await $fetch(`/api/tasks/${props.projectSlug}/${slug}`, {
+      method: 'PATCH',
+      body: {
+        title: form.title,
+        status: form.status,
+        priority: form.priority,
+        tags: form.tags,
+        assignees: form.assignees,
+        due: form.due || undefined,
+        dependencies: form.dependencies,
+        description: description.value,
+      },
+    })
+    savedAt.value = new Date()
+  }
+  catch (e: unknown) {
+    saveError.value = (e as { data?: { message?: string } })?.data?.message ?? 'Save failed'
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+watch(() => form.title, () => scheduleSave())
+watch(() => form.status, () => flushSave())
+watch(() => form.priority, () => flushSave())
+watch(() => form.due, () => flushSave())
+watch(() => form.tags, () => flushSave(), { deep: true })
+watch(() => form.assignees, () => flushSave(), { deep: true })
+watch(() => form.dependencies, () => flushSave(), { deep: true })
+watch(description, () => scheduleSave())
+
+// create mode
+const creating = ref(false)
+const createError = ref<string | null>(null)
+
+async function handleCreateAuthor(name: string) {
+  try {
+    await $fetch('/api/authors', { method: 'POST', body: { name } })
+    if (!authorNames.value.includes(name)) authorNames.value.push(name)
+    if (!form.assignees.includes(name)) form.assignees.push(name)
+  }
+  catch {}
+}
+
+async function create() {
+  creating.value = true
+  createError.value = null
+  try {
+    await $fetch('/api/tasks', {
+      method: 'POST',
+      body: {
+        project: props.projectSlug,
+        title: form.title,
+        status: form.status,
+        priority: form.priority,
+        tags: form.tags,
+        assignees: form.assignees,
+        due: form.due || undefined,
+        dependencies: form.dependencies,
+        description: description.value,
+      },
+    })
+    emit('saved')
+  }
+  catch (e: unknown) {
+    createError.value = (e as { data?: { message?: string } })?.data?.message ?? 'An error occurred'
+  }
+  finally {
+    creating.value = false
+  }
+}
+</script>
+
+<template>
+  <UModal
+    :open="true"
+    :ui="{ content: 'max-w-2xl' }"
+    @update:open="$emit('close')"
+  >
+    <template #title>
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="truncate">{{ isEdit ? 'Edit Task' : 'New Task' }}</span>
+        <UButton
+          v-if="isEdit && taskPageUrl"
+          :to="taskPageUrl"
+          icon="i-lucide-arrow-up-right"
+          label="Full page"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="shrink-0"
+        />
+      </div>
+    </template>
+
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          v-if="createError"
+          :description="createError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+        />
+
+        <UFormField
+          label="Title"
+          required
+        >
+          <UInput
+            v-model="form.title"
+            placeholder="Task title"
+            class="w-full"
+            autofocus
+          />
+        </UFormField>
+
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField label="Status">
+            <USelect
+              v-model="form.status"
+              :items="STATUS_SELECT_ITEMS"
+              value-key="value"
+              class="w-full"
+            >
+              <template #leading>
+                <UIcon
+                  v-if="STATUS_MAP[form.status]"
+                  :name="STATUS_MAP[form.status].icon"
+                  :class="`text-${STATUS_MAP[form.status].color}`"
+                  class="size-4 shrink-0"
+                />
+              </template>
+              <template #item-leading="{ item }">
+                <UIcon
+                  :name="item.icon"
+                  :class="`text-${item.color}`"
+                  class="size-4 shrink-0"
+                />
+              </template>
+            </USelect>
+          </UFormField>
+
+          <UFormField label="Priority">
+            <USelect
+              v-model="form.priority"
+              :items="PRIORITY_SELECT_ITEMS"
+              value-key="value"
+              class="w-full"
+            >
+              <template #leading>
+                <UIcon
+                  v-if="PRIORITY_MAP[form.priority]"
+                  :name="PRIORITY_MAP[form.priority].icon"
+                  :class="`text-${PRIORITY_MAP[form.priority].color}`"
+                  class="size-4 shrink-0"
+                />
+              </template>
+              <template #item-leading="{ item }">
+                <UIcon
+                  :name="item.icon"
+                  :class="`text-${item.color}`"
+                  class="size-4 shrink-0"
+                />
+              </template>
+            </USelect>
+          </UFormField>
+        </div>
+
+        <UFormField label="Due Date">
+          <UInput
+            v-model="form.due"
+            type="date"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Assignees">
+          <UInputMenu
+            v-model="form.assignees"
+            :items="authorNames"
+            multiple
+            placeholder="Select or create assignees…"
+            class="w-full"
+            :create-item="{ position: 'bottom' }"
+            @create="handleCreateAuthor"
+          >
+            <template #item-leading="{ item }">
+              <UAvatar
+                :alt="item"
+                size="2xs"
+              />
+            </template>
+          </UInputMenu>
+        </UFormField>
+
+        <UFormField
+          v-if="dependencyItems.length"
+          label="Dependencies"
+        >
+          <USelect
+            v-model="form.dependencies"
+            :items="dependencyItems"
+            value-key="value"
+            multiple
+            placeholder="Select blocking tasks…"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Tags">
+          <UInputTags
+            v-model="form.tags"
+            placeholder="Add tags…"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Description">
+          <div
+            v-if="descriptionLoading"
+            class="flex items-center gap-2 py-4 text-sm text-muted"
+          >
+            <UIcon
+              name="i-lucide-loader-2"
+              class="size-4 animate-spin"
+            />
+            Loading…
+          </div>
+          <AppInputRichText
+            v-else
+            v-model="description"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+    </template>
+
+    <template #footer>
+      <div
+        v-if="isEdit"
+        class="flex items-center gap-1.5 w-full text-xs text-muted"
+      >
+        <UIcon
+          v-if="saving"
+          name="i-lucide-loader-2"
+          class="size-3.5 animate-spin shrink-0"
+        />
+        <UIcon
+          v-else-if="saveError"
+          name="i-lucide-triangle-alert"
+          class="size-3.5 shrink-0 text-error"
+        />
+        <UIcon
+          v-else-if="savedAt"
+          name="i-lucide-check"
+          class="size-3.5 shrink-0 text-success"
+        />
+        <span :class="saveError ? 'text-error' : ''">
+          <template v-if="saving">Saving…</template>
+          <template v-else-if="saveError">{{ saveError }}</template>
+          <template v-else-if="savedAt">Saved {{ savedAgo }}</template>
+          <template v-else>Changes save automatically</template>
+        </span>
+      </div>
+      <div
+        v-else
+        class="flex justify-end w-full"
+      >
+        <UButton
+          label="Create Task"
+          :loading="creating"
+          :disabled="!form.title.trim()"
+          @click="create"
+        />
+      </div>
+    </template>
+  </UModal>
+</template>

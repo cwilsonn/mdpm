@@ -1,0 +1,49 @@
+import { existsSync, readdirSync } from 'node:fs'
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody<{
+    project: string
+    title: string
+    status?: string
+    priority?: string
+    tags?: string[]
+    assignees?: string[]
+    due?: string
+    dependencies?: string[]
+    description?: string
+  }>(event)
+
+  if (!body.project) throw createError({ statusCode: 400, message: 'Project is required' })
+  if (!body.title?.trim()) throw createError({ statusCode: 400, message: 'Title is required' })
+
+  if (!existsSync(contentPath('projects', body.project))) {
+    throw createError({ statusCode: 404, message: 'Project not found' })
+  }
+
+  const base = slugify(body.title)
+  if (!base) throw createError({ statusCode: 400, message: 'Title produces an empty slug' })
+
+  const slug = uniqueSlug(
+    base,
+    s => existsSync(contentPath('projects', body.project, 'tasks', `${s}.md`)),
+  )
+
+  const tasksDir = contentPath('projects', body.project, 'tasks')
+  const existingCount = existsSync(tasksDir)
+    ? readdirSync(tasksDir).filter(f => f.endsWith('.md')).length
+    : 0
+
+  writeMarkdown(`projects/${body.project}/tasks/${slug}.md`, {
+    title: body.title.trim(),
+    status: body.status ?? 'todo',
+    priority: body.priority ?? 'medium',
+    tags: body.tags ?? [],
+    assignees: body.assignees ?? [],
+    ...(body.due ? { due: body.due } : {}),
+    dependencies: body.dependencies ?? [],
+    createdAt: new Date().toISOString().split('T')[0],
+    order: existingCount,
+  }, body.description ?? '')
+
+  return { slug }
+})

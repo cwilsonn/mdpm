@@ -1,0 +1,36 @@
+{
+  "name": "mdpm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "TMPDIR=/tmp nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.102",
+    "@nuxt/content": "^3.14.0",
+    "@nuxt/ui": "^4.6.1",
+    "@tiptap/pm": "^3.26.0",
+    "@tiptap/starter-kit": "^3.26.0",
+    "@tiptap/vue-3": "^3.26.0",
+    "better-sqlite3": "^12.10.0",
+    "gray-matter": "^4.0.3",
+    "nuxt": "^4.4.2",
+    "tailwindcss": "^4.3.0",
+    "vue-draggable-plus": "^0.6.1"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.102",
+    "@types/better-sqlite3": "^7.6.13",
+    "typescript": "^5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "sqlite3"
+    ]
+  }
+}
