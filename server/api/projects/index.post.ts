@@ -1,4 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+
+const PROJECT_LIMIT = 10
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
@@ -11,6 +13,14 @@ export default defineEventHandler(async (event) => {
 
   if (!body.title?.trim()) {
     throw createError({ statusCode: 400, message: 'Title is required' })
+  }
+
+  const projectsDir = contentPath('projects')
+  const projectCount = existsSync(projectsDir)
+    ? readdirSync(projectsDir, { withFileTypes: true }).filter(e => e.isDirectory()).length
+    : 0
+  if (projectCount >= PROJECT_LIMIT) {
+    throw createError({ statusCode: 429, message: `Demo limit reached: max ${PROJECT_LIMIT} projects allowed.` })
   }
 
   const base = slugify(body.title)

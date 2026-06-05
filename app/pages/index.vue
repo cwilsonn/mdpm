@@ -49,7 +49,7 @@ function handleStatClick(stat: typeof stats.value[0]) {
     icon="i-lucide-layout-dashboard"
     :empty="!(projects?.length ?? 0)"
     :empty-state="{
-      icon: 'i-lucide-folder',
+      icon: 'i-lucide-folder-plus',
       title: 'No projects yet',
       description: 'Create your first project to get started.',
       actions: [

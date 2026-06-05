@@ -15,9 +15,17 @@ export default defineNuxtConfig({
       ],
     },
   },
+  nitro: {
+    experimental: {
+      tasks: true,
+    },
+    scheduledTasks: {
+      '0 * * * *': ['reset'],
+    },
+  },
   vite: {
     optimizeDeps: {
-      include: []
-    }
+      include: [],
+    },
   }
 })
