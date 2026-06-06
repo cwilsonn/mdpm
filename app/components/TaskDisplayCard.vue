@@ -50,21 +50,21 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
       />
       <UButton
         v-if="task.status !== 'done'"
-        icon="i-lucide-check"
-        color="success"
+        icon="i-lucide-circle"
+        color="neutral"
         variant="ghost"
         size="xs"
-        class="opacity-30 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
+        class="opacity-30 group-hover:opacity-100 group-hover:text-success transition-opacity shrink-0 -mt-0.5 -mr-1"
         title="Mark done"
         @click.stop="emit('mark-done')"
       />
       <UButton
         v-else
-        icon="i-lucide-rotate-ccw"
-        color="neutral"
+        icon="i-lucide-check-circle-2"
+        color="success"
         variant="ghost"
         size="xs"
-        class="opacity-30 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
+        class="opacity-60 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         title="Re-open"
         @click.stop="emit('reopen')"
       />

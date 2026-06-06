@@ -430,7 +430,7 @@ const mobileActions = computed(() => [
           v-for="col in visibleColumns"
           :key="col.id"
         >
-          <div v-if="columns[col.id].length">
+          <div>
             <button
               class="flex items-center gap-2 w-full py-2 px-1 hover:bg-muted/50 rounded transition-colors text-left"
               @click="toggleListStatus(col.id)"
