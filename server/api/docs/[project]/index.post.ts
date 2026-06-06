@@ -1,4 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+
+const DOC_LIMIT_PER_PROJECT = 20
 
 export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
@@ -7,6 +9,14 @@ export default defineEventHandler(async (event) => {
   if (!body.title?.trim()) throw createError({ statusCode: 400, message: 'Title is required' })
   if (!existsSync(contentPath('projects', project))) {
     throw createError({ statusCode: 404, message: 'Project not found' })
+  }
+
+  const docsDir = contentPath('projects', project, 'docs')
+  const docCount = existsSync(docsDir)
+    ? readdirSync(docsDir).filter(f => f.endsWith('.md')).length
+    : 0
+  if (docCount >= DOC_LIMIT_PER_PROJECT) {
+    throw createError({ statusCode: 429, message: `Demo limit reached: max ${DOC_LIMIT_PER_PROJECT} docs per project.` })
   }
 
   const base = slugify(body.title)

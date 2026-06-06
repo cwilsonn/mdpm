@@ -1,6 +1,7 @@
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')!
+  assertSafeSlug(slug)
   const body = await readBody<{
     title?: string
     status?: string
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const updated = {
     ...file.data,
     ...Object.fromEntries(
-      Object.entries(body).filter(([, v]) => v !== undefined),
+      Object.entries(body).filter(([, v]) => v !== undefined && v !== null),
     ),
     updatedAt: new Date().toISOString(),
   }

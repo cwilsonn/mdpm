@@ -207,6 +207,7 @@ function openCreateTask(status: ColId = 'todo') {
 
 const taskToDelete = ref<string | null>(null)
 const deleting = ref(false)
+const toast = useToast()
 
 function confirmDeleteTask(tSlug: string) {
   taskToDelete.value = tSlug
@@ -219,6 +220,9 @@ async function deleteTask() {
     await $fetch(`/api/tasks/${slug.value}/${taskToDelete.value}`, { method: 'DELETE' })
     await refreshTasks()
     taskToDelete.value = null
+  }
+  catch {
+    toast.add({ title: 'Failed to delete task', color: 'error' })
   }
   finally {
     deleting.value = false
@@ -251,6 +255,7 @@ const tabs = computed(() => [
           size="sm"
           :ui="{ base: 'rounded-none' }"
           title="Kanban"
+          aria-label="Switch to kanban view"
           @click="taskView = 'kanban'"
         />
         <UButton
@@ -260,6 +265,7 @@ const tabs = computed(() => [
           size="sm"
           :ui="{ base: 'rounded-none' }"
           title="List"
+          aria-label="Switch to list view"
           @click="taskView = 'list'"
         />
       </div>
@@ -354,7 +360,7 @@ const tabs = computed(() => [
         <div
           v-for="col in visibleColumns"
           :key="col.id"
-          class="flex flex-col flex-none w-72 min-h-0"
+          class="flex flex-col flex-none w-64 sm:w-72 min-h-0"
         >
           <!-- Column header -->
           <div class="flex items-center gap-2 mb-2 px-1">

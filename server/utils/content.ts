@@ -27,6 +27,14 @@ export function deleteContent(relPath: string) {
   if (existsSync(full)) rmSync(full, { recursive: true, force: true })
 }
 
+export function assertSafeSlug(...slugs: string[]) {
+  for (const s of slugs) {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(s) && s !== '') {
+      throw createError({ statusCode: 400, message: `Invalid slug: "${s}"` })
+    }
+  }
+}
+
 export function slugify(text: string) {
   return text
     .toLowerCase()

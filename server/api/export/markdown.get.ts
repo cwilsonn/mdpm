@@ -79,7 +79,9 @@ export default defineEventHandler((event) => {
         })
       }
 
-      const presentStatuses = STATUS_ORDER.filter(s => tasksByStatus[s]?.length)
+      const knownStatuses = STATUS_ORDER.filter(s => tasksByStatus[s]?.length)
+      const unknownStatuses = Object.keys(tasksByStatus).filter(s => !STATUS_ORDER.includes(s))
+      const presentStatuses = [...knownStatuses, ...unknownStatuses]
 
       for (const s of presentStatuses) {
         lines.push(`### ${STATUS_LABELS[s] ?? s}`)
