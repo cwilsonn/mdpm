@@ -37,7 +37,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
       variant="ghost"
       size="sm"
       class="opacity-30 group-hover:opacity-100 group-hover:text-success transition-opacity shrink-0"
-      title="Mark done"
+      aria-label="Mark done"
       @click.stop="emit('mark-done')"
     />
     <UButton
@@ -47,7 +47,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
       variant="ghost"
       size="sm"
       class="opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
-      title="Re-open"
+      aria-label="Re-open task"
       @click.stop="emit('reopen')"
     />
 
@@ -119,6 +119,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         variant="ghost"
         size="sm"
         class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0"
+        aria-label="Delete task"
         @click.stop="emit('delete')"
       />
     </div>

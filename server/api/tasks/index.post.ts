@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   }>(event)
 
   if (!body.project) throw createError({ statusCode: 400, message: 'Project is required' })
+  assertSafeSlug(body.project)
   if (!body.title?.trim()) throw createError({ statusCode: 400, message: 'Title is required' })
 
   if (!existsSync(contentPath('projects', body.project))) {

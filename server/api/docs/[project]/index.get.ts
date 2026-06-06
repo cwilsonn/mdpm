@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs'
 
 export default defineEventHandler((event) => {
   const project = getRouterParam(event, 'project')!
+  assertSafeSlug(project)
   const docsDir = contentPath('projects', project, 'docs')
   if (!existsSync(docsDir)) return []
 

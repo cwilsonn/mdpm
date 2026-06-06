@@ -1,6 +1,7 @@
 export default defineEventHandler((event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
+  assertSafeSlug(project, slug)
   const file = readMarkdown(`projects/${project}/docs/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Doc not found' })
   return {

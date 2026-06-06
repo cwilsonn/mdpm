@@ -1,6 +1,7 @@
 export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
+  assertSafeSlug(project, slug)
   const body = await readBody<{ title?: string; tags?: string[]; body?: string }>(event)
 
   const file = readMarkdown(`projects/${project}/docs/${slug}.md`)
