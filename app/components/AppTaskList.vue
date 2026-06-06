@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { VueDraggable } from 'vue-draggable-plus'
-
 interface Task {
   path: string
   title: string
@@ -363,64 +361,25 @@ function clearFilters() {
         v-if="openProjects.includes(pSlug)"
         class="divide-y divide-default"
       >
-        <div
+        <AppTaskStatusGroup
           v-for="statusCfg in statusesForProject(pSlug)"
           :key="statusCfg.id"
-        >
-          <button
-            class="flex items-center gap-1.5 w-full px-4 py-2.5 bg-muted hover:bg-elevated transition-colors text-left border-b border-default"
-            @click="toggleStatus(pSlug, statusCfg.id)"
-          >
-            <UIcon
-              name="i-lucide-chevron-right"
-              class="size-3 shrink-0 transition-transform duration-150"
-              :class="openStatuses.includes(statusKey(pSlug, statusCfg.id)) ? 'rotate-90' : ''"
-            />
-            <UIcon
-              :name="statusCfg.icon"
-              :class="`text-${statusCfg.color}`"
-              class="size-3.5 shrink-0"
-            />
-            <span class="text-xs font-medium text-muted">{{ statusCfg.label }}</span>
-            <span class="text-xs text-muted">({{ draggableGroups[pSlug]?.[statusCfg.id]?.length ?? 0 }})</span>
-          </button>
-          <VueDraggable
-            v-if="openStatuses.includes(statusKey(pSlug, statusCfg.id))"
-            v-model="draggableGroups[pSlug]![statusCfg.id]!"
-            :group="{ name: `tasks-${pSlug}`, pull: true, put: true }"
-            :sort="sortBy === 'manual'"
-            :animation="150"
-            class="divide-y divide-default/50 min-h-[2rem]"
-            ghost-class="opacity-40"
-            filter=".drag-ignore"
-            @start="isDragging = true"
-            @end="isDragging = false"
-            @add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
-            @update="() => onGroupUpdate(pSlug)"
-          >
-            <div
-              v-if="!(draggableGroups[pSlug]?.[statusCfg.id]?.length) && !isDragging"
-              class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
-            >
-              No tasks
-            </div>
-            <TaskDisplayLine
-              v-for="task in draggableGroups[pSlug]?.[statusCfg.id] ?? []"
-              :key="task.path"
-              :task="task"
-              :loading="markingDone === task.path"
-              @click="editingTask = task"
-              @mark-done="markDone(task)"
-            />
-          </VueDraggable>
-          <div
-            v-else
-            class="border-b border-default/50"
-            :class="isDragging ? 'min-h-[2rem]' : ''"
-            @dragenter.prevent="openStatuses.push(statusKey(pSlug, statusCfg.id))"
-            @dragover.prevent
-          />
-        </div>
+          v-model="draggableGroups[pSlug]![statusCfg.id]!"
+          :status-cfg="statusCfg"
+          :group="`tasks-${pSlug}`"
+          :is-open="openStatuses.includes(statusKey(pSlug, statusCfg.id))"
+          :is-dragging="isDragging"
+          :sort="sortBy === 'manual'"
+          :loading-path="markingDone"
+          muted
+          @toggle="toggleStatus(pSlug, statusCfg.id)"
+          @drag-start="isDragging = true"
+          @drag-end="isDragging = false"
+          @drag-add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
+          @drag-update="onGroupUpdate(pSlug)"
+          @task-click="editingTask = $event"
+          @mark-done="markDone($event)"
+        />
       </div>
     </UCard>
   </div>

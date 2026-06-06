@@ -436,81 +436,27 @@ const mobileActions = computed(() => [
         class="overflow-y-auto flex-1 min-h-0"
         :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
       >
-        <template
+        <AppTaskStatusGroup
           v-for="col in visibleColumns"
           :key="col.id"
-        >
-          <div>
-            <button
-              class="flex items-center gap-2 w-full py-2 px-1 hover:bg-muted/50 rounded transition-colors text-left"
-              @click="toggleListStatus(col.id)"
-            >
-              <UIcon
-                name="i-lucide-chevron-right"
-                class="size-3.5 shrink-0 transition-transform duration-150"
-                :class="openListStatuses.includes(col.id) ? 'rotate-90' : ''"
-              />
-              <UIcon
-                :name="col.icon"
-                class="size-4 shrink-0"
-                :class="`text-${col.color}`"
-              />
-              <span class="text-sm font-medium">{{ col.label }}</span>
-              <UBadge
-                :label="String(columns[col.id].length)"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-              />
-              <UButton
-                icon="i-lucide-plus"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="ml-auto"
-                :tooltip="{ text: `Add ${col.label} task` }"
-                @click.stop="openCreateTask(col.id)"
-              />
-            </button>
-            <VueDraggable
-              v-if="openListStatuses.includes(col.id)"
-              v-model="columns[col.id]"
-              :group="{ name: 'tasks', pull: true, put: true }"
-              :animation="150"
-              class="divide-y divide-default/50 min-h-[2rem]"
-              ghost-class="opacity-40"
-              filter=".drag-ignore"
-              @start="isDragging = true"
-              @end="isDragging = false"
-              @add="(e) => onColumnAdd(col.id, e)"
-              @update="onColumnUpdate"
-            >
-              <div
-                v-if="!columns[col.id].length && !isDragging"
-                class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
-              >
-                No tasks
-              </div>
-              <TaskDisplayLine
-                v-for="task in columns[col.id]"
-                :key="task.path"
-                :task="(task as any)"
-                :loading="markingDone === task.path"
-                @click="editTask = task"
-                @mark-done="markTaskDone(slugFromPath(task.path))"
-                @reopen="reopenTask(slugFromPath(task.path))"
-                @delete="confirmDeleteTask(slugFromPath(task.path))"
-              />
-            </VueDraggable>
-            <div
-              v-else
-              class="border-b border-default"
-              :class="isDragging ? 'min-h-[2rem]' : ''"
-              @dragenter.prevent="openListStatuses.push(col.id)"
-              @dragover.prevent
-            />
-          </div>
-        </template>
+          v-model="columns[col.id]"
+          :status-cfg="col"
+          group="tasks"
+          :is-open="openListStatuses.includes(col.id)"
+          :is-dragging="isDragging"
+          :loading-path="markingDone"
+          show-add-button
+          @toggle="toggleListStatus(col.id)"
+          @drag-start="isDragging = true"
+          @drag-end="isDragging = false"
+          @drag-add="(e) => onColumnAdd(col.id, e)"
+          @drag-update="onColumnUpdate"
+          @add-task="openCreateTask(col.id)"
+          @task-click="editTask = ($event as unknown as Task)"
+          @mark-done="markTaskDone(slugFromPath($event.path))"
+          @reopen="reopenTask(slugFromPath($event.path))"
+          @delete="confirmDeleteTask(slugFromPath($event.path))"
+        />
         <div
           v-if="!totalVisible"
           class="flex items-center justify-center py-12 text-sm text-muted"
