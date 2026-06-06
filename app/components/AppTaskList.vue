@@ -192,6 +192,7 @@ function toggleStatus(pSlug: string, statusId: string) {
 
 // Drag handlers
 const toast = useToast()
+const isDragging = ref(false)
 
 async function persistProjectOrder(pSlug: string) {
   const order: Record<string, string[]> = {}
@@ -392,6 +393,8 @@ function clearFilters() {
             class="divide-y divide-default/50 min-h-[2rem]"
             ghost-class="opacity-40"
             filter=".drag-ignore"
+            @start="isDragging = true"
+            @end="isDragging = false"
             @add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
             @update="() => onGroupUpdate(pSlug)"
           >
@@ -412,7 +415,8 @@ function clearFilters() {
           </VueDraggable>
           <div
             v-else
-            class="border-b border-default/50 min-h-[2rem]"
+            class="border-b border-default/50"
+            :class="isDragging ? 'min-h-[2rem]' : ''"
             @dragenter.prevent="openStatuses.push(statusKey(pSlug, statusCfg.id))"
             @dragover.prevent
           />

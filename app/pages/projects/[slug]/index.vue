@@ -174,6 +174,7 @@ const editTask = ref<Task | null>(null)
 
 const taskView = ref<'kanban' | 'list'>('kanban')
 const mounted = ref(false)
+const isDragging = ref(false)
 
 function taskViewKey(s: string) { return `mdpm:task-view:${s}` }
 
@@ -403,6 +404,8 @@ const mobileActions = computed(() => [
             class="flex flex-col gap-2 flex-1 rounded-xl p-2 bg-muted min-h-24 overflow-y-auto"
             ghost-class="opacity-40"
             filter=".drag-ignore"
+            @start="isDragging = true"
+            @end="isDragging = false"
             @add="(e) => onColumnAdd(col.id, e)"
             @update="onColumnUpdate"
           >
@@ -477,6 +480,8 @@ const mobileActions = computed(() => [
               class="divide-y divide-default/50 min-h-[2rem]"
               ghost-class="opacity-40"
               filter=".drag-ignore"
+              @start="isDragging = true"
+              @end="isDragging = false"
               @add="(e) => onColumnAdd(col.id, e)"
               @update="onColumnUpdate"
             >
@@ -499,7 +504,8 @@ const mobileActions = computed(() => [
             </VueDraggable>
             <div
               v-else
-              class="border-b border-default min-h-[2rem]"
+              class="border-b border-default"
+              :class="isDragging ? 'min-h-[2rem]' : ''"
               @dragenter.prevent="openListStatuses.push(col.id)"
               @dragover.prevent
             />
