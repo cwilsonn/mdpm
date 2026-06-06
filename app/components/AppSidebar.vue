@@ -5,7 +5,10 @@ const { data: projects } = await useAsyncData('sidebar-projects', () =>
 
 const navigation = computed(() => [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
-  ...(projects.value?.length ? [{ label: 'Tasks', icon: 'i-lucide-list-checks', to: '/tasks' }] : []),
+  ...(projects.value?.length ? [
+    { label: 'Tasks', icon: 'i-lucide-list-checks', to: '/tasks' },
+    { label: 'Docs', icon: 'i-lucide-book-open', to: '/docs' },
+  ] : []),
   {
     label: 'Projects',
     icon: 'i-lucide-notebook',

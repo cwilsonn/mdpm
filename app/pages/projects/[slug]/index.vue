@@ -177,10 +177,15 @@ const breadcrumb = computed(() => [
   { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
   { label: project.value?.title ?? slug.value, icon: (project.value as any)?.icon || undefined },
 ])
+
+const tabs = computed(() => [
+  { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${slug.value}`, exact: true },
+  { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${slug.value}/docs` },
+])
 </script>
 
 <template>
-  <AppPageBase :breadcrumb="breadcrumb">
+  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs">
     <template #actions>
       <UButton
         label="Edit Project"

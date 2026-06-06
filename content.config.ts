@@ -23,6 +23,16 @@ export default defineContentConfig({
         updatedAt: z.string().optional(),
       }),
     }),
+    docs: defineCollection({
+      type: 'page',
+      source: 'projects/*/docs/*.md',
+      schema: z.object({
+        title: z.string(),
+        tags: z.array(z.string()).default([]),
+        createdAt: z.string(),
+        updatedAt: z.string().optional(),
+      }),
+    }),
     tasks: defineCollection({
       type: 'page',
       source: 'projects/*/tasks/*.md',

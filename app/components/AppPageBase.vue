@@ -10,6 +10,13 @@ export interface PageAction {
   onSelect?: () => void
 }
 
+export interface PageTab {
+  label: string
+  icon?: string
+  to: string
+  exact?: boolean
+}
+
 export interface PageBreadcrumbItem {
   label: string
   to?: string
@@ -22,12 +29,14 @@ const props = withDefaults(defineProps<{
   breadcrumb?: PageBreadcrumbItem[]
   backTo?: string
   actions?: PageAction[]
+  tabs?: PageTab[]
   loading?: boolean
   error?: string | null
   empty?: boolean
   emptyState?: Record<string, unknown>
 }>(), {
   actions: () => [],
+  tabs: () => [],
   loading: false,
   error: null,
   empty: false,
@@ -130,6 +139,14 @@ const normalizedEmptyProps = computed(() => ({
           <slot name="right" />
         </template>
       </UDashboardNavbar>
+
+      <UNavigationMenu
+        v-if="tabs.length"
+        :items="tabs"
+        highlight
+        pill
+        class="border-b border-default px-2 sm:px-4"
+      />
     </template>
 
     <template #body>

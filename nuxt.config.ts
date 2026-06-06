@@ -3,6 +3,10 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   compatibilityDate: '2025-01-15',
   devtools: { enabled: true },
+  devServer: {
+    port: 3333,
+    host: 'mdpm.local',
+  },
   future: { compatibilityVersion: 4 },
   app: {
     head: {
@@ -19,9 +23,11 @@ export default defineNuxtConfig({
     experimental: {
       tasks: true,
     },
-    scheduledTasks: {
-      '0 * * * *': ['reset'],
-    },
+    ...(process.env.NODE_ENV === 'production' && {
+      scheduledTasks: {
+        '0 * * * *': ['reset'],
+      },
+    }),
   },
   vite: {
     optimizeDeps: {
