@@ -66,12 +66,21 @@ const breadcrumb = computed(() => [
   { label: projectSlug.value, to: `/projects/${projectSlug.value}`, icon: 'i-lucide-folder-open' },
   { label: task.value?.title ?? taskSlug.value },
 ])
+
+const mobileActions = computed(() => [
+  task.value?.status !== 'done'
+    ? { label: 'Complete', icon: 'i-lucide-check-circle', color: 'success' as const, onSelect: () => setStatus('done') }
+    : { label: 'Re-open', icon: 'i-lucide-rotate-ccw', color: 'neutral' as const, onSelect: () => setStatus('todo') },
+  { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => { showEdit.value = true } },
+  { label: 'Delete', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { showDeleteConfirm.value = true } },
+])
 </script>
 
 <template>
   <AppPageBase
     :breadcrumb="breadcrumb"
     :back-to="`/projects/${projectSlug}`"
+    :mobile-actions="mobileActions"
   >
     <template #actions>
       <UButton

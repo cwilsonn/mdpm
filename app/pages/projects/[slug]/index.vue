@@ -135,8 +135,8 @@ async function persistOrder() {
   })
 }
 
-async function onColumnAdd(colId: ColId, evt: { newIndex: number }) {
-  const task = columns[colId][evt.newIndex]
+async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
+  const task = columns[colId][evt.newIndex ?? 0]
   if (!task) return
   const tSlug = slugFromPath(task.path)
   task.status = colId
@@ -241,10 +241,18 @@ const tabs = computed(() => [
   { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${slug.value}`, exact: true },
   { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${slug.value}/docs` },
 ])
+
+const mobileActions = computed(() => [
+  taskView.value !== 'kanban'
+    ? { label: 'Kanban view', icon: 'i-lucide-kanban', onSelect: () => { taskView.value = 'kanban' } }
+    : { label: 'List view', icon: 'i-lucide-list', onSelect: () => { taskView.value = 'list' } },
+  { label: 'New Task', icon: 'i-lucide-plus', onSelect: () => openCreateTask() },
+  { label: 'Edit Project', icon: 'i-lucide-pencil', onSelect: () => { showEditProject.value = true } },
+])
 </script>
 
 <template>
-  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs" full-height>
+  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs" :mobile-actions="mobileActions" full-height>
     <template #actions>
       <USkeleton v-if="!mounted" class="h-8 w-[5.5rem] rounded-md shrink-0" />
       <div v-else class="flex rounded-md border border-default overflow-hidden shrink-0">
@@ -454,9 +462,15 @@ const tabs = computed(() => [
                 @click.stop="openCreateTask(col.id)"
               />
             </button>
-            <div
+            <VueDraggable
               v-if="openListStatuses.includes(col.id)"
-              class="divide-y divide-default/50"
+              v-model="columns[col.id]"
+              :group="{ name: 'tasks', pull: true, put: true }"
+              :animation="150"
+              class="divide-y divide-default/50 min-h-[2rem]"
+              ghost-class="opacity-40"
+              @add="(e) => onColumnAdd(col.id, e)"
+              @update="onColumnUpdate"
             >
               <TaskDisplayLine
                 v-for="task in columns[col.id]"
@@ -468,7 +482,7 @@ const tabs = computed(() => [
                 @reopen="reopenTask(slugFromPath(task.path))"
                 @delete="confirmDeleteTask(slugFromPath(task.path))"
               />
-            </div>
+            </VueDraggable>
             <div
               v-else
               class="border-b border-default"

@@ -46,10 +46,14 @@ const tabs = computed(() => [
   { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${slug.value}`, exact: true },
   { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${slug.value}/docs` },
 ])
+
+const mobileActions = [
+  { label: 'New Doc', icon: 'i-lucide-plus', onSelect: () => { showCreateDoc.value = true } },
+]
 </script>
 
 <template>
-  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs">
+  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs" :mobile-actions="mobileActions">
     <template #actions>
       <UButton
         label="New Doc"

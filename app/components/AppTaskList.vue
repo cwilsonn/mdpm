@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { VueDraggable } from 'vue-draggable-plus'
+
 interface Task {
   path: string
   title: string
@@ -55,6 +57,7 @@ const assigneeFilterItems = computed<SelectItem[]>(() =>
 
 // Sort
 const SORT_ITEMS = [
+  { label: 'Manual', value: 'manual' },
   { label: 'Priority', value: 'priority' },
   { label: 'Due Date', value: 'due' },
   { label: 'Title', value: 'title' },
@@ -64,6 +67,9 @@ const sortBy = ref('priority')
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
 
 function sortedTasks(list: Task[], statusId?: string): Task[] {
+  if (sortBy.value === 'manual') {
+    return [...list].sort((a, b) => ((a.order as number) ?? 0) - ((b.order as number) ?? 0))
+  }
   if (statusId === 'done') {
     return [...list].sort((a, b) =>
       ((b.updatedAt as string) ?? '').localeCompare((a.updatedAt as string) ?? ''),
@@ -111,27 +117,39 @@ const filtered = computed(() => {
   return t
 })
 
-// Grouping: projectSlug → statusId → tasks[]
-const grouped = computed(() => {
-  const result: Record<string, Record<string, Task[]>> = {}
-  for (const task of filtered.value) {
+// Mutable drag state — rebuilt when filter/sort changes
+type TaskGroups = Record<string, Record<string, Task[]>>
+const draggableGroups = ref<TaskGroups>({})
+
+function buildGroups(tasks: Task[]): TaskGroups {
+  const result: TaskGroups = {}
+  for (const task of tasks) {
     const pSlug = projectSlugOf(task.path)
     if (!result[pSlug]) result[pSlug] = {}
     const sId = task.status ?? 'todo'
     if (!result[pSlug][sId]) result[pSlug][sId] = []
     result[pSlug][sId]!.push(task)
   }
+  for (const pSlug of Object.keys(result)) {
+    for (const sId of Object.keys(result[pSlug]!)) {
+      result[pSlug]![sId] = sortedTasks(result[pSlug]![sId]!, sId)
+    }
+  }
   return result
-})
+}
 
-const projectSlugs = computed(() => Object.keys(grouped.value).sort())
+watch([filtered, sortBy], ([tasks]) => {
+  draggableGroups.value = buildGroups(tasks)
+}, { immediate: true })
+
+const projectSlugs = computed(() => Object.keys(draggableGroups.value).sort())
 
 function statusesForProject(pSlug: string) {
-  return STATUS_CONFIG.filter(s => grouped.value[pSlug]?.[s.id]?.length)
+  return STATUS_CONFIG.filter(s => draggableGroups.value[pSlug]?.[s.id]?.length)
 }
 
 function projectTaskCount(pSlug: string) {
-  return Object.values(grouped.value[pSlug] ?? {}).reduce((s, t) => s + t.length, 0)
+  return Object.values(draggableGroups.value[pSlug] ?? {}).reduce((s, t) => s + t.length, 0)
 }
 
 // Collapsible projects — open by default
@@ -152,7 +170,7 @@ function toggleProject(pSlug: string) {
 // Collapsible status subgroups — open by default, keyed as `pSlug:statusId`
 const openStatuses = ref<string[]>([])
 
-watch(grouped, (g) => {
+watch(draggableGroups, (g) => {
   for (const pSlug of Object.keys(g)) {
     for (const statusId of Object.keys(g[pSlug] ?? {})) {
       const key = `${pSlug}:${statusId}`
@@ -170,6 +188,45 @@ function toggleStatus(pSlug: string, statusId: string) {
   const idx = openStatuses.value.indexOf(key)
   if (idx >= 0) openStatuses.value.splice(idx, 1)
   else openStatuses.value.push(key)
+}
+
+// Drag handlers
+const toast = useToast()
+
+async function persistProjectOrder(pSlug: string) {
+  const order: Record<string, string[]> = {}
+  for (const statusId of Object.keys(draggableGroups.value[pSlug] ?? {})) {
+    order[statusId] = (draggableGroups.value[pSlug]?.[statusId] ?? []).map(t => slugFromPath(t.path))
+  }
+  await $fetch('/api/tasks/reorder', {
+    method: 'POST',
+    body: { project: pSlug, order },
+  })
+}
+
+async function onGroupAdd(pSlug: string, targetStatusId: string, evt: { newIndex?: number }) {
+  const task = draggableGroups.value[pSlug]?.[targetStatusId]?.[evt.newIndex ?? 0]
+  if (!task) return
+  const tSlug = slugFromPath(task.path)
+  try {
+    await $fetch(`/api/tasks/${pSlug}/${tSlug}`, { method: 'PATCH', body: { status: targetStatusId } })
+    if (sortBy.value === 'manual') await persistProjectOrder(pSlug)
+    emit('refresh')
+  }
+  catch {
+    toast.add({ title: 'Failed to move task', color: 'error' })
+    emit('refresh')
+  }
+}
+
+async function onGroupUpdate(pSlug: string) {
+  if (sortBy.value !== 'manual') return
+  try {
+    await persistProjectOrder(pSlug)
+  }
+  catch {
+    toast.add({ title: 'Failed to save order', color: 'error' })
+  }
 }
 
 // Mark done
@@ -310,7 +367,7 @@ function clearFilters() {
           :key="statusCfg.id"
         >
           <button
-            class="flex items-center gap-1.5 w-full px-4 py-1.5 bg-muted hover:bg-elevated transition-colors text-left border-b border-default"
+            class="flex items-center gap-1.5 w-full px-4 py-2.5 bg-muted hover:bg-elevated transition-colors text-left border-b border-default"
             @click="toggleStatus(pSlug, statusCfg.id)"
           >
             <UIcon
@@ -324,21 +381,28 @@ function clearFilters() {
               class="size-3.5 shrink-0"
             />
             <span class="text-xs font-medium text-muted">{{ statusCfg.label }}</span>
-            <span class="text-xs text-muted">({{ grouped[pSlug]?.[statusCfg.id]?.length ?? 0 }})</span>
+            <span class="text-xs text-muted">({{ draggableGroups[pSlug]?.[statusCfg.id]?.length ?? 0 }})</span>
           </button>
-          <div
+          <VueDraggable
             v-if="openStatuses.includes(statusKey(pSlug, statusCfg.id))"
-            class="divide-y divide-default/50"
+            v-model="draggableGroups[pSlug]![statusCfg.id]!"
+            :group="{ name: `tasks-${pSlug}`, pull: true, put: true }"
+            :sort="sortBy === 'manual'"
+            :animation="150"
+            class="divide-y divide-default/50 min-h-[2rem]"
+            ghost-class="opacity-40"
+            @add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
+            @update="() => onGroupUpdate(pSlug)"
           >
             <TaskDisplayLine
-              v-for="task in sortedTasks(grouped[pSlug]?.[statusCfg.id] ?? [], statusCfg.id)"
+              v-for="task in draggableGroups[pSlug]?.[statusCfg.id] ?? []"
               :key="task.path"
               :task="task"
               :loading="markingDone === task.path"
               @click="editingTask = task"
               @mark-done="markDone(task)"
             />
-          </div>
+          </VueDraggable>
         </div>
       </div>
     </UCard>

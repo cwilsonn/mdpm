@@ -80,11 +80,25 @@ const breadcrumb = computed(() => [
   { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: (project.value as any)?.icon || 'i-lucide-folder-open' },
   { label: title.value || docSlug.value },
 ])
+
+const mobileActions = [
+  { label: 'Delete doc', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { showDeleteConfirm.value = true } },
+]
 </script>
 
 <template>
-  <AppPageBase :breadcrumb="breadcrumb" :back-to="`/projects/${projectSlug}/docs`">
+  <AppPageBase :breadcrumb="breadcrumb" :back-to="`/projects/${projectSlug}/docs`" :mobile-actions="mobileActions">
     <template #actions>
+      <UButton
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        size="sm"
+        @click="showDeleteConfirm = true"
+      />
+    </template>
+    <!-- Save status always visible on all screen sizes -->
+    <template #right>
       <div class="flex items-center gap-1.5 text-xs text-muted">
         <UIcon v-if="saving" name="i-lucide-loader-2" class="size-3.5 animate-spin shrink-0" />
         <UIcon v-else-if="saveError" name="i-lucide-triangle-alert" class="size-3.5 shrink-0 text-error" />
@@ -96,13 +110,6 @@ const breadcrumb = computed(() => [
           <template v-else>Auto-save on</template>
         </span>
       </div>
-      <UButton
-        icon="i-lucide-trash-2"
-        color="error"
-        variant="ghost"
-        size="sm"
-        @click="showDeleteConfirm = true"
-      />
     </template>
 
     <div class="overflow-y-auto flex-1 min-h-0">
