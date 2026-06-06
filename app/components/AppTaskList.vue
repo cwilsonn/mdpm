@@ -391,9 +391,16 @@ function clearFilters() {
             :animation="150"
             class="divide-y divide-default/50 min-h-[2rem]"
             ghost-class="opacity-40"
+            filter=".drag-ignore"
             @add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
             @update="() => onGroupUpdate(pSlug)"
           >
+            <div
+              v-if="!(draggableGroups[pSlug]?.[statusCfg.id]?.length)"
+              class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
+            >
+              No tasks
+            </div>
             <TaskDisplayLine
               v-for="task in draggableGroups[pSlug]?.[statusCfg.id] ?? []"
               :key="task.path"
@@ -403,6 +410,12 @@ function clearFilters() {
               @mark-done="markDone(task)"
             />
           </VueDraggable>
+          <div
+            v-else
+            class="border-b border-default/50 min-h-[2rem]"
+            @dragenter.prevent="openStatuses.push(statusKey(pSlug, statusCfg.id))"
+            @dragover.prevent
+          />
         </div>
       </div>
     </UCard>

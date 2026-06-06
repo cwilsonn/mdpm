@@ -402,9 +402,16 @@ const mobileActions = computed(() => [
             :animation="150"
             class="flex flex-col gap-2 flex-1 rounded-xl p-2 bg-muted min-h-24 overflow-y-auto"
             ghost-class="opacity-40"
+            filter=".drag-ignore"
             @add="(e) => onColumnAdd(col.id, e)"
             @update="onColumnUpdate"
           >
+            <div
+              v-if="!columns[col.id].length"
+              class="drag-ignore flex items-center justify-center flex-1 py-4 text-xs text-muted italic"
+            >
+              No tasks
+            </div>
             <TaskDisplayCard
               v-for="task in columns[col.id]"
               :key="task.path"
@@ -469,9 +476,16 @@ const mobileActions = computed(() => [
               :animation="150"
               class="divide-y divide-default/50 min-h-[2rem]"
               ghost-class="opacity-40"
+              filter=".drag-ignore"
               @add="(e) => onColumnAdd(col.id, e)"
               @update="onColumnUpdate"
             >
+              <div
+                v-if="!columns[col.id].length"
+                class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
+              >
+                No tasks
+              </div>
               <TaskDisplayLine
                 v-for="task in columns[col.id]"
                 :key="task.path"
@@ -485,7 +499,9 @@ const mobileActions = computed(() => [
             </VueDraggable>
             <div
               v-else
-              class="border-b border-default"
+              class="border-b border-default min-h-[2rem]"
+              @dragenter.prevent="openListStatuses.push(col.id)"
+              @dragover.prevent
             />
           </div>
         </template>
