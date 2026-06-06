@@ -8,7 +8,7 @@ tags:
 assignees: []
 dependencies: []
 createdAt: '2026-06-06'
-order: 8
+order: 6
 updatedAt: '2026-06-06T01:40:46.427Z'
 ---
 Add a `/stop-mdpm` global skill that kills the running mdpm dev server.

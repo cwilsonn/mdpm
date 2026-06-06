@@ -85,6 +85,7 @@ onMounted(async () => {
     try {
       const raw = await $fetch<{ body: string }>(`/api/tasks/${props.projectSlug}/${tSlug}`)
       description.value = raw.body ?? ''
+      await nextTick()
     }
     catch {}
     finally {
@@ -165,7 +166,7 @@ async function create() {
           label="Full page"
           color="neutral"
           variant="ghost"
-          size="xs"
+          size="sm"
           class="shrink-0"
         />
       </div>

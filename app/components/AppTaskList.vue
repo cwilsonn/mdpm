@@ -204,7 +204,7 @@ function clearFilters() {
 
 <template>
   <!-- Filter + sort bar -->
-  <div class="flex flex-wrap items-center gap-2 mb-4">
+  <div class="flex flex-wrap items-center gap-2">
     <UInput
       v-model="search"
       placeholder="Search tasks…"
@@ -288,7 +288,7 @@ function clearFilters() {
           :label="String(projectTaskCount(pSlug))"
           color="neutral"
           variant="subtle"
-          size="xs"
+          size="sm"
           class="shrink-0"
         />
         <NuxtLink

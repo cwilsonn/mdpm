@@ -13,6 +13,14 @@ interface DocDetail {
   body: string
 }
 
+const { data: project } = await useAsyncData(
+  () => `project-${projectSlug.value}`,
+  () => queryCollection('projects')
+    .where('path', '=', `/projects/${projectSlug.value}`)
+    .select('path', 'title', 'icon')
+    .first(),
+)
+
 const { data: docMeta, refresh } = await useAsyncData(
   () => `doc-${projectSlug.value}-${docSlug.value}`,
   () => $fetch<DocDetail>(`/api/docs/${projectSlug.value}/${docSlug.value}`),
@@ -70,7 +78,7 @@ useHead(() => ({ title: title.value || docSlug.value }))
 
 const breadcrumb = computed(() => [
   { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
-  { label: projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: 'i-lucide-folder-open' },
+  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: (project.value as any)?.icon || 'i-lucide-folder-open' },
   { label: title.value || docSlug.value },
 ])
 </script>
@@ -98,12 +106,13 @@ const breadcrumb = computed(() => [
       />
     </template>
 
-    <div class="p-4 sm:p-6 max-w-4xl mx-auto space-y-4">
+    <div class="overflow-y-auto flex-1 min-h-0">
+    <div class="max-w-4xl mx-auto space-y-4">
       <h1
         ref="titleEl"
         contenteditable="plaintext-only"
         data-placeholder="Doc title"
-        class="w-full text-4xl font-bold outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted"
+        class="w-full text-4xl font-bold outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted rounded-lg border border-default border-dashed"
         @input="title = ($event.target as HTMLElement).innerText"
         @keydown.enter.prevent="($event.target as HTMLElement).blur()"
       />
@@ -126,6 +135,7 @@ const breadcrumb = computed(() => [
           class="w-full min-h-96"
         />
       </div>
+    </div>
     </div>
 
     <template #overlays>

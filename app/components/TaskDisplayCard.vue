@@ -20,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: []
   'mark-done': []
+  reopen: []
   delete: []
 }>()
 
@@ -44,16 +45,26 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         icon="i-lucide-check"
         color="success"
         variant="ghost"
-        size="xs"
+        size="sm"
         class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
         title="Mark done"
         @click.stop="emit('mark-done')"
       />
       <UButton
+        v-else
+        icon="i-lucide-rotate-ccw"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
+        title="Re-open"
+        @click.stop="emit('reopen')"
+      />
+      <UButton
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
-        size="xs"
+        size="sm"
         class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         @click.stop="emit('delete')"
       />
@@ -72,7 +83,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :color="priority.color"
         :icon="priority.icon"
         variant="subtle"
-        size="xs"
+        size="sm"
       />
       <UBadge
         v-for="tag in tags.slice(0, 2)"
@@ -80,7 +91,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :label="tag"
         color="neutral"
         variant="outline"
-        size="xs"
+        size="sm"
       />
     </div>
 

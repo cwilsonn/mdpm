@@ -51,7 +51,7 @@ const items = computed(() =>
       icon="i-lucide-x"
       color="neutral"
       variant="ghost"
-      size="xs"
+      size="sm"
       @click="model = ''"
     />
   </div>

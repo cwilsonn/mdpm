@@ -7,7 +7,7 @@ tags:
 assignees: []
 dependencies: []
 createdAt: '2026-06-06'
-order: 7
-updatedAt: '2026-06-06T00:59:54.832Z'
+order: 3
+updatedAt: '2026-06-06T04:59:15.603Z'
 ---
 Created via MCP `create_task` tool to verify the write path end-to-end.

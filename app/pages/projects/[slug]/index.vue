@@ -15,7 +15,7 @@ if (!project.value) {
   throw createError({ statusCode: 404, message: 'Project not found' })
 }
 
-const { data: tasks, refresh: refreshTasks } = await useAsyncData(
+const { data: tasks, refresh: refreshTasks, pending: tasksPending } = await useAsyncData(
   () => `tasks-${slug.value}`,
   () => queryCollection('tasks')
     .where('path', 'LIKE', `/projects/${slug.value}/tasks/%`)
@@ -81,6 +81,17 @@ const { markingDone, markDone: _markDone } = useMarkDone()
 
 async function markTaskDone(tSlug: string) {
   await _markDone(slug.value, `/projects/${slug.value}/tasks/${tSlug}`, refreshTasks)
+}
+
+async function reopenTask(tSlug: string) {
+  updating.value = `/projects/${slug.value}/tasks/${tSlug}`
+  try {
+    await $fetch(`/api/tasks/${slug.value}/${tSlug}`, { method: 'PATCH', body: { status: 'todo' } })
+    await refreshTasks()
+  }
+  finally {
+    updating.value = null
+  }
 }
 
 const totalVisible = computed(() => {
@@ -153,6 +164,25 @@ const createTaskStatus = ref<ColId>('todo')
 const showEditProject = ref(false)
 const editTask = ref<Task | null>(null)
 
+const taskView = useState<'kanban' | 'list'>('mdpm:task-view', () => 'kanban')
+const mounted = ref(false)
+onMounted(() => {
+  const stored = localStorage.getItem('mdpm:task-view')
+  if (stored === 'kanban' || stored === 'list') taskView.value = stored
+  mounted.value = true
+})
+watch(taskView, v => localStorage.setItem('mdpm:task-view', v))
+
+const openListStatuses = ref<string[]>([])
+watch(visibleColumns, (cols) => {
+  for (const col of cols)
+    if (!openListStatuses.value.includes(col.id)) openListStatuses.value.push(col.id)
+}, { immediate: true })
+function toggleListStatus(id: string) {
+  const idx = openListStatuses.value.indexOf(id)
+  if (idx >= 0) openListStatuses.value.splice(idx, 1)
+  else openListStatuses.value.push(id)
+}
 function openCreateTask(status: ColId = 'todo') {
   createTaskStatus.value = status
   showCreateTask.value = true
@@ -195,6 +225,27 @@ const tabs = computed(() => [
 <template>
   <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs" full-height>
     <template #actions>
+      <USkeleton v-if="!mounted" class="h-8 w-[5.5rem] rounded-md shrink-0" />
+      <div v-else class="flex rounded-md border border-default overflow-hidden shrink-0">
+        <UButton
+          icon="i-lucide-kanban"
+          color="neutral"
+          :variant="taskView === 'kanban' ? 'soft' : 'ghost'"
+          size="sm"
+          :ui="{ base: 'rounded-none' }"
+          title="Kanban"
+          @click="taskView = 'kanban'"
+        />
+        <UButton
+          icon="i-lucide-list"
+          color="neutral"
+          :variant="taskView === 'list' ? 'soft' : 'ghost'"
+          size="sm"
+          :ui="{ base: 'rounded-none' }"
+          title="List"
+          @click="taskView = 'list'"
+        />
+      </div>
       <UButton
         label="Edit Project"
         icon="i-lucide-pencil"
@@ -211,9 +262,9 @@ const tabs = computed(() => [
       />
     </template>
 
-    <div class="flex flex-col h-full">
+    <div class="flex flex-col h-full space-y-3">
       <!-- Project meta + filters -->
-      <div class="pb-3 space-y-3 shrink-0">
+      <div class="space-y-3 shrink-0">
         <div class="flex items-center gap-2 flex-wrap">
           <UBadge
             :label="project!.status"
@@ -248,7 +299,7 @@ const tabs = computed(() => [
           <AppFilterMenu
             v-model="filterStatuses"
             :items="(STATUS_SELECT_ITEMS as SelectItem[])"
-            placeholder="Columns"
+            placeholder="Status"
           />
           <AppFilterMenu
             v-model="filterPriorities"
@@ -267,8 +318,22 @@ const tabs = computed(() => [
         </div>
       </div>
 
+      <!-- Skeleton (pre-mount) -->
+      <div v-if="!mounted" class="flex gap-3 overflow-x-auto flex-1 min-h-0">
+        <div v-for="i in 4" :key="i" class="flex flex-col flex-none w-72 min-h-0">
+          <div class="flex items-center gap-2 mb-2 px-1">
+            <USkeleton class="size-4 rounded shrink-0" />
+            <USkeleton class="h-4 w-20 rounded" />
+            <USkeleton class="h-5 w-6 rounded-full" />
+          </div>
+          <div class="flex flex-col gap-2 rounded-xl p-2 bg-muted min-h-24">
+            <USkeleton v-for="j in (i <= 2 ? 3 : 2)" :key="j" class="h-14 rounded-lg" />
+          </div>
+        </div>
+      </div>
+
       <!-- Kanban board -->
-      <div class="flex gap-3 overflow-x-auto px-4 sm:px-6 pb-6 flex-1 min-h-0">
+      <div v-else-if="taskView === 'kanban'" class="flex gap-3 overflow-x-auto flex-1 min-h-0" :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
         <div
           v-for="col in visibleColumns"
           :key="col.id"
@@ -286,13 +351,13 @@ const tabs = computed(() => [
               :label="String(columns[col.id].length)"
               color="neutral"
               variant="subtle"
-              size="xs"
+              size="sm"
             />
             <UButton
               icon="i-lucide-plus"
               color="neutral"
               variant="ghost"
-              size="xs"
+              size="sm"
               class="ml-auto"
               :tooltip="{ text: `Add ${col.label} task` }"
               @click="openCreateTask(col.id)"
@@ -317,9 +382,79 @@ const tabs = computed(() => [
               :loading="updating === task.path || markingDone === task.path"
               @click="editTask = task"
               @mark-done="markTaskDone(slugFromPath(task.path))"
+              @reopen="reopenTask(slugFromPath(task.path))"
               @delete="confirmDeleteTask(slugFromPath(task.path))"
             />
           </VueDraggable>
+        </div>
+      </div>
+
+      <!-- List view -->
+      <div
+        v-else
+        class="overflow-y-auto flex-1 min-h-0"
+        :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
+      >
+        <template
+          v-for="col in visibleColumns"
+          :key="col.id"
+        >
+          <div v-if="columns[col.id].length">
+            <button
+              class="flex items-center gap-2 w-full py-2 px-1 hover:bg-muted/50 rounded transition-colors text-left"
+              @click="toggleListStatus(col.id)"
+            >
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="size-3.5 shrink-0 transition-transform duration-150"
+                :class="openListStatuses.includes(col.id) ? 'rotate-90' : ''"
+              />
+              <UIcon
+                :name="col.icon"
+                class="size-4 shrink-0"
+                :class="`text-${col.color}`"
+              />
+              <span class="text-sm font-medium">{{ col.label }}</span>
+              <UBadge
+                :label="String(columns[col.id].length)"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+              />
+              <UButton
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="ml-auto"
+                :tooltip="{ text: `Add ${col.label} task` }"
+                @click.stop="openCreateTask(col.id)"
+              />
+            </button>
+            <div
+              v-if="openListStatuses.includes(col.id)"
+              class="divide-y divide-default/50"
+            >
+              <TaskDisplayLine
+                v-for="task in columns[col.id]"
+                :key="task.path"
+                :task="(task as any)"
+                :loading="markingDone === task.path"
+                @click="editTask = task"
+                @mark-done="markTaskDone(slugFromPath(task.path))"
+              />
+            </div>
+            <div
+              v-else
+              class="border-b border-default"
+            />
+          </div>
+        </template>
+        <div
+          v-if="!totalVisible"
+          class="flex items-center justify-center py-12 text-sm text-muted"
+        >
+          No tasks match the current filters.
         </div>
       </div>
     </div>

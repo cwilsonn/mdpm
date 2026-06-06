@@ -30,6 +30,18 @@ const { statusColor, statusIcon, priorityColor, priorityIcon } = useTaskMeta()
 const showEdit = ref(false)
 const showDeleteConfirm = ref(false)
 const deleting = ref(false)
+const toggling = ref(false)
+
+async function setStatus(status: string) {
+  toggling.value = true
+  try {
+    await $fetch(`/api/tasks/${projectSlug.value}/${taskSlug.value}`, { method: 'PATCH', body: { status } })
+    await refresh()
+  }
+  finally {
+    toggling.value = false
+  }
+}
 
 async function deleteTask() {
   deleting.value = true
@@ -58,6 +70,26 @@ const breadcrumb = computed(() => [
   >
     <template #actions>
       <UButton
+        v-if="task!.status !== 'done'"
+        label="Complete"
+        icon="i-lucide-check-circle"
+        color="success"
+        variant="outline"
+        size="sm"
+        :loading="toggling"
+        @click="setStatus('done')"
+      />
+      <UButton
+        v-else
+        label="Re-open"
+        icon="i-lucide-rotate-ccw"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :loading="toggling"
+        @click="setStatus('todo')"
+      />
+      <UButton
         label="Edit"
         icon="i-lucide-pencil"
         color="neutral"
@@ -74,7 +106,7 @@ const breadcrumb = computed(() => [
       />
     </template>
 
-    <div class="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+    <div class=" max-w-5xl mx-auto space-y-6">
       <div class="space-y-3">
         <h1 class="text-2xl font-bold leading-tight">
           {{ task!.title }}
@@ -132,7 +164,7 @@ const breadcrumb = computed(() => [
             >
               <UAvatar
                 :alt="a"
-                size="xs"
+                size="sm"
               />
               <span class="text-sm">{{ a }}</span>
             </div>

@@ -23,7 +23,7 @@ interface DocItem {
   excerpt: string
 }
 
-const { data: docs, refresh: refreshDocs } = await useAsyncData(
+const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyncData(
   () => `docs-${slug.value}`,
   () => $fetch<DocItem[]>(`/api/docs/${slug.value}`),
 )
@@ -59,13 +59,13 @@ const tabs = computed(() => [
       />
     </template>
 
-    <div class="p-4 sm:p-6">
+    <div class="" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
       <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
         <UIcon name="i-lucide-book-open" class="size-10 text-muted" />
         <p class="text-muted text-sm">No docs yet for this project.</p>
         <UButton label="Create first doc" icon="i-lucide-plus" size="sm" @click="showCreateDoc = true" />
       </div>
-      <div v-else class="flex flex-col divide-y divide-default rounded-lg border border-default overflow-hidden">
+      <div v-else class="flex flex-col divide-y divide-default">
         <NuxtLink
           v-for="doc in docs"
           :key="doc.slug"
@@ -82,7 +82,7 @@ const tabs = computed(() => [
                 :label="tag"
                 color="neutral"
                 variant="outline"
-                size="xs"
+                size="sm"
               />
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">

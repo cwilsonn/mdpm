@@ -17,6 +17,7 @@
     "@tiptap/pm": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "@tiptap/vue-3": "^3.26.0",
+    "@vueuse/core": "^14.3.0",
     "better-sqlite3": "^12.10.0",
     "fflate": "^0.8.3",
     "gray-matter": "^4.0.3",

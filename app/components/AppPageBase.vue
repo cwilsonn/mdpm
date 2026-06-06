@@ -72,8 +72,8 @@ const normalizedEmptyProps = computed(() => ({
 </script>
 
 <template>
-  <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', ...(fullHeight ? { body: 'flex flex-col flex-1 overflow-hidden' } : {}) }"
-  >
+  <!-- <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', ...(fullHeight ? { body: 'flex flex-col flex-1 overflow-hidden p-4' } : {}) }" -->
+  <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', body: 'flex flex-col flex-1 overflow-hidden' }">
     <template #header>
       <UDashboardNavbar>
         <template #leading>

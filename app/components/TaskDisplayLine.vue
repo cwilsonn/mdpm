@@ -58,7 +58,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :color="priority.color"
         :icon="priority.icon"
         variant="subtle"
-        size="xs"
+        size="sm"
       />
 
       <!-- Assignees -->
@@ -94,7 +94,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         icon="i-lucide-check"
         color="success"
         variant="ghost"
-        size="xs"
+        size="sm"
         class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
         title="Mark done"
         @click.stop="emit('mark-done')"

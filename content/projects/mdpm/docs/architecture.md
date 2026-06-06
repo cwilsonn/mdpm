@@ -5,7 +5,7 @@ tags:
   - mcp
   - context
 createdAt: '2026-06-05T00:00:00Z'
-updatedAt: '2026-06-06T01:00:00.000Z'
+updatedAt: '2026-06-06T01:30:48.335Z'
 ---
 ## Stack
 
@@ -13,6 +13,15 @@ updatedAt: '2026-06-06T01:00:00.000Z'
 - **@nuxt/content v3** — file-based markdown, SQLite cache, `queryCollection()`
 - **@nuxt/ui v4** — UNavigationMenu, UModal, UInputTags, etc.
 - **Nitro server routes** — auto-imports: `writeMarkdown`, `contentPath`, `slugify`, `uniqueSlug`, `readMarkdown`, `deleteContent`
+
+## Node Version
+
+**Required: Node 24.** `.nvmrc` at repo root pins this. `better-sqlite3` is a native module and must be compiled against the running Node version — if you switch Node versions, run `pnpm rebuild better-sqlite3`.
+
+```sh
+nvm use   # picks up .nvmrc
+pnpm dev
+```
 
 ## Content Structure
 

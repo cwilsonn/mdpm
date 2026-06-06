@@ -4,11 +4,7 @@ const { data: projects } = await useAsyncData('sidebar-projects', () =>
 )
 
 const navigation = computed(() => [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
-  ...(projects.value?.length ? [
-    { label: 'Tasks', icon: 'i-lucide-list-checks', to: '/tasks' },
-    { label: 'Docs', icon: 'i-lucide-book-open', to: '/docs' },
-  ] : []),
+  { label: 'Inbox', icon: 'i-lucide-inbox', to: '/inbox' },
   {
     label: 'Projects',
     icon: 'i-lucide-notebook',
@@ -83,7 +79,7 @@ const exportItems = [
   >
     <template #header>
       <NuxtLink
-        to="/"
+        to="/projects"
         class="flex items-center gap-2 px-1"
       >
         <UIcon

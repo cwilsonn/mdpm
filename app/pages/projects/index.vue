@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Projects', icon: 'i-lucide-folder' })
 
-const [{ data: projects, refresh }, { data: allTasks }] = await Promise.all([
+const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }] = await Promise.all([
   useAsyncData('projects-list', () => queryCollection('projects').order('createdAt', 'DESC').all()),
   useAsyncData('projects-task-counts', () => queryCollection('tasks').select('path', 'status').all()),
 ])
@@ -69,7 +69,6 @@ async function executeDelete() {
   <AppPageBase
     title="Projects"
     icon="i-lucide-folder"
-    back-to="/"
     :actions="projects?.length ? [{ label: 'New Project', icon: 'i-lucide-plus', onSelect: () => showCreate = true }] : []"
     :empty="!projects?.length"
     :empty-state="{
@@ -85,8 +84,8 @@ async function executeDelete() {
       ],
     }"
   >
-    <div class="">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+    <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch" :class="projectsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
         <div
           v-for="project in projects"
           :key="project.path"
@@ -113,14 +112,14 @@ async function executeDelete() {
                       :label="project.status"
                       :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
                       variant="subtle"
-                      size="xs"
+                      size="sm"
                     />
                     <UDropdownMenu :items="cardActions(project)">
                       <UButton
                         icon="i-lucide-ellipsis-vertical"
                         color="neutral"
                         variant="ghost"
-                        size="xs"
+                        size="sm"
                         @click.prevent
                       />
                     </UDropdownMenu>
@@ -145,7 +144,7 @@ async function executeDelete() {
                       :label="tag"
                       color="neutral"
                       variant="outline"
-                      size="xs"
+                      size="sm"
                     />
                   </div>
 
