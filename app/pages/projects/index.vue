@@ -69,6 +69,7 @@ async function executeDelete() {
   <AppPageBase
     title="Projects"
     icon="i-lucide-folder"
+    back-to="/"
     :actions="projects?.length ? [{ label: 'New Project', icon: 'i-lucide-plus', onSelect: () => showCreate = true }] : []"
     :empty="!projects?.length"
     :empty-state="{
@@ -84,7 +85,7 @@ async function executeDelete() {
       ],
     }"
   >
-    <div class="p-4 sm:p-6">
+    <div class="">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
         <div
           v-for="project in projects"

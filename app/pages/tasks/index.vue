@@ -8,8 +8,9 @@ const { projects, tasks, refreshAll } = await useProjectTasks({ projects: 'tasks
   <AppPageBase
     title="Tasks"
     icon="i-lucide-list-checks"
+    back-to="/"
   >
-    <div class="p-4 sm:p-6">
+    <div class="">
       <AppTaskList
         :tasks="((tasks ?? []) as any[])"
         :projects="((projects ?? []) as any[])"

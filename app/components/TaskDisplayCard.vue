@@ -32,7 +32,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
 
 <template>
   <UCard
-    :ui="{ root: 'group cursor-pointer select-none transition-all hover:shadow-sm', body: 'px-2.5! py-2! flex flex-col gap-1.5' }"
+    :ui="{ root: 'group cursor-pointer select-none transition-all hover:shadow-sm shrink-0', body: 'px-2.5! py-2! flex flex-col gap-1.5' }"
     :class="loading ? 'opacity-60' : ''"
     @click="emit('click')"
   >

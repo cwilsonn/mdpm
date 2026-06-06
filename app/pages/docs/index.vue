@@ -90,6 +90,7 @@ async function onDocCreated(slug: string) {
   <AppPageBase
     title="Docs"
     icon="i-lucide-book-open"
+    back-to="/"
     :actions="projects?.length ? [{ label: 'New Doc', icon: 'i-lucide-plus', onSelect: () => openCreate() }] : []"
     :empty="!docs?.length"
     :empty-state="{
@@ -99,7 +100,7 @@ async function onDocCreated(slug: string) {
       actions: projects?.length ? [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: () => openCreate() }] : [],
     }"
   >
-    <div class="p-4 sm:p-6">
+    <div class="">
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-2 mb-4">
         <UInput

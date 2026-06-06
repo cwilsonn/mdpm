@@ -34,6 +34,7 @@ const props = withDefaults(defineProps<{
   error?: string | null
   empty?: boolean
   emptyState?: Record<string, unknown>
+  fullHeight?: boolean
 }>(), {
   actions: () => [],
   tabs: () => [],
@@ -41,6 +42,7 @@ const props = withDefaults(defineProps<{
   error: null,
   empty: false,
   emptyState: () => ({}),
+  fullHeight: false,
 })
 
 const route = useRoute()
@@ -70,7 +72,8 @@ const normalizedEmptyProps = computed(() => ({
 </script>
 
 <template>
-  <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none' }">
+  <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', ...(fullHeight ? { body: 'flex flex-col flex-1 overflow-hidden' } : {}) }"
+  >
     <template #header>
       <UDashboardNavbar>
         <template #leading>
@@ -169,7 +172,7 @@ const normalizedEmptyProps = computed(() => ({
         v-else-if="error"
         name="error"
       >
-        <div class="p-4">
+        <div class="">
           <UAlert
             title="Something went wrong"
             :description="error"

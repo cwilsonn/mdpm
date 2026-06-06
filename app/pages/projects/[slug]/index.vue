@@ -58,12 +58,16 @@ function syncColumns(v: typeof tasks.value) {
   const q = searchQuery.value.trim().toLowerCase()
   const all = (v ?? []).map(t => ({ ...t }))
   for (const col of STATUS_CONFIG) {
-    columns[col.id] = all.filter(
+    const filtered = all.filter(
       t => t.status === col.id
         && (filterPriorities.value.length === 0 || filterPriorities.value.some(p => p.value === t.priority))
         && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => (t as any).assignees?.includes(a.value)))
         && (!q || t.title.toLowerCase().includes(q)),
     )
+    if (col.id === 'done') {
+      filtered.sort((a, b) => ((b.updatedAt ?? '') as string).localeCompare((a.updatedAt ?? '') as string))
+    }
+    columns[col.id] = filtered
   }
 }
 
@@ -79,7 +83,11 @@ async function markTaskDone(tSlug: string) {
   await _markDone(slug.value, `/projects/${slug.value}/tasks/${tSlug}`, refreshTasks)
 }
 
-const totalVisible = computed(() => visibleColumns.value.reduce((s, c) => s + columns[c.id].length, 0))
+const totalVisible = computed(() => {
+  let n = 0
+  for (const c of visibleColumns.value) n += columns[c.id].length
+  return n
+})
 
 const tasksBySlug = computed(() => {
   const map: Record<string, Task> = {}
@@ -185,7 +193,7 @@ const tabs = computed(() => [
 </script>
 
 <template>
-  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs">
+  <AppPageBase :breadcrumb="breadcrumb" :tabs="tabs" full-height>
     <template #actions>
       <UButton
         label="Edit Project"
@@ -205,7 +213,7 @@ const tabs = computed(() => [
 
     <div class="flex flex-col h-full">
       <!-- Project meta + filters -->
-      <div class="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 space-y-3 shrink-0">
+      <div class="pb-3 space-y-3 shrink-0">
         <div class="flex items-center gap-2 flex-wrap">
           <UBadge
             :label="project!.status"

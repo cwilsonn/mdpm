@@ -29,7 +29,9 @@ interface SelectItem { label: string; value: string; icon?: string; color?: stri
 
 // Filters — empty array = no filter (show all)
 const search = ref('')
-const filterStatuses = ref<SelectItem[]>(props.presetStatuses ?? [])
+const filterStatuses = ref<SelectItem[]>(
+  props.presetStatuses ?? (STATUS_SELECT_ITEMS as SelectItem[]).filter(s => s.value !== 'done'),
+)
 
 watch(() => props.presetStatuses, (val) => {
   filterStatuses.value = val ?? []
@@ -61,7 +63,12 @@ const SORT_ITEMS = [
 const sortBy = ref('priority')
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
 
-function sortedTasks(list: Task[]): Task[] {
+function sortedTasks(list: Task[], statusId?: string): Task[] {
+  if (statusId === 'done') {
+    return [...list].sort((a, b) =>
+      ((b.updatedAt as string) ?? '').localeCompare((a.updatedAt as string) ?? ''),
+    )
+  }
   return [...list].sort((a, b) => {
     if (sortBy.value === 'priority') {
       return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)
@@ -324,7 +331,7 @@ function clearFilters() {
             class="divide-y divide-default/50"
           >
             <TaskDisplayLine
-              v-for="task in sortedTasks(grouped[pSlug]?.[statusCfg.id] ?? [])"
+              v-for="task in sortedTasks(grouped[pSlug]?.[statusCfg.id] ?? [], statusCfg.id)"
               :key="task.path"
               :task="task"
               :loading="markingDone === task.path"
