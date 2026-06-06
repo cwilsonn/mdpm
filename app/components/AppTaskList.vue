@@ -399,7 +399,7 @@ function clearFilters() {
             @update="() => onGroupUpdate(pSlug)"
           >
             <div
-              v-if="!(draggableGroups[pSlug]?.[statusCfg.id]?.length)"
+              v-if="!(draggableGroups[pSlug]?.[statusCfg.id]?.length) && !isDragging"
               class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
             >
               No tasks

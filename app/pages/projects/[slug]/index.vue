@@ -410,7 +410,7 @@ const mobileActions = computed(() => [
             @update="onColumnUpdate"
           >
             <div
-              v-if="!columns[col.id].length"
+              v-if="!columns[col.id].length && !isDragging"
               class="drag-ignore flex items-center justify-center flex-1 py-4 text-xs text-muted italic"
             >
               No tasks
@@ -486,7 +486,7 @@ const mobileActions = computed(() => [
               @update="onColumnUpdate"
             >
               <div
-                v-if="!columns[col.id].length"
+                v-if="!columns[col.id].length && !isDragging"
                 class="drag-ignore px-4 py-2.5 text-xs text-muted italic text-center"
               >
                 No tasks
