@@ -12,6 +12,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: []
   'mark-done': []
+  reopen: []
+  delete: []
 }>()
 
 const dueInfo = computed(() => props.task.due ? formatDueDate(props.task.due) : null)
@@ -27,6 +29,28 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
     :class="loading ? 'opacity-50' : ''"
     @click="emit('click')"
   >
+    <!-- Complete / Reopen (left of title, checkbox-style) -->
+    <UButton
+      v-if="task.status !== 'done'"
+      icon="i-lucide-circle"
+      color="neutral"
+      variant="ghost"
+      size="sm"
+      class="opacity-30 group-hover:opacity-100 group-hover:text-success transition-opacity shrink-0"
+      title="Mark done"
+      @click.stop="emit('mark-done')"
+    />
+    <UButton
+      v-else
+      icon="i-lucide-check-circle-2"
+      color="success"
+      variant="ghost"
+      size="sm"
+      class="opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
+      title="Re-open"
+      @click.stop="emit('reopen')"
+    />
+
     <!-- Status icon (optional) -->
     <UTooltip
       v-if="showStatus && status"
@@ -40,7 +64,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
     </UTooltip>
 
     <!-- Title -->
-    <span class="flex-1 text-sm truncate">{{ task.title }}</span>
+    <span class="flex-1 text-sm truncate" :class="task.status === 'done' ? 'line-through text-muted' : ''">{{ task.title }}</span>
 
     <!-- Right-side metadata -->
     <div class="flex items-center gap-1.5 shrink-0">
@@ -88,16 +112,14 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :title="`${depCount} dependenc${depCount === 1 ? 'y' : 'ies'}`"
       />
 
-      <!-- Mark done -->
+      <!-- Delete -->
       <UButton
-        v-if="task.status !== 'done'"
-        icon="i-lucide-check"
-        color="success"
+        icon="i-lucide-trash-2"
+        color="error"
         variant="ghost"
         size="sm"
-        class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-        title="Mark done"
-        @click.stop="emit('mark-done')"
+        class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0"
+        @click.stop="emit('delete')"
       />
     </div>
   </div>

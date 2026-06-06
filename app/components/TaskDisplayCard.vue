@@ -41,12 +41,20 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
     <div class="flex items-start gap-1.5">
       <span class="flex-1 text-sm font-medium leading-snug">{{ task.title }}</span>
       <UButton
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        size="xs"
+        class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 -mt-0.5"
+        @click.stop="emit('delete')"
+      />
+      <UButton
         v-if="task.status !== 'done'"
         icon="i-lucide-check"
         color="success"
         variant="ghost"
-        size="sm"
-        class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
+        size="xs"
+        class="opacity-30 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         title="Mark done"
         @click.stop="emit('mark-done')"
       />
@@ -55,18 +63,10 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         icon="i-lucide-rotate-ccw"
         color="neutral"
         variant="ghost"
-        size="sm"
-        class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
+        size="xs"
+        class="opacity-30 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         title="Re-open"
         @click.stop="emit('reopen')"
-      />
-      <UButton
-        icon="i-lucide-trash-2"
-        color="error"
-        variant="ghost"
-        size="sm"
-        class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
-        @click.stop="emit('delete')"
       />
     </div>
 
@@ -83,7 +83,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :color="priority.color"
         :icon="priority.icon"
         variant="subtle"
-        size="sm"
+        size="xs"
       />
       <UBadge
         v-for="tag in tags.slice(0, 2)"
@@ -91,7 +91,7 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
         :label="tag"
         color="neutral"
         variant="outline"
-        size="sm"
+        size="xs"
       />
     </div>
 

@@ -32,34 +32,38 @@ function handleConfirm() {
 
 <template>
   <UModal v-model:open="open" :ui="{ content: 'max-w-sm' }">
-    <template #content>
-      <div class="space-y-6 p-6">
-        <div>
-          <h3 class="text-base font-semibold">
-            {{ title }}
-          </h3>
-          <p
-            v-if="message"
-            class="mt-1 text-sm text-muted"
-          >
-            {{ message }}
-          </p>
-        </div>
-        <slot />
-        <div class="flex justify-end gap-2">
-          <UButton
-            label="Cancel"
-            color="neutral"
-            variant="outline"
-            @click="handleCancel"
-          />
-          <UButton
-            :label="confirmLabel"
-            :color="confirmColor"
-            :loading="loading"
-            @click="handleConfirm"
-          />
-        </div>
+    <template #header>
+      <div>
+        <h3 class="text-base font-semibold">
+          {{ title }}
+        </h3>
+        <p
+          v-if="message"
+          class="mt-1 text-sm text-muted"
+        >
+          {{ message }}
+        </p>
+      </div>
+    </template>
+
+    <template v-if="$slots.default" #body>
+      <slot />
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2 w-full">
+        <UButton
+          label="Cancel"
+          color="neutral"
+          variant="outline"
+          @click="handleCancel"
+        />
+        <UButton
+          :label="confirmLabel"
+          :color="confirmColor"
+          :loading="loading"
+          @click="handleConfirm"
+        />
       </div>
     </template>
   </UModal>

@@ -10,6 +10,8 @@ const showCreate = ref(false)
 type ProjectItem = NonNullable<typeof projects.value>[0]
 const editingProject = ref<ProjectItem | null>(null)
 const deletingProject = ref<{ slug: string; title: string } | null>(null)
+const deletingProjectDisplay = ref<{ slug: string; title: string } | null>(null)
+watch(deletingProject, val => { if (val) deletingProjectDisplay.value = val })
 const deleteLoading = ref(false)
 
 const projectSlug = slugFromPath
@@ -29,8 +31,8 @@ const taskCountsByProject = computed(() => {
 })
 
 const deletingProjectTaskCounts = computed(() => {
-  if (!deletingProject.value) return null
-  return taskCountsByProject.value[deletingProject.value.slug] ?? null
+  if (!deletingProjectDisplay.value) return null
+  return taskCountsByProject.value[deletingProjectDisplay.value.slug] ?? null
 })
 
 function cardActions(project: NonNullable<typeof projects.value>[0]) {
@@ -186,28 +188,28 @@ async function executeDelete() {
         :open="!!deletingProject"
         title="Delete project?"
         :message="deletingProjectTaskCounts?.total
-          ? `'${deletingProject?.title}' and ${deletingProjectTaskCounts.total} task${deletingProjectTaskCounts.total !== 1 ? 's' : ''} will be permanently deleted.`
-          : `'${deletingProject?.title}' will be permanently deleted.`"
+          ? `'${deletingProjectDisplay?.title}' and ${deletingProjectTaskCounts.total} task${deletingProjectTaskCounts.total !== 1 ? 's' : ''} will be permanently deleted.`
+          : `'${deletingProjectDisplay?.title}' will be permanently deleted.`"
         confirm-label="Delete"
         :loading="deleteLoading"
         @update:open="deletingProject = null"
         @confirm="executeDelete"
         @cancel="deletingProject = null"
       >
-        <div
-          v-if="deletingProjectTaskCounts?.total"
-          class="rounded-md border border-default bg-muted/40 divide-y divide-default text-sm"
-        >
-          <div
-            v-for="s in STATUS_CONFIG.filter(s => deletingProjectTaskCounts!.byStatus[s.id])"
-            :key="s.id"
-            class="flex items-center justify-between px-3 py-1.5"
-          >
-            <div class="flex items-center gap-1.5">
-              <UIcon :name="s.icon" :class="`text-${s.color}`" class="size-3.5 shrink-0" />
-              <span class="text-muted">{{ s.label }}</span>
+        <div v-if="deletingProjectTaskCounts?.total" class="space-y-1.5">
+          <p class="text-xs font-medium text-muted uppercase tracking-wide">Tasks</p>
+          <div class="rounded-md border border-default bg-muted/40 divide-y divide-default text-sm">
+            <div
+              v-for="s in STATUS_CONFIG.filter(s => deletingProjectTaskCounts!.byStatus[s.id])"
+              :key="s.id"
+              class="flex items-center justify-between px-3 py-1.5"
+            >
+              <div class="flex items-center gap-1.5">
+                <UIcon :name="s.icon" :class="`text-${s.color}`" class="size-3.5 shrink-0" />
+                <span class="text-muted">{{ s.label }}</span>
+              </div>
+              <span class="font-medium tabular-nums">{{ deletingProjectTaskCounts!.byStatus[s.id] }}</span>
             </div>
-            <span class="font-medium tabular-nums">{{ deletingProjectTaskCounts!.byStatus[s.id] }}</span>
           </div>
         </div>
       </AppConfirmDialog>
