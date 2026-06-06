@@ -1,13 +1,9 @@
 <script setup lang="ts">
 const open = ref(false)
 
-const { data: tasks } = await useAsyncData('search-tasks', () =>
-  queryCollection('tasks').select('path', 'title', 'status', 'priority').all(),
-)
+const { data: tasks } = await useAsyncData('search-tasks', () => $fetch('/api/tasks'))
 
-const { data: projects } = await useAsyncData('search-projects', () =>
-  queryCollection('projects').select('path', 'title', 'icon').all(),
-)
+const { data: projects } = await useAsyncData('search-projects', () => $fetch('/api/projects'))
 
 function projectTitleOf(taskPath: string) {
   const pSlug = taskPath.split('/')[2]

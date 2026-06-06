@@ -4,11 +4,22 @@ import { VueDraggable } from 'vue-draggable-plus'
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
+interface ProjectDetail {
+  slug: string; path: string; title: string; status: string
+  icon?: string; description?: string; tags: string[]
+  createdAt: string; updatedAt?: string
+}
+
+interface TaskItem {
+  slug: string; path: string; project: string; title: string
+  status: string; priority: string; tags: string[]; assignees: string[]
+  dependencies: string[]; due?: string; createdAt: string
+  updatedAt?: string; order: number
+}
+
 const { data: project, refresh: refreshProject } = await useAsyncData(
   () => `project-${slug.value}`,
-  () => queryCollection('projects')
-    .where('path', '=', `/projects/${slug.value}`)
-    .first(),
+  () => $fetch<ProjectDetail>(`/api/projects/${slug.value}`).catch(() => null),
 )
 
 if (!project.value) {
@@ -17,10 +28,7 @@ if (!project.value) {
 
 const { data: tasks, refresh: refreshTasks, pending: tasksPending } = await useAsyncData(
   () => `tasks-${slug.value}`,
-  () => queryCollection('tasks')
-    .where('path', 'LIKE', `/projects/${slug.value}/tasks/%`)
-    .order('order', 'ASC')
-    .all(),
+  () => $fetch<TaskItem[]>(`/api/tasks/${slug.value}`),
 )
 
 type ColId = StatusId
@@ -164,14 +172,23 @@ const createTaskStatus = ref<ColId>('todo')
 const showEditProject = ref(false)
 const editTask = ref<Task | null>(null)
 
-const taskView = useState<'kanban' | 'list'>('mdpm:task-view', () => 'kanban')
+const taskView = ref<'kanban' | 'list'>('kanban')
 const mounted = ref(false)
+
+function taskViewKey(s: string) { return `mdpm:task-view:${s}` }
+
 onMounted(() => {
-  const stored = localStorage.getItem('mdpm:task-view')
+  const stored = localStorage.getItem(taskViewKey(slug.value))
   if (stored === 'kanban' || stored === 'list') taskView.value = stored
   mounted.value = true
 })
-watch(taskView, v => localStorage.setItem('mdpm:task-view', v))
+
+watch(slug, (s) => {
+  const stored = localStorage.getItem(taskViewKey(s))
+  taskView.value = (stored === 'kanban' || stored === 'list') ? stored : 'kanban'
+})
+
+watch(taskView, v => localStorage.setItem(taskViewKey(slug.value), v))
 
 const openListStatuses = ref<string[]>([])
 watch(visibleColumns, (cols) => {
@@ -442,6 +459,8 @@ const tabs = computed(() => [
                 :loading="markingDone === task.path"
                 @click="editTask = task"
                 @mark-done="markTaskDone(slugFromPath(task.path))"
+                @reopen="reopenTask(slugFromPath(task.path))"
+                @delete="confirmDeleteTask(slugFromPath(task.path))"
               />
             </div>
             <div
@@ -457,6 +476,7 @@ const tabs = computed(() => [
           No tasks match the current filters.
         </div>
       </div>
+
     </div>
 
     <template #overlays>

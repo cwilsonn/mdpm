@@ -1,7 +1,7 @@
 export async function useProjectTasks(keys: { projects: string; tasks: string }) {
   const [{ data: projects, refresh: refreshProjects }, { data: tasks, refresh: refreshTasks }] = await Promise.all([
-    useAsyncData(keys.projects, () => queryCollection('projects').all()),
-    useAsyncData(keys.tasks, () => queryCollection('tasks').all()),
+    useAsyncData(keys.projects, () => $fetch('/api/projects')),
+    useAsyncData(keys.tasks, () => $fetch('/api/tasks')),
   ])
 
   async function refreshAll() {

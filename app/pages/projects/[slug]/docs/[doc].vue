@@ -13,12 +13,11 @@ interface DocDetail {
   body: string
 }
 
+interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string }
+
 const { data: project } = await useAsyncData(
   () => `project-${projectSlug.value}`,
-  () => queryCollection('projects')
-    .where('path', '=', `/projects/${projectSlug.value}`)
-    .select('path', 'title', 'icon')
-    .first(),
+  () => $fetch<ProjectHeader>(`/api/projects/${projectSlug.value}`).catch(() => null),
 )
 
 const { data: docMeta, refresh } = await useAsyncData(
@@ -112,7 +111,7 @@ const breadcrumb = computed(() => [
         ref="titleEl"
         contenteditable="plaintext-only"
         data-placeholder="Doc title"
-        class="w-full text-4xl font-bold outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted rounded-lg border border-default border-dashed"
+        class="w-full text-4xl font-bold outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted"
         @input="title = ($event.target as HTMLElement).innerText"
         @keydown.enter.prevent="($event.target as HTMLElement).blur()"
       />

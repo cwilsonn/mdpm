@@ -2,8 +2,8 @@
 definePageMeta({ title: 'Projects', icon: 'i-lucide-folder' })
 
 const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }] = await Promise.all([
-  useAsyncData('projects-list', () => queryCollection('projects').order('createdAt', 'DESC').all()),
-  useAsyncData('projects-task-counts', () => queryCollection('tasks').select('path', 'status').all()),
+  useAsyncData('projects-list', () => $fetch('/api/projects')),
+  useAsyncData('projects-task-counts', () => $fetch('/api/tasks')),
 ])
 
 const showCreate = ref(false)

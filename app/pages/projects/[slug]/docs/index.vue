@@ -2,11 +2,11 @@
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
+interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string }
+
 const { data: project } = await useAsyncData(
   () => `project-${slug.value}`,
-  () => queryCollection('projects')
-    .where('path', '=', `/projects/${slug.value}`)
-    .first(),
+  () => $fetch<ProjectHeader>(`/api/projects/${slug.value}`).catch(() => null),
 )
 
 if (!project.value) {
@@ -70,7 +70,7 @@ const tabs = computed(() => [
           v-for="doc in docs"
           :key="doc.slug"
           :to="`/projects/${slug}/docs/${doc.slug}`"
-          class="flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors group"
+          class="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors group"
         >
           <UIcon name="i-lucide-file-text" class="size-4 shrink-0 mt-0.5 text-muted" />
           <div class="flex-1 min-w-0">

@@ -3,11 +3,16 @@ const route = useRoute()
 const projectSlug = computed(() => route.params.slug as string)
 const taskSlug = computed(() => route.params.task as string)
 
+interface TaskDetail {
+  slug: string; path: string; project: string; title: string
+  status: string; priority: string; tags: string[]; assignees: string[]
+  dependencies: string[]; due?: string; createdAt: string
+  updatedAt?: string; order: number; body: string
+}
+
 const { data: task, refresh } = await useAsyncData(
   () => `task-${projectSlug.value}-${taskSlug.value}`,
-  () => queryCollection('tasks')
-    .where('path', '=', `/projects/${projectSlug.value}/tasks/${taskSlug.value}`)
-    .first(),
+  () => $fetch<TaskDetail>(`/api/tasks/${projectSlug.value}/${taskSlug.value}`).catch(() => null),
 )
 
 type ProjectTask = { slug: string, title: string, status: string }
@@ -216,7 +221,7 @@ const breadcrumb = computed(() => [
         v-if="task!.body"
         class="prose prose-sm dark:prose-invert max-w-none border-t border-default pt-4"
       >
-        <ContentRenderer :value="task!" />
+        <MDC :value="(task!.body as string)" />
       </div>
     </div>
 

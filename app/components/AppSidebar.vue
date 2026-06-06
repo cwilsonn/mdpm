@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { data: projects } = await useAsyncData('sidebar-projects', () =>
-  queryCollection('projects').select('path', 'title', 'icon').order('title', 'ASC').all(),
+  $fetch('/api/projects').then((list: any) => [...list].sort((a: any, b: any) => a.title.localeCompare(b.title))),
 )
 
 const navigation = computed(() => [
