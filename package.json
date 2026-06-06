@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "TMPDIR=/tmp nuxt dev",
-    "build": "nuxt build",
+    "build": "pnpm rebuild better-sqlite3 && nuxt build",
     "start": "node .output/server/index.mjs",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
