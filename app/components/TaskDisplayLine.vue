@@ -85,7 +85,7 @@ const completedLabel = computed(() => {
         <span v-if="completedLabel" class="text-xs text-muted hidden sm:block shrink-0">{{ completedLabel }}</span>
         <div v-if="assignees.length" class="hidden md:flex -space-x-1">
           <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
+            <UAvatar :alt="a" :src="assigneeAvatar(a)" size="2xs" />
           </UTooltip>
           <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
         </div>
@@ -107,7 +107,7 @@ const completedLabel = computed(() => {
         />
         <div v-if="assignees.length" class="hidden md:flex -space-x-1">
           <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
+            <UAvatar :alt="a" :src="assigneeAvatar(a)" size="2xs" />
           </UTooltip>
           <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
         </div>
