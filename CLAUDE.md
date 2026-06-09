@@ -81,8 +81,6 @@ Global skills in `~/.claude/commands/`:
 | `/sync` | Mid-session — sync task statuses + update stale docs |
 | `/handoff` | End of session — writes `session-notes` doc, marks tasks done |
 
-`session-notes` doc is overwritten each session; git history is the permanent log.
-
 ## UI Conventions
 
 Project pages use route-linked tabs via `AppPageBase`:
