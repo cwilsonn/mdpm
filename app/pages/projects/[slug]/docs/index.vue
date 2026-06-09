@@ -56,13 +56,13 @@ const mobileActions = [
       />
     </template>
 
-    <div class="overflow-y-auto flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+    <div class="flex flex-col flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
       <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
         <UIcon name="i-lucide-book-open" class="size-10 text-muted" />
         <p class="text-muted text-sm">No docs yet for this project.</p>
         <UButton label="Create first doc" icon="i-lucide-plus" size="sm" @click="showCreateDoc = true" />
       </div>
-      <DocTreeList
+      <DocList
         v-else
         :docs="docs"
         :base-url="`/projects/${slug}/docs`"

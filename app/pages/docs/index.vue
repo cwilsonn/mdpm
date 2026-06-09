@@ -29,8 +29,8 @@ async function onDocCreated(slug: string) {
       actions: [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: () => showCreate = true }],
     }"
   >
-    <div class="overflow-y-auto flex-1 min-h-0" :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
-      <DocTreeList
+    <div class="flex flex-col flex-1 min-h-0" :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+      <DocList
         v-if="docs?.length"
         :docs="docs"
         base-url="/docs"
