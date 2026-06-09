@@ -1,10 +1,11 @@
 <script setup lang="ts">
 const props = defineProps<{
-  projectSlug: string
+  projectSlug?: string
   doc?: {
     path: string
     title: string
     tags?: string[]
+    parent?: string | null
   }
 }>()
 
@@ -14,40 +15,79 @@ const emit = defineEmits<{
 }>()
 
 const isEdit = computed(() => !!props.doc)
+const isStandalone = computed(() => !props.projectSlug)
 
 const form = reactive({
   title: props.doc?.title ?? '',
   tags: [...(props.doc?.tags ?? [])] as string[],
+  parent: props.doc?.parent ?? '',
 })
+
+// sibling docs for parent selector
+const siblingDocs = ref<{ label: string; value: string }[]>([])
+const parentItems = computed(() => [
+  { label: 'None (top-level)', value: '' },
+  ...siblingDocs.value,
+])
+
+onMounted(async () => {
+  initAutoSave()
+  try {
+    const docs = isStandalone.value
+      ? await $fetch<{ slug: string; title: string }[]>('/api/standalone-docs')
+      : await $fetch<{ slug: string; title: string }[]>(`/api/docs/${props.projectSlug}`)
+    const selfSlug = props.doc ? slugFromPath(props.doc.path) : ''
+    siblingDocs.value = docs
+      .filter(d => d.slug !== selfSlug)
+      .map(d => ({ label: d.title, value: d.slug }))
+  }
+  catch {}
+})
+onBeforeUnmount(() => cleanupAutoSave())
 
 const creating = ref(false)
 const createError = ref<string | null>(null)
 
+function patchUrl() {
+  const slug = slugFromPath(props.doc!.path)
+  return isStandalone.value
+    ? `/api/standalone-docs/${slug}`
+    : `/api/docs/${props.projectSlug}/${slug}`
+}
+
 const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    const slug = slugFromPath(props.doc!.path)
-    await $fetch(`/api/docs/${props.projectSlug}/${slug}`, {
+    await $fetch(patchUrl(), {
       method: 'PATCH',
-      body: { title: form.title, tags: form.tags },
+      body: {
+        title: form.title,
+        tags: form.tags,
+        parent: form.parent || null,
+      },
     })
   },
 )
 
 watch(() => form.title, () => { if (isEdit.value) scheduleSave() })
 watch(() => form.tags, () => { if (isEdit.value) scheduleSave() }, { deep: true })
-
-onMounted(() => initAutoSave())
-onBeforeUnmount(() => cleanupAutoSave())
+watch(() => form.parent, () => { if (isEdit.value) scheduleSave() })
 
 async function create() {
   if (!form.title.trim()) return
   creating.value = true
   createError.value = null
   try {
-    const { slug } = await $fetch<{ slug: string }>(`/api/docs/${props.projectSlug}`, {
+    const url = isStandalone.value
+      ? '/api/standalone-docs'
+      : `/api/docs/${props.projectSlug}`
+    const { slug } = await $fetch<{ slug: string }>(url, {
       method: 'POST',
-      body: { title: form.title, tags: form.tags },
+      body: {
+        title: form.title,
+        tags: form.tags,
+        ...(form.parent ? { parent: form.parent } : {}),
+      },
     })
     emit('saved', slug)
   }
@@ -90,6 +130,16 @@ async function create() {
           <UInputTags
             v-model="form.tags"
             placeholder="Add tags…"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField v-if="parentItems.length > 1" label="Parent doc">
+          <USelect
+            v-model="form.parent"
+            :items="parentItems"
+            value-key="value"
+            label-key="label"
             class="w-full"
           />
         </UFormField>

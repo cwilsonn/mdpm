@@ -2,6 +2,9 @@
 const props = defineProps<{
   projectSlug: string
   initialStatus?: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked'
+  availableStatuses?: string[]
+  defaultPriority?: string
+  defaultAssignee?: string
   task?: {
     path: string
     title: string
@@ -31,11 +34,18 @@ const currentTaskSlug = computed(() => props.task ? slugFromPath(props.task.path
 const form = reactive({
   title: props.task?.title ?? '',
   status: (props.task?.status ?? props.initialStatus ?? 'todo') as 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked',
-  priority: (props.task?.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
+  priority: (props.task?.priority ?? props.defaultPriority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
   tags: [...(props.task?.tags ?? [])] as string[],
-  assignees: [...(props.task?.assignees ?? [])] as string[],
+  assignees: props.task ? [...(props.task.assignees ?? [])] : (props.defaultAssignee ? [props.defaultAssignee] : []) as string[],
   due: props.task?.due ?? '',
   dependencies: [...(props.task?.dependencies ?? [])] as string[],
+})
+
+const statusSelectItems = computed(() => {
+  const available = props.availableStatuses ?? STATUS_CONFIG.map(s => s.id)
+  return STATUS_SELECT_ITEMS.filter(s =>
+    available.includes(s.value) || (props.task && s.value === props.task.status),
+  )
 })
 
 type ProjectTask = { slug: string, title: string, status: string }
@@ -198,7 +208,7 @@ async function create() {
           <UFormField label="Status">
             <USelect
               v-model="form.status"
-              :items="STATUS_SELECT_ITEMS"
+              :items="statusSelectItems"
               value-key="value"
               class="w-full"
             >

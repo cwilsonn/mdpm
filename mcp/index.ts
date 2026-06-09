@@ -88,26 +88,77 @@ function getTasks(projectSlug: string, statusFilter?: string[]) {
   }).sort((a, b) => a.order - b.order)
 }
 
-function getDocs(projectSlug?: string) {
-  const projectSlugs = projectSlug ? [projectSlug] : listDirs(contentPath('projects'))
-  return projectSlugs.flatMap((pSlug) => {
-    const docsDir = contentPath('projects', pSlug, 'docs')
-    return listMdFiles(docsDir).flatMap((f) => {
+function getDocs(projectSlug?: string, standaloneOnly = false) {
+  const results: {
+    slug: string
+    project: string | null
+    title: string
+    tags: string[]
+    parent: string | null
+    createdAt: string
+    updatedAt: string | null
+    excerpt: string
+    body: string
+  }[] = []
+
+  if (!standaloneOnly) {
+    const projectSlugs = projectSlug ? [projectSlug] : listDirs(contentPath('projects'))
+    for (const pSlug of projectSlugs) {
+      const docsDir = contentPath('projects', pSlug, 'docs')
+      for (const f of listMdFiles(docsDir)) {
+        const slug = f.replace('.md', '')
+        const file = readMd(`projects/${pSlug}/docs/${slug}.md`)
+        if (!file) continue
+        results.push({
+          slug,
+          project: pSlug,
+          title: (file.data.title as string) ?? slug,
+          tags: (file.data.tags as string[]) ?? [],
+          parent: (file.data.parent as string | undefined) ?? null,
+          createdAt: (file.data.createdAt as string) ?? '',
+          updatedAt: (file.data.updatedAt as string) ?? null,
+          excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
+          body: file.content.trim(),
+        })
+      }
+    }
+  }
+
+  if (!projectSlug) {
+    const docsDir = contentPath('docs')
+    for (const f of listMdFiles(docsDir)) {
       const slug = f.replace('.md', '')
-      const file = readMd(`projects/${pSlug}/docs/${slug}.md`)
-      if (!file) return []
-      return [{
+      const file = readMd(`docs/${slug}.md`)
+      if (!file) continue
+      results.push({
         slug,
-        project: pSlug,
+        project: null,
         title: (file.data.title as string) ?? slug,
         tags: (file.data.tags as string[]) ?? [],
+        parent: (file.data.parent as string | undefined) ?? null,
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string) ?? null,
         excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
         body: file.content.trim(),
-      }]
-    })
-  })
+      })
+    }
+  }
+
+  return results
+}
+
+function getAllTasks(statusFilter?: string[]) {
+  const projectsDir = contentPath('projects')
+  if (!existsSync(projectsDir)) return []
+  return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter))
+}
+
+function searchTasks(query: string, projectSlug?: string, statusFilter?: string[]) {
+  const q = query.toLowerCase()
+  const tasks = projectSlug ? getTasks(projectSlug, statusFilter) : getAllTasks(statusFilter)
+  return tasks.filter(t =>
+    t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q),
+  )
 }
 
 function searchDocs(query: string, projectSlug?: string) {
@@ -136,6 +187,15 @@ async function apiPost(path: string, body: unknown) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }))
+    throw new Error((err as any).message ?? res.statusText)
+  }
+  return res.json()
+}
+
+async function apiDelete(path: string) {
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }))
     throw new Error((err as any).message ?? res.statusText)
@@ -186,18 +246,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: 'List tasks for a project, optionally filtered by status.',
+      description: 'List tasks, optionally filtered by project and/or status. Omit project for all projects.',
       inputSchema: {
         type: 'object',
         properties: {
-          project: { type: 'string', description: 'Project slug' },
+          project: { type: 'string', description: 'Project slug. Omit for all projects.' },
           status: {
             type: 'array',
             items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
             description: 'Filter by status values. Omit for all.',
           },
         },
-        required: ['project'],
       },
     },
     {
@@ -251,17 +310,59 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_docs',
-      description: 'List docs, optionally filtered to a specific project.',
+      description: 'List docs. Pass project to scope to a project. Omit both for all docs including standalone.',
       inputSchema: {
         type: 'object',
         properties: {
-          project: { type: 'string', description: 'Project slug. Omit for all projects.' },
+          project: { type: 'string', description: 'Project slug. Omit for all docs (project + standalone).' },
+          standalone: { type: 'boolean', description: 'Set true to list only standalone (non-project) docs.' },
         },
       },
     },
     {
       name: 'get_doc',
-      description: 'Get full content of a doc including markdown body.',
+      description: 'Get full content of a doc including markdown body. Omit project for a standalone doc.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Project slug. Omit for standalone doc.' },
+          slug: { type: 'string' },
+        },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'search_docs',
+      description: 'Full-text search across doc titles and bodies.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          project: { type: 'string', description: 'Scope to a project. Omit for all (including standalone).' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'create_project',
+      description: 'Create a new project.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          description: { type: 'string' },
+          icon: { type: 'string' },
+          availableStatuses: { type: 'array', items: { type: 'string' } },
+          defaultStatus: { type: 'string' },
+          defaultPriority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          defaultAssignee: { type: 'string' },
+        },
+        required: ['title'],
+      },
+    },
+    {
+      name: 'delete_task',
+      description: 'Permanently delete a task.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -272,30 +373,61 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: 'search_docs',
-      description: 'Full-text search across doc titles and bodies.',
+      name: 'delete_doc',
+      description: 'Permanently delete a doc.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          slug: { type: 'string' },
+        },
+        required: ['project', 'slug'],
+      },
+    },
+    {
+      name: 'search_tasks',
+      description: 'Full-text search across task titles and description bodies, optionally scoped to a project.',
       inputSchema: {
         type: 'object',
         properties: {
           query: { type: 'string' },
-          project: { type: 'string', description: 'Scope to a project. Omit for all.' },
+          project: { type: 'string', description: 'Scope to a project. Omit for all projects.' },
+          status: {
+            type: 'array',
+            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
+            description: 'Filter by status values.',
+          },
         },
         required: ['query'],
       },
     },
     {
-      name: 'upsert_doc',
-      description: 'Create or update a doc. If slug exists it will be updated; otherwise a new doc is created with a slug derived from the title.',
+      name: 'append_task_note',
+      description: 'Append a timestamped note to a task description without overwriting existing content.',
       inputSchema: {
         type: 'object',
         properties: {
           project: { type: 'string' },
+          slug: { type: 'string' },
+          note: { type: 'string', description: 'Markdown note to append' },
+        },
+        required: ['project', 'slug', 'note'],
+      },
+    },
+    {
+      name: 'upsert_doc',
+      description: 'Create or update a doc. Omit project for a standalone doc. If slug exists it will be updated; otherwise a new doc is created.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Project slug. Omit for standalone doc.' },
           slug: { type: 'string', description: 'Existing slug to update. Omit to create new.' },
           title: { type: 'string' },
           body: { type: 'string', description: 'Full markdown body' },
           tags: { type: 'array', items: { type: 'string' } },
+          parent: { type: 'string', description: 'Slug of parent doc in same scope for hierarchy.' },
         },
-        required: ['project', 'title', 'body'],
+        required: ['title', 'body'],
       },
     },
   ],
@@ -335,8 +467,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'list_tasks': {
-        const { project, status } = args as { project: string; status?: string[] }
-        const tasks = getTasks(project, status)
+        const { project, status } = args as { project?: string; status?: string[] }
+        const tasks = project ? getTasks(project, status) : getAllTasks(status)
         return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] }
       }
 
@@ -360,17 +492,52 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return { content: [{ type: 'text', text: JSON.stringify(result) }] }
       }
 
+      case 'create_project': {
+        const result = await apiPost('/api/projects', args)
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+      }
+
+      case 'delete_task': {
+        const { project, slug } = args as { project: string; slug: string }
+        const result = await apiDelete(`/api/tasks/${project}/${slug}`)
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+      }
+
+      case 'delete_doc': {
+        const { project, slug } = args as { project: string; slug: string }
+        const result = await apiDelete(`/api/docs/${project}/${slug}`)
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+      }
+
+      case 'search_tasks': {
+        const { query, project, status } = args as { query: string; project?: string; status?: string[] }
+        const results = searchTasks(query, project, status)
+        return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] }
+      }
+
+      case 'append_task_note': {
+        const { project, slug, note } = args as { project: string; slug: string; note: string }
+        const tasks = getTasks(project)
+        const task = tasks.find(t => t.slug === slug)
+        if (!task) throw new Error(`Task '${slug}' not found in project '${project}'`)
+        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
+        const separator = task.body.trim() ? '\n\n' : ''
+        const newBody = `${task.body.trim()}${separator}---\n**Note** _(${timestamp})_\n\n${note.trim()}`
+        const result = await apiPatch(`/api/tasks/${project}/${slug}`, { description: newBody })
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+      }
+
       case 'list_docs': {
-        const { project } = args as { project?: string }
-        const docs = getDocs(project).map(({ body: _, ...d }) => d)
+        const { project, standalone } = args as { project?: string; standalone?: boolean }
+        const docs = getDocs(project, standalone).map(({ body: _, ...d }) => d)
         return { content: [{ type: 'text', text: JSON.stringify(docs, null, 2) }] }
       }
 
       case 'get_doc': {
-        const { project, slug } = args as { project: string; slug: string }
+        const { project, slug } = args as { project?: string; slug: string }
         const docs = getDocs(project)
-        const doc = docs.find(d => d.slug === slug)
-        if (!doc) throw new Error(`Doc '${slug}' not found in project '${project}'`)
+        const doc = docs.find(d => d.slug === slug && (project ? d.project === project : !d.project))
+        if (!doc) throw new Error(`Doc '${slug}' not found${project ? ` in project '${project}'` : ' (standalone)'}`)
         return { content: [{ type: 'text', text: JSON.stringify(doc, null, 2) }] }
       }
 
@@ -381,20 +548,32 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'upsert_doc': {
-        const { project, slug, title, body, tags } = args as {
-          project: string
+        const { project, slug, title, body, tags, parent } = args as {
+          project?: string
           slug?: string
           title: string
           body: string
           tags?: string[]
+          parent?: string
         }
         let result
-        if (slug && existsSync(contentPath('projects', project, 'docs', `${slug}.md`))) {
-          result = await apiPatch(`/api/docs/${project}/${slug}`, { title, body, tags })
-          result.slug = slug
+        if (project) {
+          if (slug && existsSync(contentPath('projects', project, 'docs', `${slug}.md`))) {
+            result = await apiPatch(`/api/docs/${project}/${slug}`, { title, body, tags, parent })
+            result.slug = slug
+          }
+          else {
+            result = await apiPost(`/api/docs/${project}`, { title, body, tags, parent, slug })
+          }
         }
         else {
-          result = await apiPost(`/api/docs/${project}`, { title, body: body, tags })
+          if (slug && existsSync(contentPath('docs', `${slug}.md`))) {
+            result = await apiPatch(`/api/standalone-docs/${slug}`, { title, body, tags, parent })
+            result.slug = slug
+          }
+          else {
+            result = await apiPost('/api/standalone-docs', { title, body, tags, parent, slug })
+          }
         }
         return { content: [{ type: 'text', text: JSON.stringify(result) }] }
       }

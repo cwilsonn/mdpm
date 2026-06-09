@@ -5,6 +5,7 @@ const { data: projects } = await useAsyncData('sidebar-projects', () =>
 
 const navigation = computed(() => [
   { label: 'Inbox', icon: 'i-lucide-inbox', to: '/inbox' },
+  { label: 'Docs', icon: 'i-lucide-book-open', to: '/docs' },
   {
     label: 'Projects',
     icon: 'i-lucide-notebook',

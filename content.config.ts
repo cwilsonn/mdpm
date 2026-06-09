@@ -21,6 +21,12 @@ export default defineContentConfig({
         description: z.string().optional(),
         createdAt: z.string(),
         updatedAt: z.string().optional(),
+        availableStatuses: z.array(z.string()).optional(),
+        defaultStatus: z.string().optional(),
+        defaultPriority: z.string().optional(),
+        defaultAssignee: z.string().optional(),
+        pinned: z.boolean().optional(),
+        pinnedOrder: z.number().optional(),
       }),
     }),
     docs: defineCollection({
@@ -29,6 +35,18 @@ export default defineContentConfig({
       schema: z.object({
         title: z.string(),
         tags: z.array(z.string()).default([]),
+        parent: z.string().optional(),
+        createdAt: z.string(),
+        updatedAt: z.string().optional(),
+      }),
+    }),
+    standalone_docs: defineCollection({
+      type: 'page',
+      source: 'docs/*.md',
+      schema: z.object({
+        title: z.string(),
+        tags: z.array(z.string()).default([]),
+        parent: z.string().optional(),
         createdAt: z.string(),
         updatedAt: z.string().optional(),
       }),

@@ -1,0 +1,25 @@
+import { existsSync, readdirSync } from 'node:fs'
+
+export default defineEventHandler(() => {
+  const docsDir = contentPath('docs')
+  if (!existsSync(docsDir)) return []
+
+  return readdirSync(docsDir)
+    .filter(f => f.endsWith('.md'))
+    .flatMap((f) => {
+      const slug = f.replace('.md', '')
+      const file = readMarkdown(`docs/${slug}.md`)
+      if (!file) return []
+      return [{
+        slug,
+        project: null as null,
+        title: (file.data.title as string) ?? slug,
+        tags: (file.data.tags as string[]) ?? [],
+        parent: (file.data.parent as string | undefined) ?? null,
+        createdAt: (file.data.createdAt as string) ?? '',
+        updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
+        excerpt: file.content.slice(0, 200).replace(/[#*`_]/g, '').trim(),
+      }]
+    })
+    .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
+})

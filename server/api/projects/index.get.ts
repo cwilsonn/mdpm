@@ -20,7 +20,14 @@ export default defineEventHandler(() => {
         tags: (file.data.tags as string[]) ?? [],
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
+        pinned: (file.data.pinned as boolean | undefined) ?? false,
+        pinnedOrder: (file.data.pinnedOrder as number | undefined) ?? Infinity,
       }]
     })
-    .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      if (a.pinnedOrder !== b.pinnedOrder) return a.pinnedOrder - b.pinnedOrder
+      return b.createdAt > a.createdAt ? 1 : -1
+    })
 })
