@@ -7,6 +7,7 @@ export interface DocTreeItem {
   title: string
   tags: string[]
   parent: string | null
+  isFolder?: boolean
   createdAt: string
   updatedAt?: string
   excerpt?: string

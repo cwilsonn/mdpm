@@ -66,6 +66,8 @@ const mobileActions = [
         v-else
         :docs="docs"
         :base-url="`/projects/${slug}/docs`"
+        :project-slug="slug"
+        @changed="refreshDocs"
       />
     </div>
 

@@ -17,6 +17,7 @@ export default defineEventHandler((event) => {
         title: (file?.data?.title as string) ?? slug,
         tags: (file?.data?.tags as string[]) ?? [],
         parent: (file?.data?.parent as string | undefined) ?? null,
+        isFolder: (file?.data?.isFolder as boolean | undefined) ?? false,
         createdAt: (file?.data?.createdAt as string) ?? '',
         updatedAt: (file?.data?.updatedAt as string) ?? undefined,
         excerpt: file?.content?.slice(0, 200).replace(/[#*`_]/g, '').trim() ?? '',

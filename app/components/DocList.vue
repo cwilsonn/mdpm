@@ -1,33 +1,50 @@
 <script setup lang="ts">
 import type { DocTreeItem } from './DocTreeList.vue'
+import type { AppTreeItem } from './AppTree.vue'
 
 export interface DocGroup {
   label: string
   icon?: string
   docs: DocTreeItem[]
   baseUrl: string
+  projectSlug: string | null
 }
 
 const props = defineProps<{
   // single-group mode
   docs?: DocTreeItem[]
   baseUrl?: string
+  projectSlug?: string | null
   // multi-group mode
   groups?: DocGroup[]
 }>()
 
+const emit = defineEmits<{
+  changed: []
+}>()
+
+const router = useRouter()
+const toast = useToast()
+
+// ── Search ─────────────────────────────────────────────────────────────────
 const q = ref('')
 const isSearching = computed(() => q.value.trim().length > 0)
 
-// Flatten all docs across groups for search
-const allDocs = computed((): Array<DocTreeItem & { _baseUrl: string; _groupLabel: string; _groupIcon?: string }> => {
-  if (props.groups) {
-    return props.groups.flatMap(g =>
-      g.docs.map(d => ({ ...d, _baseUrl: g.baseUrl, _groupLabel: g.label, _groupIcon: g.icon })),
-    )
-  }
-  return (props.docs ?? []).map(d => ({ ...d, _baseUrl: props.baseUrl!, _groupLabel: '' }))
+const effectiveGroups = computed((): DocGroup[] => {
+  if (props.groups) return props.groups
+  return [{
+    label: '',
+    docs: props.docs ?? [],
+    baseUrl: props.baseUrl ?? '',
+    projectSlug: props.projectSlug ?? null,
+  }]
 })
+
+const allDocs = computed(() =>
+  effectiveGroups.value.flatMap(g =>
+    g.docs.map(d => ({ ...d, _baseUrl: g.baseUrl, _groupLabel: g.label, _groupIcon: g.icon })),
+  ),
+)
 
 const filtered = computed(() => {
   const query = q.value.trim().toLowerCase()
@@ -39,8 +56,41 @@ const filtered = computed(() => {
   )
 })
 
-const singleDocs = computed(() => props.docs ?? [])
-const singleBaseUrl = computed(() => props.baseUrl ?? '')
+// ── AppTree item conversion ─────────────────────────────────────────────────
+function toTreeItems(docs: DocTreeItem[]): AppTreeItem[] {
+  return docs.map(d => ({
+    slug: d.slug,
+    label: d.title,
+    parent: d.parent,
+    isFolder: d.isFolder,
+  }))
+}
+
+// ── Reparent ───────────────────────────────────────────────────────────────
+async function handleReparent(payload: { slug: string; parent: string | null }, group: DocGroup) {
+  const url = group.projectSlug
+    ? `/api/docs/${group.projectSlug}/${payload.slug}`
+    : `/api/standalone-docs/${payload.slug}`
+  try {
+    await $fetch(url, { method: 'PATCH', body: { parent: payload.parent } })
+    emit('changed')
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to move doc', description: e?.data?.message ?? String(e), color: 'error' })
+  }
+}
+
+// ── Folder creation ─────────────────────────────────────────────────────────
+const createFolderState = ref<{ group: DocGroup; parent: string | null } | null>(null)
+
+function handleCreateFolder(payload: { parent: string | null }, group: DocGroup) {
+  createFolderState.value = { group, parent: payload.parent }
+}
+
+async function onFolderCreated() {
+  createFolderState.value = null
+  emit('changed')
+}
 </script>
 
 <template>
@@ -94,25 +144,38 @@ const singleBaseUrl = computed(() => props.baseUrl ?? '')
       </NuxtLink>
     </div>
 
-    <!-- Default: grouped tree sections or single tree -->
+    <!-- Tree view (multi-group or single group) -->
     <div v-else class="overflow-y-auto flex-1 min-h-0">
-      <!-- Multi-group mode -->
-      <template v-if="groups">
+      <template v-for="group in effectiveGroups" :key="group.label || 'single'">
+        <!-- Group header (multi-group mode only) -->
         <div
-          v-for="group in groups"
-          :key="group.label"
+          v-if="groups"
+          class="flex items-center gap-1.5 px-4 py-1.5 border-b border-default bg-muted/30 sticky top-0 z-10"
         >
-          <div class="flex items-center gap-1.5 px-4 py-1.5 border-b border-default bg-muted/30 sticky top-0 z-10">
-            <UIcon v-if="group.icon" :name="group.icon" class="size-3.5 text-muted shrink-0" />
-            <span class="text-xs font-medium text-muted uppercase tracking-wide">{{ group.label }}</span>
-            <span class="text-xs text-muted ml-auto">{{ group.docs.length }}</span>
-          </div>
-          <DocTreeList :docs="group.docs" :base-url="group.baseUrl" />
+          <UIcon v-if="group.icon" :name="group.icon" class="size-3.5 text-muted shrink-0" />
+          <span class="text-xs font-medium text-muted uppercase tracking-wide">{{ group.label }}</span>
+          <span class="text-xs text-muted ml-auto">{{ group.docs.length }}</span>
         </div>
-      </template>
 
-      <!-- Single-group mode -->
-      <DocTreeList v-else :docs="singleDocs" :base-url="singleBaseUrl" />
+        <AppTree
+          :items="toTreeItems(group.docs)"
+          :allow-drag="true"
+          :allow-folder-create="true"
+          @select="(slug) => router.push(`${group.baseUrl}/${slug}`)"
+          @reparent="(payload) => handleReparent(payload, group)"
+          @create-folder="(payload) => handleCreateFolder(payload, group)"
+        />
+      </template>
     </div>
+
+    <!-- Folder creation modal -->
+    <DocForm
+      v-if="createFolderState"
+      :project-slug="createFolderState.group.projectSlug ?? undefined"
+      :is-folder="true"
+      :default-parent="createFolderState.parent ?? undefined"
+      @close="createFolderState = null"
+      @saved="onFolderCreated"
+    />
   </div>
 </template>

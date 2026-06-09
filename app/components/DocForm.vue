@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const props = defineProps<{
   projectSlug?: string
+  isFolder?: boolean
+  defaultParent?: string
   doc?: {
     path: string
     title: string
@@ -20,7 +22,7 @@ const isStandalone = computed(() => !props.projectSlug)
 const form = reactive({
   title: props.doc?.title ?? '',
   tags: [...(props.doc?.tags ?? [])] as string[],
-  parent: props.doc?.parent ?? '',
+  parent: props.doc?.parent ?? props.defaultParent ?? '',
 })
 
 // sibling docs for parent selector
@@ -87,6 +89,7 @@ async function create() {
         title: form.title,
         tags: form.tags,
         ...(form.parent ? { parent: form.parent } : {}),
+        ...(props.isFolder ? { isFolder: true } : {}),
       },
     })
     emit('saved', slug)
@@ -103,7 +106,7 @@ async function create() {
 <template>
   <UModal :open="true" @update:open="emit('close')">
     <template #title>
-      {{ isEdit ? 'Edit Doc' : 'New Doc' }}
+      {{ isEdit ? 'Edit Doc' : isFolder ? 'New Folder' : 'New Doc' }}
     </template>
 
     <template #body>
@@ -160,7 +163,7 @@ async function create() {
       </div>
       <div v-else class="flex justify-end w-full">
         <UButton
-          label="Create Doc"
+          :label="isFolder ? 'Create Folder' : 'Create Doc'"
           :loading="creating"
           :disabled="!form.title.trim()"
           @click="create"

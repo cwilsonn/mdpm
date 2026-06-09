@@ -10,7 +10,7 @@ interface AllDoc extends DocTreeItem {
 
 interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
 
-const [{ data: allDocs, pending }, { data: projects }] = await Promise.all([
+const [{ data: allDocs, pending, refresh: refreshDocs }, { data: projects }] = await Promise.all([
   useAsyncData('all-docs', () => $fetch<AllDoc[]>('/api/docs')),
   useAsyncData('all-projects', () => $fetch<ProjectHeader[]>('/api/projects')),
 ])
@@ -38,7 +38,7 @@ const groups = computed((): DocGroup[] => {
   const result: DocGroup[] = []
 
   if (standalone.length) {
-    result.push({ label: 'General', icon: 'i-lucide-book-open', docs: standalone, baseUrl: '/docs' })
+    result.push({ label: 'General', icon: 'i-lucide-book-open', docs: standalone, baseUrl: '/docs', projectSlug: null })
   }
 
   for (const [slug, docs] of projectMap) {
@@ -48,6 +48,7 @@ const groups = computed((): DocGroup[] => {
       icon: project?.icon || 'i-lucide-folder',
       docs,
       baseUrl: `/projects/${slug}/docs`,
+      projectSlug: slug,
     })
   }
 
@@ -72,6 +73,7 @@ const groups = computed((): DocGroup[] => {
       <DocList
         v-if="hasAnyDocs"
         :groups="groups"
+        @changed="refreshDocs"
       />
     </div>
 

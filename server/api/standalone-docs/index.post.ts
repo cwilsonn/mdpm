@@ -3,7 +3,7 @@ import { existsSync, readdirSync } from 'node:fs'
 const DOC_LIMIT = 50
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ title: string; slug?: string; tags?: string[]; parent?: string; body?: string }>(event)
+  const body = await readBody<{ title: string; slug?: string; tags?: string[]; parent?: string; isFolder?: boolean; body?: string }>(event)
 
   if (!body.title?.trim()) throw createError({ statusCode: 400, message: 'Title is required' })
 
@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
     title: body.title.trim(),
     tags: body.tags ?? [],
     ...(body.parent ? { parent: body.parent } : {}),
+    ...(body.isFolder ? { isFolder: true } : {}),
     createdAt: new Date().toISOString().split('T')[0],
   }, body.body ?? '')
 
