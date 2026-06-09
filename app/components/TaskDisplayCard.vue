@@ -31,6 +31,9 @@ const assignees = computed(() => (props.task.assignees as string[] | undefined) 
 const depCount = computed(() => (props.task.dependencies as string[] | undefined)?.length ?? 0)
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
 const isDone = computed(() => props.task.status === 'done')
+const isAiInProgress = computed(() =>
+  props.task.status === 'in-progress' && assignees.value.includes('Claude'),
+)
 const completedLabel = computed(() => {
   if (!props.task.completedAt) return null
   return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -54,8 +57,11 @@ const completedLabel = computed(() => {
         class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 -mt-0.5"
         @click.stop="emit('delete')"
       />
+      <UTooltip v-if="isAiInProgress" text="Claude is working on this…">
+        <UIcon name="i-lucide-loader-2" class="size-4 shrink-0 text-info animate-spin -mt-0.5 -mr-1" />
+      </UTooltip>
       <UButton
-        v-if="task.status !== 'done'"
+        v-else-if="task.status !== 'done'"
         icon="i-lucide-circle"
         color="neutral"
         variant="ghost"

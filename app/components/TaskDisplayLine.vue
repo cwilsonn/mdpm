@@ -22,6 +22,9 @@ const depCount = computed(() => (props.task.dependencies as string[] | undefined
 const status = computed(() => STATUS_MAP[props.task.status])
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
 const isDone = computed(() => props.task.status === 'done')
+const isAiInProgress = computed(() =>
+  props.task.status === 'in-progress' && assignees.value.includes('Claude'),
+)
 const completedLabel = computed(() => {
   const date = (props.task as any).completedAt
   if (!date) return null
@@ -35,9 +38,12 @@ const completedLabel = computed(() => {
     :class="loading ? 'opacity-50' : ''"
     @click="emit('click')"
   >
-    <!-- Complete / Reopen (left of title, checkbox-style) -->
+    <!-- Complete / Reopen (left of title) -->
+    <UTooltip v-if="isAiInProgress" text="Claude is working on this…">
+      <UIcon name="i-lucide-loader-2" class="size-5 shrink-0 text-info animate-spin" />
+    </UTooltip>
     <UButton
-      v-if="task.status !== 'done'"
+      v-else-if="task.status !== 'done'"
       icon="i-lucide-circle"
       color="neutral"
       variant="ghost"

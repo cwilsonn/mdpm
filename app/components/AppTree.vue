@@ -14,6 +14,8 @@ type AppTreeNode = TreeItem & {
   _isFolder: boolean
 }
 
+const CREATE_SLUG = '__create__'
+
 const props = withDefaults(defineProps<{
   items: AppTreeItem[]
   loading?: boolean
@@ -30,7 +32,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   select: [slug: string]
   reparent: [payload: { slug: string; parent: string | null }]
-  'create-folder': [payload: { parent: string | null }]
+  'create-folder': [payload: { parent: string | null; name: string }]
 }>()
 
 // ── Search ─────────────────────────────────────────────────────────────────
@@ -38,9 +40,7 @@ const q = ref('')
 const isSearching = computed(() => props.search && q.value.trim().length > 0)
 const filteredFlat = computed(() => {
   const query = q.value.trim().toLowerCase()
-  return props.items.filter(i =>
-    i.label.toLowerCase().includes(query),
-  )
+  return props.items.filter(i => i.label.toLowerCase().includes(query))
 })
 
 // ── Hierarchy builder ──────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ function buildTree(items: AppTreeItem[]): AppTreeNode[] {
     }
   }
 
-  // BFS to detect cycle orphans and promote them
+  // BFS — detect cycle orphans and promote them to root
   const visited = new Set<string>(roots.map(r => r.slug))
   const queue = [...roots]
   while (queue.length) {
@@ -100,11 +100,62 @@ function buildTree(items: AppTreeItem[]): AppTreeNode[] {
   return toNodes(roots)
 }
 
-const treeItems = computed(() => buildTree(props.items))
+// ── Inline folder creation ─────────────────────────────────────────────────
+const inlineCreate = ref<{ parent: string | null } | null>(null)
+const inlineCreateName = ref('')
+
+const createPlaceholderNode: AppTreeNode = {
+  slug: CREATE_SLUG,
+  label: '',
+  _isFolder: false,
+  defaultExpanded: false,
+}
+
+function injectCreateNode(nodes: AppTreeNode[], parentSlug: string): AppTreeNode[] {
+  return nodes.map((node) => {
+    if (node.slug === parentSlug) {
+      return { ...node, children: [...(node.children ?? []), createPlaceholderNode] }
+    }
+    if (node.children?.length) {
+      return { ...node, children: injectCreateNode(node.children as AppTreeNode[], parentSlug) }
+    }
+    return node
+  })
+}
+
+const treeItems = computed((): AppTreeNode[] => {
+  const base = buildTree(props.items)
+  if (inlineCreate.value === null) return base
+  const { parent } = inlineCreate.value
+  if (parent === null) return [...base, createPlaceholderNode]
+  return injectCreateNode(base, parent)
+})
+
+function openInlineCreate(parent: string | null) {
+  inlineCreate.value = { parent }
+  inlineCreateName.value = ''
+}
+
+function confirmCreate() {
+  const name = inlineCreateName.value.trim()
+  if (!name) {
+    cancelCreate()
+    return
+  }
+  const parent = inlineCreate.value?.parent ?? null
+  inlineCreate.value = null
+  inlineCreateName.value = ''
+  emit('create-folder', { parent, name })
+}
+
+function cancelCreate() {
+  inlineCreate.value = null
+  inlineCreateName.value = ''
+}
 
 // ── Drag state ─────────────────────────────────────────────────────────────
 const dragging = ref<string | null>(null)
-// '__none__' = no hover; '__root__' = root drop zone; anything else = item slug
+// '__none__' = no hover; '__root__' = root drop zone; slug = item hover
 const dropTarget = ref<string>('__none__')
 const dropValid = ref(false)
 const isDraggingAny = computed(() => dragging.value !== null)
@@ -125,7 +176,6 @@ function isDescendant(potentialDesc: string, ofAncestor: string): boolean {
 function canDrop(draggedSlug: string, targetSlug: string | null): boolean {
   if (targetSlug === draggedSlug) return false
   if (targetSlug !== null && isDescendant(targetSlug, draggedSlug)) return false
-  // check target is a folder if not root
   if (targetSlug !== null) {
     const target = props.items.find(i => i.slug === targetSlug)
     if (!target) return false
@@ -160,7 +210,7 @@ function onDrop(e: DragEvent, target: string | null) {
   if (!slug) return
   if (!canDrop(slug, target)) return
   const current = props.items.find(i => i.slug === slug)
-  if (current?.parent === target) return // no-op, same parent
+  if (current?.parent === target) return
   emit('reparent', { slug, parent: target })
   dragging.value = null
   dropTarget.value = '__none__'
@@ -181,9 +231,8 @@ function getIcon(item: AppTreeNode, expanded: boolean) {
 }
 
 function onSelect(item: AppTreeNode) {
-  if (!item._isFolder) {
-    emit('select', item.slug)
-  }
+  if (item.slug === CREATE_SLUG) return
+  if (!item._isFolder) emit('select', item.slug)
 }
 </script>
 
@@ -235,10 +284,33 @@ function onSelect(item: AppTreeNode) {
         :on-select="(_e: any, item: AppTreeNode) => onSelect(item)"
         :class="loading ? 'opacity-50 pointer-events-none' : ''"
       >
-        <template #item-wrapper="{ item, expanded, selected, handleToggle, ui }: { item: AppTreeNode; expanded: boolean; selected: boolean; handleToggle: () => void; ui: any }">
+        <template #item-wrapper="{ item, expanded, selected, ui }: { item: AppTreeNode; expanded: boolean; selected: boolean; ui: any }">
+          <!-- Inline folder-name input (replaces normal item row) -->
           <div
+            v-if="item.slug === CREATE_SLUG"
+            class="w-full px-1 py-0.5"
+            @click.stop
+          >
+            <div class="flex items-center gap-1.5 px-2 py-1 rounded-md ring-1 ring-primary bg-elevated">
+              <UIcon name="i-lucide-folder" class="size-4 shrink-0 text-muted" />
+              <input
+                :ref="(el) => el && (el as HTMLInputElement).focus()"
+                v-model="inlineCreateName"
+                type="text"
+                placeholder="Folder name…"
+                class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted min-w-0"
+                @keydown.enter.prevent="confirmCreate"
+                @keydown.escape.prevent="cancelCreate"
+                @blur="confirmCreate"
+              >
+            </div>
+          </div>
+
+          <!-- Normal tree item -->
+          <div
+            v-else
             :draggable="allowDrag ? 'true' : 'false'"
-            class="group w-full flex items-center"
+            class="group/item w-full flex items-center"
             :class="{
               'opacity-40': dragging === item.slug,
               'ring-2 ring-inset ring-primary rounded-md': dropTarget === item.slug && dropValid,
@@ -249,10 +321,8 @@ function onSelect(item: AppTreeNode) {
             @dragleave.stop="allowDrag && onDragLeave()"
             @drop.stop="allowDrag && onDrop($event, item.slug)"
           >
-            <!-- Main link area — pointer-events-none so reka-ui's merged handlers on the div handle clicks -->
-            <span
-              :class="[ui.link({ selected }), 'flex-1 pointer-events-none']"
-            >
+            <!-- Main link area — pointer-events-none so reka-ui handles clicks -->
+            <span :class="[ui.link({ selected }), 'flex-1 pointer-events-none']">
               <UIcon :name="getIcon(item, expanded)" class="size-5 shrink-0" />
               <span class="truncate flex-1">{{ item.label }}</span>
               <UIcon
@@ -263,13 +333,13 @@ function onSelect(item: AppTreeNode) {
               />
             </span>
 
-            <!-- Folder-create trailing button — separate from main link, pointer-events-auto -->
+            <!-- Per-folder create button — always visible, subtle -->
             <button
-              v-if="allowFolderCreate && item._isFolder && !isDraggingAny"
+              v-if="allowFolderCreate && item._isFolder && !isDraggingAny && inlineCreate === null"
               type="button"
-              class="opacity-0 group-hover:opacity-70 hover:!opacity-100 px-1.5 py-1.5 shrink-0 text-muted hover:text-highlighted transition-opacity"
-              title="New folder here"
-              @click.stop="emit('create-folder', { parent: item.slug })"
+              class="opacity-40 hover:opacity-100 px-1.5 py-1.5 shrink-0 text-muted hover:text-highlighted transition-opacity"
+              title="New subfolder"
+              @click.stop="openInlineCreate(item.slug)"
             >
               <UIcon name="i-lucide-folder-plus" class="size-3.5" />
             </button>
@@ -277,7 +347,7 @@ function onSelect(item: AppTreeNode) {
         </template>
       </UTree>
 
-      <!-- Root drop zone — appears when dragging, allows un-parenting -->
+      <!-- Root drop zone — appears when dragging -->
       <div
         v-if="isDraggingAny"
         class="mx-2 mt-1 mb-2 rounded-md border-2 border-dashed flex items-center justify-center py-2 text-xs transition-colors"
@@ -294,11 +364,11 @@ function onSelect(item: AppTreeNode) {
     </div>
 
     <!-- Root-level folder create -->
-    <div v-if="allowFolderCreate && !isSearching && !isDraggingAny" class="px-2 py-1.5 shrink-0 border-t border-default">
+    <div v-if="allowFolderCreate && !isSearching && !isDraggingAny && inlineCreate === null" class="px-2 py-1.5 shrink-0 border-t border-default">
       <button
         type="button"
         class="flex items-center gap-1.5 px-2 py-1 text-xs text-muted hover:text-highlighted hover:bg-elevated/50 rounded-md w-full transition-colors"
-        @click="emit('create-folder', { parent: null })"
+        @click="openInlineCreate(null)"
       >
         <UIcon name="i-lucide-folder-plus" class="size-3.5" />
         New folder

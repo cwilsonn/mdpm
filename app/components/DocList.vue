@@ -81,15 +81,24 @@ async function handleReparent(payload: { slug: string; parent: string | null }, 
 }
 
 // ── Folder creation ─────────────────────────────────────────────────────────
-const createFolderState = ref<{ group: DocGroup; parent: string | null } | null>(null)
-
-function handleCreateFolder(payload: { parent: string | null }, group: DocGroup) {
-  createFolderState.value = { group, parent: payload.parent }
-}
-
-async function onFolderCreated() {
-  createFolderState.value = null
-  emit('changed')
+async function handleCreateFolder(payload: { parent: string | null; name: string }, group: DocGroup) {
+  const url = group.projectSlug
+    ? `/api/docs/${group.projectSlug}`
+    : '/api/standalone-docs'
+  try {
+    await $fetch(url, {
+      method: 'POST',
+      body: {
+        title: payload.name,
+        isFolder: true,
+        ...(payload.parent ? { parent: payload.parent } : {}),
+      },
+    })
+    emit('changed')
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to create folder', description: e?.data?.message ?? String(e), color: 'error' })
+  }
 }
 </script>
 
@@ -168,14 +177,5 @@ async function onFolderCreated() {
       </template>
     </div>
 
-    <!-- Folder creation modal -->
-    <DocForm
-      v-if="createFolderState"
-      :project-slug="createFolderState.group.projectSlug ?? undefined"
-      :is-folder="true"
-      :default-parent="createFolderState.parent ?? undefined"
-      @close="createFolderState = null"
-      @saved="onFolderCreated"
-    />
   </div>
 </template>
