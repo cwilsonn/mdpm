@@ -62,14 +62,6 @@ export function slugFromPath(path: string): string {
   return path.split('/').at(-1) ?? ''
 }
 
-const ASSIGNEE_AVATARS: Record<string, string> = {
-  Claude: '/avatars/claude.svg',
-}
-
-export function assigneeAvatar(name: string): string | undefined {
-  return ASSIGNEE_AVATARS[name]
-}
-
 export function getAssigneeNames(tasks: Array<{ assignees?: string[] }>): string[] {
   const set = new Set<string>()
   for (const t of tasks) {

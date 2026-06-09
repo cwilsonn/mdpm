@@ -58,7 +58,7 @@ const completedLabel = computed(() => {
         @click.stop="emit('delete')"
       />
       <UTooltip v-if="isAiInProgress" text="Claude is working on this…">
-        <UIcon name="i-lucide-loader-2" class="size-4 shrink-0 text-info animate-spin -mt-0.5 -mr-1" />
+        <UIcon name="i-lucide-loader-2" class="size-4 shrink-0 text-info animate-spin" />
       </UTooltip>
       <UButton
         v-else-if="task.status !== 'done'"
@@ -88,7 +88,7 @@ const completedLabel = computed(() => {
         <span v-if="completedLabel" class="text-xs text-muted">Completed {{ completedLabel }}</span>
         <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
           <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
-            <UAvatar :alt="a" :src="assigneeAvatar(a)" size="2xs" />
+            <UAvatar :alt="a" size="2xs" />
           </UTooltip>
           <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
         </div>
@@ -132,7 +132,7 @@ const completedLabel = computed(() => {
         </span>
         <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
           <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
-            <UAvatar :alt="a" :src="assigneeAvatar(a)" size="2xs" />
+            <UAvatar :alt="a" size="2xs" />
           </UTooltip>
           <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
         </div>
