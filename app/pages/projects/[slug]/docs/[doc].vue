@@ -75,9 +75,10 @@ async function deleteDoc() {
 
 useHead(() => ({ title: title.value || docSlug.value }))
 
+const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
-  { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
-  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: (project.value as any)?.icon || 'i-lucide-folder-open' },
+  { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
+  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: (project.value as any)?.icon || undefined },
   { label: title.value || docSlug.value },
 ])
 

@@ -20,12 +20,17 @@ export default defineEventHandler(async (event) => {
 
   const { description, ...frontmatterFields } = body
 
+  const newStatus = body.status ?? (file.data.status as string)
+  const now = new Date().toISOString()
+
   const updated = {
     ...file.data,
     ...Object.fromEntries(
       Object.entries(frontmatterFields).filter(([, v]) => v !== undefined && v !== null),
     ),
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
+    ...(newStatus === 'done' && !file.data.completedAt ? { completedAt: now } : {}),
+    ...(newStatus !== 'done' ? { completedAt: undefined } : {}),
   }
 
   const newBody = description !== undefined ? String(description) : file.content

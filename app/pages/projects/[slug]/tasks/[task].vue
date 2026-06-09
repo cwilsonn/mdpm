@@ -10,6 +10,13 @@ interface TaskDetail {
   updatedAt?: string; order: number; body: string
 }
 
+interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
+
+const { data: project } = await useAsyncData(
+  () => `project-${projectSlug.value}`,
+  () => $fetch<ProjectHeader>(`/api/projects/${projectSlug.value}`).catch(() => null),
+)
+
 const { data: task, refresh } = await useAsyncData(
   () => `task-${projectSlug.value}-${taskSlug.value}`,
   () => $fetch<TaskDetail>(`/api/tasks/${projectSlug.value}/${taskSlug.value}`).catch(() => null),
@@ -61,9 +68,10 @@ async function deleteTask() {
 
 useHead(() => ({ title: task.value?.title ?? taskSlug.value }))
 
+const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
-  { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
-  { label: projectSlug.value, to: `/projects/${projectSlug.value}`, icon: 'i-lucide-folder-open' },
+  { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
+  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}`, icon: project.value?.icon || undefined },
   { label: task.value?.title ?? taskSlug.value },
 ])
 
@@ -120,7 +128,8 @@ const mobileActions = computed(() => [
       />
     </template>
 
-    <div class=" max-w-5xl mx-auto space-y-6">
+    <div class="overflow-y-auto flex-1 min-h-0">
+    <div class="max-w-5xl mx-auto space-y-6 p-4 sm:p-6">
       <div class="space-y-3">
         <h1 class="text-2xl font-bold leading-tight">
           {{ task!.title }}
@@ -232,6 +241,7 @@ const mobileActions = computed(() => [
       >
         <MDC :value="(task!.body as string)" />
       </div>
+    </div>
     </div>
 
     <template #overlays>

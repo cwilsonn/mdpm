@@ -21,6 +21,12 @@ const assignees = computed(() => (props.task.assignees as string[] | undefined) 
 const depCount = computed(() => (props.task.dependencies as string[] | undefined)?.length ?? 0)
 const status = computed(() => STATUS_MAP[props.task.status])
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
+const isDone = computed(() => props.task.status === 'done')
+const completedLabel = computed(() => {
+  const date = (props.task as any).completedAt
+  if (!date) return null
+  return new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+})
 </script>
 
 <template>
@@ -68,51 +74,46 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
 
     <!-- Right-side metadata -->
     <div class="flex items-center gap-1.5 shrink-0">
-      <!-- Due date -->
-      <span
-        v-if="dueInfo"
-        class="text-xs hidden sm:block shrink-0 tabular-nums"
-        :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
-      >{{ dueInfo.label }}</span>
-
-      <!-- Priority -->
-      <UBadge
-        v-if="priority"
-        :label="priority.label"
-        :color="priority.color"
-        :icon="priority.icon"
-        variant="subtle"
-        size="sm"
-      />
-
-      <!-- Assignees -->
-      <div
-        v-if="assignees.length"
-        class="hidden md:flex -space-x-1"
-      >
-        <UTooltip
-          v-for="a in assignees.slice(0, 2)"
-          :key="a"
-          :text="a"
-        >
-          <UAvatar :alt="a" size="2xs" />
-        </UTooltip>
-        <UAvatar
-          v-if="assignees.length > 2"
-          :alt="`+${assignees.length - 2}`"
-          size="2xs"
+      <template v-if="isDone">
+        <!-- Completed: date + assignees only -->
+        <span v-if="completedLabel" class="text-xs text-muted hidden sm:block shrink-0">{{ completedLabel }}</span>
+        <div v-if="assignees.length" class="hidden md:flex -space-x-1">
+          <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
+            <UAvatar :alt="a" size="2xs" />
+          </UTooltip>
+          <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
+        </div>
+      </template>
+      <template v-else>
+        <!-- Active: due + priority + assignees + deps -->
+        <span
+          v-if="dueInfo"
+          class="text-xs hidden sm:block shrink-0 tabular-nums"
+          :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
+        >{{ dueInfo.label }}</span>
+        <UBadge
+          v-if="priority"
+          :label="priority.label"
+          :color="priority.color"
+          :icon="priority.icon"
+          variant="subtle"
+          size="sm"
         />
-      </div>
+        <div v-if="assignees.length" class="hidden md:flex -space-x-1">
+          <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
+            <UAvatar :alt="a" size="2xs" />
+          </UTooltip>
+          <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
+        </div>
+        <UIcon
+          v-if="depCount"
+          name="i-lucide-git-branch"
+          class="size-3 text-muted shrink-0 hidden sm:block"
+          :title="`${depCount} dependenc${depCount === 1 ? 'y' : 'ies'}`"
+        />
+      </template>
 
-      <!-- Dep indicator -->
-      <UIcon
-        v-if="depCount"
-        name="i-lucide-git-branch"
-        class="size-3 text-muted shrink-0 hidden sm:block"
-        :title="`${depCount} dependenc${depCount === 1 ? 'y' : 'ies'}`"
-      />
-
-      <!-- Delete -->
+      <!-- Delete (always visible on hover) -->
       <UButton
         icon="i-lucide-trash-2"
         color="error"

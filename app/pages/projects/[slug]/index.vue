@@ -8,6 +8,10 @@ interface ProjectDetail {
   slug: string; path: string; title: string; status: string
   icon?: string; description?: string; tags: string[]
   createdAt: string; updatedAt?: string
+  availableStatuses: string[]
+  defaultStatus?: string
+  defaultPriority?: string
+  defaultAssignee?: string
 }
 
 interface TaskItem {
@@ -47,10 +51,20 @@ const assigneeFilterItems = computed<SelectItem[]>(() =>
   allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
 )
 
-const visibleColumns = computed(() =>
-  filterStatuses.value.length === 0
-    ? STATUS_CONFIG
-    : STATUS_CONFIG.filter(s => filterStatuses.value.some(f => f.value === s.id)),
+const projectAvailableStatuses = computed(() => project.value?.availableStatuses ?? STATUS_CONFIG.map(s => s.id))
+
+const statusesWithTasks = computed(() => STATUS_CONFIG.filter(s => columns[s.id]?.length > 0).map(s => s.id))
+
+const visibleColumns = computed(() => {
+  if (filterStatuses.value.length > 0) {
+    return STATUS_CONFIG.filter(s => filterStatuses.value.some(f => f.value === s.id))
+  }
+  const baseIds = new Set([...projectAvailableStatuses.value, ...statusesWithTasks.value])
+  return STATUS_CONFIG.filter(s => baseIds.has(s.id))
+})
+
+const statusFilterItems = computed(() =>
+  STATUS_SELECT_ITEMS.filter(s => projectAvailableStatuses.value.includes(s.value)),
 )
 
 // Per-column arrays — VueDraggable v-model targets
@@ -201,8 +215,8 @@ function toggleListStatus(id: string) {
   if (idx >= 0) openListStatuses.value.splice(idx, 1)
   else openListStatuses.value.push(id)
 }
-function openCreateTask(status: ColId = 'todo') {
-  createTaskStatus.value = status
+function openCreateTask(status?: ColId) {
+  createTaskStatus.value = status ?? (project.value?.defaultStatus as ColId | undefined) ?? 'todo'
   showCreateTask.value = true
 }
 
@@ -233,8 +247,9 @@ async function deleteTask() {
 
 useHead(() => ({ title: project.value?.title ?? slug.value }))
 
+const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
-  { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
+  { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
   { label: project.value?.title ?? slug.value, icon: (project.value as any)?.icon || undefined },
 ])
 
@@ -330,7 +345,7 @@ const mobileActions = computed(() => [
           />
           <AppFilterMenu
             v-model="filterStatuses"
-            :items="(STATUS_SELECT_ITEMS as SelectItem[])"
+            :items="(statusFilterItems as SelectItem[])"
             placeholder="Status"
           />
           <AppFilterMenu
@@ -472,12 +487,16 @@ const mobileActions = computed(() => [
         v-if="editTask"
         :project-slug="slug"
         :task="editTask"
+        :available-statuses="project?.availableStatuses"
         @close="() => { editTask = null; refreshTasks() }"
       />
       <TaskForm
         v-else-if="showCreateTask"
         :project-slug="slug"
         :initial-status="createTaskStatus"
+        :available-statuses="project?.availableStatuses"
+        :default-priority="project?.defaultPriority"
+        :default-assignee="project?.defaultAssignee"
         @close="showCreateTask = false"
         @saved="() => { showCreateTask = false; refreshTasks() }"
       />

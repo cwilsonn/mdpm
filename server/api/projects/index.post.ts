@@ -9,6 +9,10 @@ export default defineEventHandler(async (event) => {
     icon?: string
     description?: string
     tags?: string[]
+    availableStatuses?: string[]
+    defaultStatus?: string
+    defaultPriority?: string
+    defaultAssignee?: string
   }>(event)
 
   if (!body.title?.trim()) {
@@ -19,7 +23,7 @@ export default defineEventHandler(async (event) => {
   const projectCount = existsSync(projectsDir)
     ? readdirSync(projectsDir, { withFileTypes: true }).filter(e => e.isDirectory()).length
     : 0
-  if (projectCount >= PROJECT_LIMIT) {
+  if (process.env.NODE_ENV === 'production' && projectCount >= PROJECT_LIMIT) {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${PROJECT_LIMIT} projects allowed.` })
   }
 
@@ -34,6 +38,11 @@ export default defineEventHandler(async (event) => {
     ...(body.icon ? { icon: body.icon } : {}),
     ...(body.description ? { description: body.description } : {}),
     tags: body.tags ?? [],
+    pinnedOrder: projectCount,
+    availableStatuses: body.availableStatuses ?? ['todo', 'in-progress', 'done'],
+    ...(body.defaultStatus ? { defaultStatus: body.defaultStatus } : {}),
+    ...(body.defaultPriority ? { defaultPriority: body.defaultPriority } : {}),
+    ...(body.defaultAssignee ? { defaultAssignee: body.defaultAssignee } : {}),
     createdAt: new Date().toISOString().split('T')[0],
   })
 

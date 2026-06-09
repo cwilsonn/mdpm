@@ -25,6 +25,7 @@ export default defineEventHandler((event) => {
         due: (file?.data?.due as string | undefined) ?? undefined,
         createdAt: (file?.data?.createdAt as string) ?? '',
         updatedAt: (file?.data?.updatedAt as string | undefined) ?? undefined,
+        completedAt: (file?.data?.completedAt as string | undefined) ?? undefined,
         order: (file?.data?.order as number) ?? 0,
       }
     })

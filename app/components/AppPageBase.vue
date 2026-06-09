@@ -48,8 +48,8 @@ const props = withDefaults(defineProps<{
 })
 
 const route = useRoute()
-const effectiveTitle = computed(() => props.title ?? (route.meta?.title as string | undefined) ?? '')
-const effectiveIcon = computed(() => props.icon ?? (route.meta?.icon as string | undefined))
+const effectiveTitle = computed(() => props.title ?? route.meta.title ?? '')
+const effectiveIcon = computed(() => props.icon ?? route.meta.icon)
 
 const singleAction = computed(() => props.actions.length === 1 ? props.actions[0] : null)
 
@@ -99,7 +99,7 @@ const normalizedEmptyProps = computed(() => ({
 <template>
   <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', body: 'flex flex-col flex-1 overflow-hidden' }">
     <template #header>
-      <UDashboardNavbar>
+      <UDashboardNavbar :ui="{ title: 'flex items-center gap-1.5 font-semibold text-highlighted min-w-0 overflow-hidden' }">
         <template #leading>
           <UButton
             v-if="backTo"
@@ -116,7 +116,7 @@ const normalizedEmptyProps = computed(() => ({
             color="neutral"
             variant="ghost"
             size="sm"
-            class="sm:hidden"
+            class="md:hidden"
             :to="mobileBreadcrumbBack.to"
           />
           <slot name="leading" />
@@ -124,15 +124,15 @@ const normalizedEmptyProps = computed(() => ({
 
         <template #title>
           <slot name="title">
-            <template v-if="breadcrumb?.length">
+            <div v-if="breadcrumb?.length" class="min-w-0 flex-1">
               <!-- Desktop: full breadcrumb -->
               <UBreadcrumb
                 :items="breadcrumb"
-                :ui="{ root: 'min-w-0 hidden sm:flex', link: 'truncate' }"
+                :ui="{ root: 'min-w-0 hidden md:flex', link: 'truncate' }"
               />
               <!-- Mobile: current segment only -->
-              <span class="sm:hidden truncate font-medium text-sm">{{ mobileBreadcrumbCurrent }}</span>
-            </template>
+              <span class="md:hidden block truncate min-w-0 font-medium text-sm">{{ mobileBreadcrumbCurrent }}</span>
+            </div>
             <div
               v-else
               class="flex min-w-0 items-center gap-2"
@@ -149,7 +149,7 @@ const normalizedEmptyProps = computed(() => ({
 
         <template #right>
           <!-- Slot actions: hidden on mobile, shown on desktop -->
-          <div class="hidden sm:flex items-center gap-2">
+          <div class="hidden md:flex items-center gap-2">
             <slot name="actions" />
           </div>
 
@@ -164,14 +164,14 @@ const normalizedEmptyProps = computed(() => ({
             :disabled="singleAction.disabled"
             :loading="singleAction.loading"
             size="sm"
-            class="hidden sm:flex"
+            class="hidden md:flex"
             @click="singleAction.onSelect?.()"
           />
 
           <UDropdownMenu
             v-else-if="actions.length > 1"
             :items="dropdownActionItems"
-            class="hidden sm:flex"
+            class="hidden md:flex"
           >
             <UButton
               label="Actions"
@@ -190,7 +190,7 @@ const normalizedEmptyProps = computed(() => ({
           <UDropdownMenu
             v-if="mobileDropdownItems.length"
             :items="mobileDropdownItems"
-            class="sm:hidden"
+            class="md:hidden"
           >
             <UButton
               icon="i-lucide-ellipsis"

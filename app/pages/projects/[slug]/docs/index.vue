@@ -13,19 +13,11 @@ if (!project.value) {
   throw createError({ statusCode: 404, message: 'Project not found' })
 }
 
-interface DocItem {
-  slug: string
-  project: string
-  title: string
-  tags: string[]
-  createdAt: string
-  updatedAt?: string
-  excerpt: string
-}
+import type { DocTreeItem } from '~/components/DocTreeList.vue'
 
 const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyncData(
   () => `docs-${slug.value}`,
-  () => $fetch<DocItem[]>(`/api/docs/${slug.value}`),
+  () => $fetch<DocTreeItem[]>(`/api/docs/${slug.value}`),
 )
 
 const showCreateDoc = ref(false)
@@ -37,8 +29,9 @@ async function onDocCreated(docSlug: string) {
 
 useHead(() => ({ title: `${project.value?.title ?? slug.value} — Docs` }))
 
+const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
-  { label: 'Projects', to: '/projects', icon: 'i-lucide-folder' },
+  { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
   { label: project.value?.title ?? slug.value, icon: (project.value as any)?.icon || undefined },
 ])
 
@@ -63,41 +56,17 @@ const mobileActions = [
       />
     </template>
 
-    <div class="" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+    <div class="overflow-y-auto flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
       <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
         <UIcon name="i-lucide-book-open" class="size-10 text-muted" />
         <p class="text-muted text-sm">No docs yet for this project.</p>
         <UButton label="Create first doc" icon="i-lucide-plus" size="sm" @click="showCreateDoc = true" />
       </div>
-      <div v-else class="flex flex-col divide-y divide-default">
-        <NuxtLink
-          v-for="doc in docs"
-          :key="doc.slug"
-          :to="`/projects/${slug}/docs/${doc.slug}`"
-          class="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors group"
-        >
-          <UIcon name="i-lucide-file-text" class="size-4 shrink-0 mt-0.5 text-muted" />
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-medium text-sm group-hover:text-primary transition-colors truncate">{{ doc.title }}</span>
-              <UBadge
-                v-for="tag in doc.tags"
-                :key="tag"
-                :label="tag"
-                color="neutral"
-                variant="outline"
-                size="sm"
-              />
-            </div>
-            <div class="flex items-center gap-1.5 mt-0.5">
-              <span class="text-xs text-muted">{{ doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString() : doc.createdAt }}</span>
-            </div>
-            <p v-if="doc.excerpt" class="text-xs text-muted mt-1 line-clamp-1">
-              {{ doc.excerpt }}
-            </p>
-          </div>
-        </NuxtLink>
-      </div>
+      <DocTreeList
+        v-else
+        :docs="docs"
+        :base-url="`/projects/${slug}/docs`"
+      />
     </div>
 
     <template #overlays>

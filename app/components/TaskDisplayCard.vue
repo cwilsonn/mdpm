@@ -8,6 +8,7 @@ export interface TaskCardData {
   assignees?: string[]
   due?: string
   dependencies?: string[]
+  completedAt?: string
   [key: string]: unknown
 }
 
@@ -29,6 +30,11 @@ const tags = computed(() => (props.task.tags as string[] | undefined) ?? [])
 const assignees = computed(() => (props.task.assignees as string[] | undefined) ?? [])
 const depCount = computed(() => (props.task.dependencies as string[] | undefined)?.length ?? 0)
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
+const isDone = computed(() => props.task.status === 'done')
+const completedLabel = computed(() => {
+  if (!props.task.completedAt) return null
+  return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+})
 </script>
 
 <template>
@@ -70,62 +76,61 @@ const priority = computed(() => PRIORITY_MAP[props.task.priority])
       />
     </div>
 
-    <!-- Priority + due + tags -->
-    <div class="flex items-center gap-1.5 flex-wrap">
-      <span
-        v-if="dueInfo"
-        class="text-xs tabular-nums"
-        :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
-      >{{ dueInfo.label }}</span>
-      <UBadge
-        v-if="priority"
-        :label="priority.label"
-        :color="priority.color"
-        :icon="priority.icon"
-        variant="subtle"
-        size="xs"
-      />
-      <UBadge
-        v-for="tag in tags.slice(0, 2)"
-        :key="tag"
-        :label="tag"
-        color="neutral"
-        variant="outline"
-        size="xs"
-      />
-    </div>
+    <!-- Done: completedAt + assignees only -->
+    <template v-if="isDone">
+      <div class="flex items-center justify-between gap-1.5">
+        <span v-if="completedLabel" class="text-xs text-muted">Completed {{ completedLabel }}</span>
+        <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
+          <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
+            <UAvatar :alt="a" size="2xs" />
+          </UTooltip>
+          <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
+        </div>
+      </div>
+    </template>
 
-    <!-- Dep indicator + assignees -->
-    <div
-      v-if="depCount || assignees.length"
-      class="flex items-center"
-    >
-      <span
-        v-if="depCount"
-        class="flex items-center gap-0.5 text-xs"
-        :class="hasBlockingDeps ? 'text-error' : 'text-muted'"
-        :title="hasBlockingDeps ? 'Unresolved dependencies' : 'All dependencies resolved'"
-      >
-        <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" />
-        {{ depCount }}
-      </span>
-      <div
-        v-if="assignees.length"
-        class="flex -space-x-1 ml-auto"
-      >
-        <UTooltip
-          v-for="a in assignees.slice(0, 3)"
-          :key="a"
-          :text="a"
-        >
-          <UAvatar :alt="a" size="2xs" />
-        </UTooltip>
-        <UAvatar
-          v-if="assignees.length > 3"
-          :alt="`+${assignees.length - 3}`"
-          size="2xs"
+    <!-- Active: priority + due + tags + deps + assignees -->
+    <template v-else>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span
+          v-if="dueInfo"
+          class="text-xs tabular-nums"
+          :class="dueInfo.isOverdue ? 'text-error font-medium' : dueInfo.isDueSoon ? 'text-warning' : 'text-muted'"
+        >{{ dueInfo.label }}</span>
+        <UBadge
+          v-if="priority"
+          :label="priority.label"
+          :color="priority.color"
+          :icon="priority.icon"
+          variant="subtle"
+          size="xs"
+        />
+        <UBadge
+          v-for="tag in tags.slice(0, 2)"
+          :key="tag"
+          :label="tag"
+          color="neutral"
+          variant="outline"
+          size="xs"
         />
       </div>
-    </div>
+      <div v-if="depCount || assignees.length" class="flex items-center">
+        <span
+          v-if="depCount"
+          class="flex items-center gap-0.5 text-xs"
+          :class="hasBlockingDeps ? 'text-error' : 'text-muted'"
+          :title="hasBlockingDeps ? 'Unresolved dependencies' : 'All dependencies resolved'"
+        >
+          <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" />
+          {{ depCount }}
+        </span>
+        <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
+          <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
+            <UAvatar :alt="a" size="2xs" />
+          </UTooltip>
+          <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
+        </div>
+      </div>
+    </template>
   </UCard>
 </template>
