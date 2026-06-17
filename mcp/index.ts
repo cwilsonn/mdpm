@@ -55,6 +55,7 @@ function getProjects() {
       icon: (file?.data?.icon as string) ?? null,
       tags: (file?.data?.tags as string[]) ?? [],
       description: (file?.data?.description as string) ?? null,
+      githubRepo: (file?.data?.githubRepo as string) ?? null,
       createdAt: (file?.data?.createdAt as string) ?? '',
       taskCount,
       docCount,
@@ -62,7 +63,9 @@ function getProjects() {
   })
 }
 
-function getTasks(projectSlug: string, statusFilter?: string[]) {
+function getTasks(projectSlug: string, statusFilter?: string[], githubIssueFilter?: number, githubPRFilter?: number) {
+  const projectFile = readMd(`projects/${projectSlug}/index.md`)
+  const githubRepo = (projectFile?.data?.githubRepo as string) ?? null
   const tasksDir = contentPath('projects', projectSlug, 'tasks')
   return listMdFiles(tasksDir).flatMap((f) => {
     const slug = f.replace('.md', '')
@@ -70,6 +73,10 @@ function getTasks(projectSlug: string, statusFilter?: string[]) {
     if (!file) return []
     const status = (file.data.status as string) ?? 'todo'
     if (statusFilter?.length && !statusFilter.includes(status)) return []
+    const githubIssues = (file.data.githubIssues as number[]) ?? []
+    const githubPRs = (file.data.githubPRs as number[]) ?? []
+    if (githubIssueFilter !== undefined && !githubIssues.includes(githubIssueFilter)) return []
+    if (githubPRFilter !== undefined && !githubPRs.includes(githubPRFilter)) return []
     return [{
       slug,
       project: projectSlug,
@@ -80,6 +87,9 @@ function getTasks(projectSlug: string, statusFilter?: string[]) {
       assignees: (file.data.assignees as string[]) ?? [],
       due: (file.data.due as string) ?? null,
       dependencies: (file.data.dependencies as string[]) ?? [],
+      githubIssues,
+      githubPRs,
+      githubRepo,
       createdAt: (file.data.createdAt as string) ?? '',
       updatedAt: (file.data.updatedAt as string) ?? null,
       order: (file.data.order as number) ?? 0,
@@ -147,10 +157,10 @@ function getDocs(projectSlug?: string, standaloneOnly = false) {
   return results
 }
 
-function getAllTasks(statusFilter?: string[]) {
+function getAllTasks(statusFilter?: string[], githubIssueFilter?: number, githubPRFilter?: number) {
   const projectsDir = contentPath('projects')
   if (!existsSync(projectsDir)) return []
-  return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter))
+  return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter, githubIssueFilter, githubPRFilter))
 }
 
 function searchTasks(query: string, projectSlug?: string, statusFilter?: string[]) {
@@ -246,7 +256,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: 'List tasks, optionally filtered by project and/or status. Omit project for all projects.',
+      description: 'List tasks, optionally filtered by project, status, or linked GitHub issue/PR number. Omit project for all projects.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -256,6 +266,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
             description: 'Filter by status values. Omit for all.',
           },
+          githubIssue: { type: 'number', description: 'Return only tasks linked to this GitHub issue number.' },
+          githubPR: { type: 'number', description: 'Return only tasks linked to this GitHub PR number.' },
         },
       },
     },
@@ -284,6 +296,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string', description: 'YYYY-MM-DD' },
+          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub issue numbers.' },
+          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub PR numbers.' },
           description: { type: 'string', description: 'Markdown body' },
         },
         required: ['project', 'title'],
@@ -303,6 +317,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string' },
+          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub issue numbers.' },
+          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub PR numbers.' },
           description: { type: 'string', description: 'Markdown body' },
         },
         required: ['project', 'slug'],
@@ -467,8 +483,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'list_tasks': {
-        const { project, status } = args as { project?: string; status?: string[] }
-        const tasks = project ? getTasks(project, status) : getAllTasks(status)
+        const { project, status, githubIssue, githubPR } = args as { project?: string; status?: string[]; githubIssue?: number; githubPR?: number }
+        const tasks = project ? getTasks(project, status, githubIssue, githubPR) : getAllTasks(status, githubIssue, githubPR)
         return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] }
       }
 

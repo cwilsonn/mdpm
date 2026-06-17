@@ -8,6 +8,7 @@ interface TaskDetail {
   status: string; priority: string; tags: string[]; assignees: string[]
   dependencies: string[]; due?: string; createdAt: string
   updatedAt?: string; order: number; body: string
+  githubIssues?: number[]; githubPRs?: number[]; githubRepo?: string
 }
 
 interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
@@ -232,6 +233,41 @@ const mobileActions = computed(() => [
               {{ dep.title }}
             </NuxtLink>
           </div>
+        </div>
+      </div>
+
+      <div
+        v-if="task!.githubIssues?.length || task!.githubPRs?.length"
+        class="space-y-2 border-t border-default pt-4"
+      >
+        <p class="text-xs text-muted font-medium uppercase tracking-wide">
+          GitHub
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <a
+            v-for="n in task!.githubIssues"
+            :key="`i-${n}`"
+            :href="task!.githubRepo ? `https://github.com/${task!.githubRepo}/issues/${n}` : undefined"
+            :target="task!.githubRepo ? '_blank' : undefined"
+            rel="noopener noreferrer"
+            class="flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-md border border-default hover:border-primary hover:text-primary transition-colors"
+            :class="task!.githubRepo ? 'cursor-pointer' : 'cursor-default text-muted'"
+          >
+            <UIcon name="i-lucide-circle-dot" class="size-4 shrink-0" />
+            Issue #{{ n }}
+          </a>
+          <a
+            v-for="n in task!.githubPRs"
+            :key="`p-${n}`"
+            :href="task!.githubRepo ? `https://github.com/${task!.githubRepo}/pull/${n}` : undefined"
+            :target="task!.githubRepo ? '_blank' : undefined"
+            rel="noopener noreferrer"
+            class="flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-md border border-default hover:border-primary hover:text-primary transition-colors"
+            :class="task!.githubRepo ? 'cursor-pointer' : 'cursor-default text-muted'"
+          >
+            <UIcon name="i-lucide-git-pull-request" class="size-4 shrink-0" />
+            PR #{{ n }}
+          </a>
         </div>
       </div>
 

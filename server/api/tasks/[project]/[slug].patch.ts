@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
     assignees?: string[]
     due?: string
     dependencies?: string[]
+    githubIssues?: number[]
+    githubPRs?: number[]
     description?: string
     order?: number
   }>(event)

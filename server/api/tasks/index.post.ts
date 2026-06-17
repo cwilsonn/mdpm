@@ -12,6 +12,8 @@ export default defineEventHandler(async (event) => {
     assignees?: string[]
     due?: string
     dependencies?: string[]
+    githubIssues?: number[]
+    githubPRs?: number[]
     description?: string
   }>(event)
 
@@ -52,6 +54,8 @@ export default defineEventHandler(async (event) => {
     assignees: body.assignees ?? (projectDefaultAssignee ? [projectDefaultAssignee] : []),
     ...(body.due ? { due: body.due } : {}),
     dependencies: body.dependencies ?? [],
+    githubIssues: body.githubIssues ?? [],
+    githubPRs: body.githubPRs ?? [],
     createdAt: new Date().toISOString().split('T')[0],
     order: taskCount,
   }, body.description ?? '')

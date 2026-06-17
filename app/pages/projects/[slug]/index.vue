@@ -12,6 +12,7 @@ interface ProjectDetail {
   defaultStatus?: string
   defaultPriority?: string
   defaultAssignee?: string
+  githubRepo?: string
 }
 
 interface TaskItem {
@@ -19,6 +20,7 @@ interface TaskItem {
   status: string; priority: string; tags: string[]; assignees: string[]
   dependencies: string[]; due?: string; createdAt: string
   updatedAt?: string; order: number
+  githubIssues?: number[]; githubPRs?: number[]; githubRepo?: string
 }
 
 const { data: project, refresh: refreshProject } = await useAsyncData(
@@ -326,6 +328,16 @@ const mobileActions = computed(() => [
             variant="outline"
             size="sm"
           />
+          <a
+            v-if="project!.githubRepo"
+            :href="`https://github.com/${project!.githubRepo}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors"
+          >
+            <UIcon name="i-lucide-github" class="size-3.5 shrink-0" />
+            {{ project!.githubRepo }}
+          </a>
         </div>
 
         <p

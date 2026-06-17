@@ -38,6 +38,18 @@ const completedLabel = computed(() => {
   if (!props.task.completedAt) return null
   return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 })
+
+const githubRepo = computed(() => props.task.githubRepo as string | undefined)
+const githubIssues = computed(() => (props.task.githubIssues as number[] | undefined) ?? [])
+const githubPRs = computed(() => (props.task.githubPRs as number[] | undefined) ?? [])
+const hasGithubRefs = computed(() => githubIssues.value.length > 0 || githubPRs.value.length > 0)
+
+function issueUrl(n: number) {
+  return githubRepo.value ? `https://github.com/${githubRepo.value}/issues/${n}` : null
+}
+function prUrl(n: number) {
+  return githubRepo.value ? `https://github.com/${githubRepo.value}/pull/${n}` : null
+}
 </script>
 
 <template>
@@ -136,6 +148,42 @@ const completedLabel = computed(() => {
           </UTooltip>
           <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
         </div>
+      </div>
+      <div v-if="hasGithubRefs" class="flex items-center gap-1 flex-wrap">
+        <template v-for="n in githubIssues.slice(0, 2)" :key="`i-${n}`">
+          <a
+            v-if="issueUrl(n)"
+            :href="issueUrl(n)!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors"
+            @click.stop
+          >
+            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
+            #{{ n }}
+          </a>
+          <span v-else class="flex items-center gap-0.5 text-xs text-muted">
+            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
+            #{{ n }}
+          </span>
+        </template>
+        <template v-for="n in githubPRs.slice(0, 2)" :key="`p-${n}`">
+          <a
+            v-if="prUrl(n)"
+            :href="prUrl(n)!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors"
+            @click.stop
+          >
+            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
+            #{{ n }}
+          </a>
+          <span v-else class="flex items-center gap-0.5 text-xs text-muted">
+            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
+            #{{ n }}
+          </span>
+        </template>
       </div>
     </template>
   </UCard>

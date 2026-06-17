@@ -14,6 +14,8 @@ const props = defineProps<{
     assignees?: string[]
     due?: string
     dependencies?: string[]
+    githubIssues?: number[]
+    githubPRs?: number[]
   }
 }>()
 
@@ -39,6 +41,8 @@ const form = reactive({
   assignees: props.task ? [...(props.task.assignees ?? [])] : (props.defaultAssignee ? [props.defaultAssignee] : []) as string[],
   due: props.task?.due ?? '',
   dependencies: [...(props.task?.dependencies ?? [])] as string[],
+  githubIssues: [...(props.task?.githubIssues ?? [])].map(String),
+  githubPRs: [...(props.task?.githubPRs ?? [])].map(String),
 })
 
 const statusSelectItems = computed(() => {
@@ -55,6 +59,10 @@ const dependencyItems = computed(() =>
     .filter(t => t.slug !== currentTaskSlug.value)
     .map(t => ({ label: t.title, value: t.slug })),
 )
+
+function parseNums(tags: string[]): number[] {
+  return tags.map(s => parseInt(s, 10)).filter(n => !isNaN(n) && n > 0)
+}
 
 const description = ref('')
 const descriptionLoading = ref(false)
@@ -74,6 +82,8 @@ const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoS
         assignees: form.assignees,
         due: form.due || undefined,
         dependencies: form.dependencies,
+        githubIssues: parseNums(form.githubIssues),
+        githubPRs: parseNums(form.githubPRs),
         description: description.value,
       },
     })
@@ -116,6 +126,8 @@ watch(() => form.due, () => flushSave())
 watch(() => form.tags, () => flushSave(), { deep: true })
 watch(() => form.assignees, () => flushSave(), { deep: true })
 watch(() => form.dependencies, () => flushSave(), { deep: true })
+watch(() => form.githubIssues, () => flushSave(), { deep: true })
+watch(() => form.githubPRs, () => flushSave(), { deep: true })
 watch(description, () => scheduleSave())
 
 // create mode
@@ -146,6 +158,8 @@ async function create() {
         assignees: form.assignees,
         due: form.due || undefined,
         dependencies: form.dependencies,
+        githubIssues: parseNums(form.githubIssues),
+        githubPRs: parseNums(form.githubPRs),
         description: description.value,
       },
     })
@@ -304,6 +318,23 @@ async function create() {
             class="w-full"
           />
         </UFormField>
+
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField label="GitHub Issues" hint="#">
+            <UInputTags
+              v-model="form.githubIssues"
+              placeholder="42, 87…"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="GitHub PRs" hint="#">
+            <UInputTags
+              v-model="form.githubPRs"
+              placeholder="101…"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
 
         <UFormField label="Description">
           <div

@@ -7,6 +7,9 @@ export default defineEventHandler((event) => {
 
   if (!existsSync(dir)) return []
 
+  const projectFile = readMarkdown(`projects/${project}/index.md`)
+  const githubRepo = (projectFile?.data?.githubRepo as string | undefined) ?? null
+
   return readdirSync(dir)
     .filter(f => f.endsWith('.md'))
     .map((f) => {
@@ -23,6 +26,9 @@ export default defineEventHandler((event) => {
         assignees: (file?.data?.assignees as string[]) ?? [],
         dependencies: (file?.data?.dependencies as string[]) ?? [],
         due: (file?.data?.due as string | undefined) ?? undefined,
+        githubIssues: (file?.data?.githubIssues as number[]) ?? [],
+        githubPRs: (file?.data?.githubPRs as number[]) ?? [],
+        githubRepo,
         createdAt: (file?.data?.createdAt as string) ?? '',
         updatedAt: (file?.data?.updatedAt as string | undefined) ?? undefined,
         completedAt: (file?.data?.completedAt as string | undefined) ?? undefined,

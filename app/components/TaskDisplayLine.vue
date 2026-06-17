@@ -30,6 +30,17 @@ const completedLabel = computed(() => {
   if (!date) return null
   return new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 })
+
+const githubRepo = computed(() => (props.task as any).githubRepo as string | undefined)
+const githubIssues = computed(() => ((props.task as any).githubIssues as number[] | undefined) ?? [])
+const githubPRs = computed(() => ((props.task as any).githubPRs as number[] | undefined) ?? [])
+
+function issueUrl(n: number) {
+  return githubRepo.value ? `https://github.com/${githubRepo.value}/issues/${n}` : null
+}
+function prUrl(n: number) {
+  return githubRepo.value ? `https://github.com/${githubRepo.value}/pull/${n}` : null
+}
 </script>
 
 <template>
@@ -91,7 +102,7 @@ const completedLabel = computed(() => {
         </div>
       </template>
       <template v-else>
-        <!-- Active: due + priority + assignees + deps -->
+        <!-- Active: due + priority + github refs + assignees + deps -->
         <span
           v-if="dueInfo"
           class="text-xs hidden sm:block shrink-0 tabular-nums"
@@ -105,6 +116,40 @@ const completedLabel = computed(() => {
           variant="subtle"
           size="sm"
         />
+        <template v-for="n in githubIssues.slice(0, 2)" :key="`i-${n}`">
+          <a
+            v-if="issueUrl(n)"
+            :href="issueUrl(n)!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hidden sm:flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors shrink-0"
+            @click.stop
+          >
+            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
+            #{{ n }}
+          </a>
+          <span v-else class="hidden sm:flex items-center gap-0.5 text-xs text-muted shrink-0">
+            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
+            #{{ n }}
+          </span>
+        </template>
+        <template v-for="n in githubPRs.slice(0, 2)" :key="`p-${n}`">
+          <a
+            v-if="prUrl(n)"
+            :href="prUrl(n)!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hidden sm:flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors shrink-0"
+            @click.stop
+          >
+            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
+            #{{ n }}
+          </a>
+          <span v-else class="hidden sm:flex items-center gap-0.5 text-xs text-muted shrink-0">
+            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
+            #{{ n }}
+          </span>
+        </template>
         <div v-if="assignees.length" class="hidden md:flex -space-x-1">
           <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
             <UAvatar :alt="a" size="2xs" />

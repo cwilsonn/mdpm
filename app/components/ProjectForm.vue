@@ -7,6 +7,7 @@ const props = defineProps<{
     icon?: string
     description?: string
     tags?: string[]
+    githubRepo?: string
     availableStatuses?: string[]
     defaultStatus?: string
     defaultPriority?: string
@@ -27,6 +28,7 @@ const form = reactive({
   icon: props.project?.icon ?? '',
   description: props.project?.description ?? '',
   tags: [...(props.project?.tags ?? [])] as string[],
+  githubRepo: props.project?.githubRepo ?? '',
   availableStatuses: [...(props.project?.availableStatuses ?? ['todo', 'in-progress', 'done'])] as string[],
   defaultStatus: props.project?.defaultStatus ?? null as string | null,
   defaultPriority: props.project?.defaultPriority ?? null as string | null,
@@ -61,6 +63,7 @@ const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoS
         icon: form.icon || null,
         description: form.description || undefined,
         tags: form.tags,
+        githubRepo: form.githubRepo || null,
         availableStatuses: form.availableStatuses,
         defaultStatus: form.defaultStatus || null,
         defaultPriority: form.defaultPriority || null,
@@ -83,6 +86,7 @@ watch(() => form.description, () => scheduleSave())
 watch(() => form.status, () => flushSave())
 watch(() => form.icon, () => flushSave())
 watch(() => form.tags, () => flushSave(), { deep: true })
+watch(() => form.githubRepo, () => scheduleSave())
 watch(() => form.availableStatuses, () => flushSave(), { deep: true })
 watch(() => form.defaultStatus, () => flushSave())
 watch(() => form.defaultPriority, () => flushSave())
@@ -113,6 +117,7 @@ async function create() {
         icon: form.icon || undefined,
         description: form.description || undefined,
         tags: form.tags,
+        githubRepo: form.githubRepo || undefined,
         availableStatuses: form.availableStatuses,
         defaultStatus: form.defaultStatus || undefined,
         defaultPriority: form.defaultPriority || undefined,
@@ -188,6 +193,14 @@ async function create() {
           <UInputTags
             v-model="form.tags"
             placeholder="Add tags…"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="GitHub Repo" hint="owner/repo">
+          <UInput
+            v-model="form.githubRepo"
+            placeholder="e.g. anthropics/claude-code"
             class="w-full"
           />
         </UFormField>

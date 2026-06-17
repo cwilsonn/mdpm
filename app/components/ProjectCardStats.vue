@@ -5,6 +5,7 @@ defineProps<{
   overdueCount: number
   docCount: number
   createdAt: string
+  githubRepo?: string
 }>()
 </script>
 
@@ -22,6 +23,17 @@ defineProps<{
       <UIcon name="i-lucide-clock-alert" class="size-3.5 shrink-0" />
       {{ overdueCount }}
     </span>
+    <a
+      v-if="githubRepo"
+      :href="`https://github.com/${githubRepo}`"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="flex items-center gap-1 hover:text-primary transition-colors"
+      @click.stop
+    >
+      <UIcon name="i-lucide-github" class="size-3.5 shrink-0" />
+      {{ githubRepo }}
+    </a>
     <p class="ml-auto">{{ createdAt }}</p>
   </div>
 </template>

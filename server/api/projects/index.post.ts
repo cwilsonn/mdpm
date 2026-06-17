@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
     icon?: string
     description?: string
     tags?: string[]
+    githubRepo?: string
     availableStatuses?: string[]
     defaultStatus?: string
     defaultPriority?: string
@@ -38,6 +39,7 @@ export default defineEventHandler(async (event) => {
     ...(body.icon ? { icon: body.icon } : {}),
     ...(body.description ? { description: body.description } : {}),
     tags: body.tags ?? [],
+    ...(body.githubRepo ? { githubRepo: body.githubRepo } : {}),
     pinnedOrder: projectCount,
     availableStatuses: body.availableStatuses ?? ['todo', 'in-progress', 'done'],
     ...(body.defaultStatus ? { defaultStatus: body.defaultStatus } : {}),
