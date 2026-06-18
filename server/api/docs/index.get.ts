@@ -12,6 +12,7 @@ export default defineEventHandler((event) => {
     tags: string[]
     parent: string | null
     isFolder: boolean
+    order: number
     createdAt: string
     updatedAt?: string
     excerpt: string
@@ -41,6 +42,7 @@ export default defineEventHandler((event) => {
             tags: (file.data.tags as string[]) ?? [],
             parent: (file.data.parent as string | undefined) ?? null,
             isFolder: (file.data.isFolder as boolean | undefined) ?? false,
+            order: (file.data.order as number) ?? 0,
             createdAt: (file.data.createdAt as string) ?? '',
             updatedAt: (file.data.updatedAt as string) ?? undefined,
             excerpt: file.content.slice(0, 200).replace(/[#*`_]/g, '').trim(),
@@ -65,6 +67,7 @@ export default defineEventHandler((event) => {
           tags: (file.data.tags as string[]) ?? [],
           parent: (file.data.parent as string | undefined) ?? null,
           isFolder: (file.data.isFolder as boolean | undefined) ?? false,
+          order: (file.data.order as number) ?? 0,
           createdAt: (file.data.createdAt as string) ?? '',
           updatedAt: (file.data.updatedAt as string) ?? undefined,
           excerpt: file.content.slice(0, 200).replace(/[#*`_]/g, '').trim(),
@@ -72,6 +75,13 @@ export default defineEventHandler((event) => {
       }
     }
   }
+
+  // sort within each project group by order asc, then createdAt desc
+  results.sort((a, b) => {
+    const pCmp = String(a.project ?? '').localeCompare(String(b.project ?? ''))
+    if (pCmp !== 0) return pCmp
+    return a.order - b.order || b.createdAt.localeCompare(a.createdAt)
+  })
 
   return results
 })

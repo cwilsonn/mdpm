@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')!
   assertSafeSlug(slug)
-  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; body?: string }>(event)
+  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string }>(event)
 
   const file = readMarkdown(`docs/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Doc not found' })

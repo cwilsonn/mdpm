@@ -56,6 +56,28 @@ const filtered = computed(() => {
   )
 })
 
+// ── Collapsible sections (multi-group only) ────────────────────────────────
+function sectionKey(g: DocGroup) {
+  return `mdpm:docs-section:${g.projectSlug ?? 'general'}`
+}
+
+const collapsed = ref<Record<string, boolean>>({})
+
+onMounted(() => {
+  if (!props.groups) return
+  for (const g of props.groups) {
+    const key = sectionKey(g)
+    collapsed.value[key] = localStorage.getItem(key) === 'collapsed'
+  }
+})
+
+function toggleSection(g: DocGroup) {
+  const key = sectionKey(g)
+  const next = !collapsed.value[key]
+  collapsed.value[key] = next
+  localStorage.setItem(key, next ? 'collapsed' : 'expanded')
+}
+
 // ── AppTree item conversion ─────────────────────────────────────────────────
 function toTreeItems(docs: DocTreeItem[]): AppTreeItem[] {
   return docs.map(d => ({
@@ -63,16 +85,17 @@ function toTreeItems(docs: DocTreeItem[]): AppTreeItem[] {
     label: d.title,
     parent: d.parent,
     isFolder: d.isFolder,
+    order: d.order,
   }))
 }
 
 // ── Reparent ───────────────────────────────────────────────────────────────
-async function handleReparent(payload: { slug: string; parent: string | null }, group: DocGroup) {
+async function handleReparent(payload: { slug: string; parent: string | null; order: number }, group: DocGroup) {
   const url = group.projectSlug
     ? `/api/docs/${group.projectSlug}/${payload.slug}`
     : `/api/standalone-docs/${payload.slug}`
   try {
-    await $fetch(url, { method: 'PATCH', body: { parent: payload.parent } })
+    await $fetch(url, { method: 'PATCH', body: { parent: payload.parent, order: payload.order } })
     emit('changed')
   }
   catch (e: any) {
@@ -156,17 +179,25 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
     <!-- Tree view (multi-group or single group) -->
     <div v-else class="overflow-y-auto flex-1 min-h-0">
       <template v-for="group in effectiveGroups" :key="group.label || 'single'">
-        <!-- Group header (multi-group mode only) -->
-        <div
+        <!-- Group header (multi-group mode only) — clickable to collapse -->
+        <button
           v-if="groups"
-          class="flex items-center gap-1.5 px-4 py-1.5 border-b border-default bg-muted/30 sticky top-0 z-10"
+          type="button"
+          class="w-full flex items-center gap-1.5 px-4 py-1.5 border-b border-default bg-muted/30 sticky top-0 z-10 hover:bg-muted/50 transition-colors"
+          @click="toggleSection(group)"
         >
           <UIcon v-if="group.icon" :name="group.icon" class="size-3.5 text-muted shrink-0" />
-          <span class="text-xs font-medium text-muted uppercase tracking-wide">{{ group.label }}</span>
-          <span class="text-xs text-muted ml-auto">{{ group.docs.length }}</span>
-        </div>
+          <span class="text-xs font-medium text-muted uppercase tracking-wide flex-1 text-left">{{ group.label }}</span>
+          <span class="text-xs text-muted">{{ group.docs.length }}</span>
+          <UIcon
+            name="i-lucide-chevron-down"
+            class="size-3.5 text-muted transition-transform duration-150 ml-1"
+            :class="collapsed[sectionKey(group)] ? '-rotate-90' : ''"
+          />
+        </button>
 
         <AppTree
+          v-if="!groups || !collapsed[sectionKey(group)]"
           :items="toTreeItems(group.docs)"
           :allow-drag="true"
           :allow-folder-create="true"
@@ -176,6 +207,5 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
         />
       </template>
     </div>
-
   </div>
 </template>

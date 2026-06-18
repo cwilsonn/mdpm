@@ -7,11 +7,21 @@ export interface AppTreeItem {
   parent?: string | null
   icon?: string
   isFolder?: boolean
+  order?: number
 }
 
 type AppTreeNode = TreeItem & {
   slug: string
   _isFolder: boolean
+}
+
+type DropMode = 'before' | 'after' | 'into'
+
+interface DropIndicator {
+  slug: string
+  mode: DropMode
+  parent: string | null
+  order: number
 }
 
 const CREATE_SLUG = '__create__'
@@ -31,7 +41,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   select: [slug: string]
-  reparent: [payload: { slug: string; parent: string | null }]
+  reparent: [payload: { slug: string; parent: string | null; order: number }]
   'create-folder': [payload: { parent: string | null; name: string }]
 }>()
 
@@ -155,10 +165,34 @@ function cancelCreate() {
 
 // ── Drag state ─────────────────────────────────────────────────────────────
 const dragging = ref<string | null>(null)
-// '__none__' = no hover; '__root__' = root drop zone; slug = item hover
-const dropTarget = ref<string>('__none__')
-const dropValid = ref(false)
+const dropIndicator = ref<DropIndicator | null>(null)
+const rootDropOver = ref(false)
 const isDraggingAny = computed(() => dragging.value !== null)
+
+function getItemParent(slug: string): string | null {
+  return props.items.find(i => i.slug === slug)?.parent ?? null
+}
+
+function getSiblings(parent: string | null, excludeSlug: string): AppTreeItem[] {
+  return props.items
+    .filter(i => (i.parent ?? null) === parent && i.slug !== excludeSlug)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+
+function computeOrder(parent: string | null, afterSlug: string | null): number {
+  const siblings = getSiblings(parent, dragging.value!)
+  if (afterSlug === null) {
+    return siblings.length > 0 ? (siblings[0]!.order ?? 0) - 1 : 0
+  }
+  const idx = siblings.findIndex(s => s.slug === afterSlug)
+  if (idx === -1) {
+    return siblings.length > 0 ? (siblings[siblings.length - 1]!.order ?? 0) + 1 : 0
+  }
+  const after = siblings[idx]!
+  const next = siblings[idx + 1]
+  if (!next) return (after.order ?? 0) + 1
+  return Math.floor(((after.order ?? 0) + (next.order ?? 0)) / 2)
+}
 
 function isDescendant(potentialDesc: string, ofAncestor: string): boolean {
   let cur: string | null | undefined = potentialDesc
@@ -173,15 +207,9 @@ function isDescendant(potentialDesc: string, ofAncestor: string): boolean {
   return false
 }
 
-function canDrop(draggedSlug: string, targetSlug: string | null): boolean {
-  if (targetSlug === draggedSlug) return false
-  if (targetSlug !== null && isDescendant(targetSlug, draggedSlug)) return false
-  if (targetSlug !== null) {
-    const target = props.items.find(i => i.slug === targetSlug)
-    if (!target) return false
-    const hasChildren = props.items.some(i => i.parent === targetSlug)
-    if (!target.isFolder && !hasChildren) return false
-  }
+function canDrop(draggedSlug: string, parent: string | null): boolean {
+  if (parent === draggedSlug) return false
+  if (parent !== null && isDescendant(parent, draggedSlug)) return false
   return true
 }
 
@@ -191,36 +219,85 @@ function onDragStart(e: DragEvent, item: AppTreeNode) {
   e.dataTransfer!.setData('text/plain', item.slug)
 }
 
-function onDragOver(e: DragEvent, target: string | null) {
+function onDragOver(e: DragEvent, item: AppTreeNode) {
   if (!dragging.value) return
-  const valid = canDrop(dragging.value, target)
-  dropTarget.value = target === null ? '__root__' : target
-  dropValid.value = valid
-  e.dataTransfer!.dropEffect = valid ? 'move' : 'none'
+  rootDropOver.value = false
+
+  const el = e.currentTarget as HTMLElement
+  const rect = el.getBoundingClientRect()
+  const relY = (e.clientY - rect.top) / rect.height
+
+  let mode: DropMode
+  if (item._isFolder) {
+    if (relY < 0.25) mode = 'before'
+    else if (relY > 0.75) mode = 'after'
+    else mode = 'into'
+  }
+  else {
+    mode = relY < 0.5 ? 'before' : 'after'
+  }
+
+  let parent: string | null
+  let afterSlug: string | null
+
+  if (mode === 'into') {
+    parent = item.slug
+    const children = getSiblings(item.slug, dragging.value)
+    afterSlug = children.length > 0 ? (children[children.length - 1]?.slug ?? null) : null
+  }
+  else if (mode === 'before') {
+    parent = getItemParent(item.slug)
+    const siblings = getSiblings(parent, dragging.value)
+    const idx = siblings.findIndex(s => s.slug === item.slug)
+    afterSlug = idx > 0 ? (siblings[idx - 1]?.slug ?? null) : null
+  }
+  else {
+    parent = getItemParent(item.slug)
+    afterSlug = item.slug
+  }
+
+  if (!canDrop(dragging.value, parent)) {
+    e.dataTransfer!.dropEffect = 'none'
+    dropIndicator.value = null
+    return
+  }
+
+  e.dataTransfer!.dropEffect = 'move'
+  dropIndicator.value = { slug: item.slug, mode, parent, order: computeOrder(parent, afterSlug) }
 }
 
-function onDragLeave() {
-  dropTarget.value = '__none__'
-  dropValid.value = false
-}
-
-function onDrop(e: DragEvent, target: string | null) {
-  e.preventDefault()
+function onDrop(e: DragEvent) {
   const slug = dragging.value
-  if (!slug) return
-  if (!canDrop(slug, target)) return
-  const current = props.items.find(i => i.slug === slug)
-  if (current?.parent === target) return
-  emit('reparent', { slug, parent: target })
+  if (!slug || !dropIndicator.value) return
+  const { parent, order } = dropIndicator.value
+  if (!canDrop(slug, parent)) return
+  emit('reparent', { slug, parent, order })
   dragging.value = null
-  dropTarget.value = '__none__'
-  dropValid.value = false
+  dropIndicator.value = null
+}
+
+function onDragOverRoot(e: DragEvent) {
+  if (!dragging.value) return
+  dropIndicator.value = null
+  rootDropOver.value = canDrop(dragging.value, null)
+  e.dataTransfer!.dropEffect = rootDropOver.value ? 'move' : 'none'
+}
+
+function onDropRoot(e: DragEvent) {
+  const slug = dragging.value
+  if (!slug || !canDrop(slug, null)) return
+  const siblings = getSiblings(null, slug)
+  const order = siblings.length > 0 ? (siblings[siblings.length - 1]!.order ?? 0) + 1 : 0
+  emit('reparent', { slug, parent: null, order })
+  dragging.value = null
+  dropIndicator.value = null
+  rootDropOver.value = false
 }
 
 function onDragEnd() {
   dragging.value = null
-  dropTarget.value = '__none__'
-  dropValid.value = false
+  dropIndicator.value = null
+  rootDropOver.value = false
 }
 
 // ── Misc helpers ───────────────────────────────────────────────────────────
@@ -238,7 +315,7 @@ function onSelect(item: AppTreeNode) {
 
 <template>
   <div
-    class="flex flex-col h-full select-none"
+    class="flex flex-col select-none"
     @dragend="onDragEnd"
   >
     <!-- Search bar (opt-in) -->
@@ -276,8 +353,8 @@ function onSelect(item: AppTreeNode) {
       </button>
     </div>
 
-    <!-- Tree view -->
-    <div v-else class="overflow-y-auto flex-1 min-h-0 relative">
+    <!-- Tree view — content-sized; parent is the scroll container -->
+    <div v-else>
       <UTree
         :items="treeItems"
         :get-key="(item: AppTreeNode) => item.slug"
@@ -310,17 +387,26 @@ function onSelect(item: AppTreeNode) {
           <div
             v-else
             :draggable="allowDrag ? 'true' : 'false'"
-            class="group/item w-full flex items-center"
+            class="relative group/item w-full flex items-center"
             :class="{
               'opacity-40': dragging === item.slug,
-              'ring-2 ring-inset ring-primary rounded-md': dropTarget === item.slug && dropValid,
-              'ring-2 ring-inset ring-error rounded-md': dropTarget === item.slug && !dropValid && dragging,
+              'ring-2 ring-inset ring-primary rounded-md': dropIndicator?.slug === item.slug && dropIndicator.mode === 'into',
             }"
             @dragstart.stop="allowDrag && onDragStart($event, item)"
-            @dragover.prevent.stop="allowDrag && onDragOver($event, item.slug)"
-            @dragleave.stop="allowDrag && onDragLeave()"
-            @drop.stop="allowDrag && onDrop($event, item.slug)"
+            @dragover.prevent.stop="allowDrag && onDragOver($event, item)"
+            @drop.prevent.stop="allowDrag && onDrop($event)"
           >
+            <!-- Insert-before line -->
+            <div
+              v-if="dropIndicator?.slug === item.slug && dropIndicator.mode === 'before'"
+              class="absolute -top-px left-1 right-1 h-0.5 bg-primary rounded-full z-20 pointer-events-none"
+            />
+            <!-- Insert-after line -->
+            <div
+              v-if="dropIndicator?.slug === item.slug && dropIndicator.mode === 'after'"
+              class="absolute -bottom-px left-1 right-1 h-0.5 bg-primary rounded-full z-20 pointer-events-none"
+            />
+
             <!-- Main link area — pointer-events-none so reka-ui handles clicks -->
             <span :class="[ui.link({ selected }), 'flex-1 pointer-events-none']">
               <UIcon :name="getIcon(item, expanded)" class="size-5 shrink-0" />
@@ -351,12 +437,10 @@ function onSelect(item: AppTreeNode) {
       <div
         v-if="isDraggingAny"
         class="mx-2 mt-1 mb-2 rounded-md border-2 border-dashed flex items-center justify-center py-2 text-xs transition-colors"
-        :class="dropTarget === '__root__' && dropValid
-          ? 'border-primary text-primary bg-primary/5'
-          : 'border-default text-muted'"
-        @dragover.prevent="onDragOver($event, null)"
-        @dragleave="onDragLeave()"
-        @drop.prevent="onDrop($event, null)"
+        :class="rootDropOver ? 'border-primary text-primary bg-primary/5' : 'border-default text-muted'"
+        @dragover.prevent="onDragOverRoot"
+        @dragleave="rootDropOver = false"
+        @drop.prevent="onDropRoot"
       >
         <UIcon name="i-lucide-corner-left-up" class="size-3.5 me-1" />
         Move to root
