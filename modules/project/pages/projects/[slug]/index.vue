@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { VueDraggable } from 'vue-draggable-plus'
-
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
@@ -124,20 +122,6 @@ const totalVisible = computed(() => {
   for (const c of visibleColumns.value) n += columns[c.id].length
   return n
 })
-
-const tasksBySlug = computed(() => {
-  const map: Record<string, Task> = {}
-  for (const col of STATUS_CONFIG) {
-    for (const t of columns[col.id]) map[slugFromPath(t.path)] = t
-  }
-  return map
-})
-
-function hasBlockingDeps(task: Task) {
-  return (task as any).dependencies?.some(
-    (dep: string) => tasksBySlug.value[dep]?.status !== 'done',
-  ) ?? false
-}
 
 const updating = ref<string | null>(null)
 
@@ -393,75 +377,20 @@ const mobileActions = computed(() => [
       </div>
 
       <!-- Kanban board -->
-      <div v-else-if="taskView === 'kanban'" class="flex gap-3 overflow-x-auto flex-1 min-h-0" :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
-        <div
-          v-for="col in visibleColumns"
-          :key="col.id"
-          class="flex flex-col flex-none w-64 sm:w-72 min-h-0"
-        >
-          <!-- Column header -->
-          <div class="flex items-center gap-2 mb-2 px-1">
-            <UIcon
-              :name="col.icon"
-              class="size-4 shrink-0"
-              :class="`text-${col.color}`"
-            />
-            <span class="text-sm font-medium">{{ col.label }}</span>
-            <UBadge
-              :label="String(columns[col.id].length)"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-            />
-            <UButton
-              label="Add"
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              class="ml-auto"
-              @click="openCreateTask(col.id)"
-            />
-          </div>
-
-          <!-- Draggable column -->
-          <VueDraggable
-            v-model="columns[col.id]"
-            :group="{ name: 'tasks', pull: true, put: true }"
-            :animation="150"
-            class="flex flex-col gap-2 flex-1 rounded-xl p-2 bg-muted min-h-24 overflow-y-auto"
-            ghost-class="opacity-40"
-            filter=".drag-ignore"
-            @start="isDragging = true"
-            @end="isDragging = false"
-            @add="(e) => onColumnAdd(col.id, e)"
-            @update="onColumnUpdate"
-          >
-            <button
-              v-if="!columns[col.id].length && !isDragging"
-              type="button"
-              class="drag-ignore group flex items-center justify-center flex-1 min-h-16 rounded-lg cursor-pointer transition-colors hover:bg-elevated/60"
-              @click="openCreateTask(col.id)"
-            >
-              <div class="flex items-center gap-1.5 text-xs text-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                <UIcon name="i-lucide-plus" class="size-3.5 shrink-0" />
-                Add task
-              </div>
-            </button>
-            <TaskDisplayCard
-              v-for="task in columns[col.id]"
-              :key="task.path"
-              :task="task"
-              :has-blocking-deps="hasBlockingDeps(task)"
-              :loading="updating === task.path || markingDone === task.path"
-              @click="editTask = task"
-              @mark-done="markTaskDone(slugFromPath(task.path))"
-              @reopen="reopenTask(slugFromPath(task.path))"
-              @delete="confirmDeleteTask(slugFromPath(task.path))"
-            />
-          </VueDraggable>
-        </div>
-      </div>
+      <AppTaskKanban
+        v-else-if="taskView === 'kanban'"
+        :columns="columns"
+        :visible-columns="visibleColumns"
+        :project-slug="slug"
+        :loading-path="markingDone || updating"
+        :pending="tasksPending"
+        @task-click="editTask = ($event as unknown as Task)"
+        @add-task="openCreateTask($event as ColId)"
+        @mark-done="markTaskDone($event)"
+        @reopen="reopenTask($event)"
+        @delete="confirmDeleteTask($event)"
+        @refresh="refreshTasks()"
+      />
 
       <!-- List view -->
       <div
@@ -469,7 +398,7 @@ const mobileActions = computed(() => [
         class="overflow-y-auto flex-1 min-h-0"
         :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
       >
-        <AppTaskStatusGroup
+        <AppTaskStatusList
           v-for="col in visibleColumns"
           :key="col.id"
           v-model="columns[col.id]"

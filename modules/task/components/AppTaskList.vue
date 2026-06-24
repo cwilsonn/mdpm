@@ -361,7 +361,7 @@ function clearFilters() {
         v-if="openProjects.includes(pSlug)"
         class="divide-y divide-default"
       >
-        <AppTaskStatusGroup
+        <AppTaskStatusList
           v-for="statusCfg in statusesForProject(pSlug)"
           :key="statusCfg.id"
           v-model="draggableGroups[pSlug]![statusCfg.id]!"

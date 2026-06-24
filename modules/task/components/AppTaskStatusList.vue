@@ -73,7 +73,8 @@ const emit = defineEmits<{
     />
     <UButton
       v-if="showAddButton"
-      icon="i-lucide-plus"
+      trailing-icon="i-lucide-plus"
+      label="Add"
       color="neutral"
       variant="ghost"
       size="sm"
