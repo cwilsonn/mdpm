@@ -1,4 +1,10 @@
 export default defineNuxtConfig({
+  extends: [
+    './modules/_core',
+    './modules/project',
+    './modules/task',
+    './modules/doc',
+  ],
   modules: ['@nuxt/ui', '@nuxt/content'],
   css: ['~/assets/css/main.css'],
   compatibilityDate: '2025-01-15',
