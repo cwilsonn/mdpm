@@ -37,6 +37,11 @@ export default defineNuxtConfig({
     }),
   },
   vite: {
+    server: {
+      hmr: {
+        host: 'mdpm.local',
+      },
+    },
     optimizeDeps: {
       include: [],
     },
