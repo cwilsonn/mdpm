@@ -436,12 +436,17 @@ const mobileActions = computed(() => [
             @add="(e) => onColumnAdd(col.id, e)"
             @update="onColumnUpdate"
           >
-            <div
+            <button
               v-if="!columns[col.id].length && !isDragging"
-              class="drag-ignore flex items-center justify-center flex-1 py-4 text-xs text-muted italic"
+              type="button"
+              class="drag-ignore group flex items-center justify-center flex-1 min-h-16 rounded-lg cursor-pointer transition-colors hover:bg-elevated/60"
+              @click="openCreateTask(col.id)"
             >
-              No tasks
-            </div>
+              <div class="flex items-center gap-1.5 text-xs text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                <UIcon name="i-lucide-plus" class="size-3.5 shrink-0" />
+                Add task
+              </div>
+            </button>
             <TaskDisplayCard
               v-for="task in columns[col.id]"
               :key="task.path"
