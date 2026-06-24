@@ -48,6 +48,7 @@ const props = withDefaults(defineProps<{
 })
 
 const route = useRoute()
+
 const effectiveTitle = computed(() => props.title ?? route.meta.title ?? '')
 const effectiveIcon = computed(() => props.icon ?? route.meta.icon)
 
@@ -101,6 +102,9 @@ const normalizedEmptyProps = computed(() => ({
     <template #header>
       <UDashboardNavbar :ui="{ title: 'flex items-center gap-1.5 font-semibold text-highlighted min-w-0 overflow-hidden' }">
         <template #leading>
+          <UDashboardSidebarCollapse side="left" />
+          <span class="self-stretch flex-1 border-l border-muted mr-1.5" aria-hidden="true"></span>
+          <!-- Back button -->
           <UButton
             v-if="backTo"
             icon="i-lucide-arrow-left"

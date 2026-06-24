@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import { useLocalStorage } from '@vueuse/core'
+
+const isCollapsed = useLocalStorage('sidebar:collapsed', false)
+
+defineShortcuts({
+  meta_b: () => { isCollapsed.value = !isCollapsed.value },
+})
+
 const { data: projects } = await useAsyncData('sidebar-projects', () =>
   $fetch('/api/projects').then((list: any) => [...list].sort((a: any, b: any) => a.title.localeCompare(b.title))),
 )
@@ -23,84 +31,39 @@ const navigation = computed(() => [
   },
 ])
 
-const colorMode = useColorMode()
-
-function toggleColorMode() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-const colorModeIcon = computed(() =>
-  colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun',
-)
-
 const { callHook } = useNuxtApp()
+
 function openSearch() {
   callHook('dashboard:search:toggle' as any)
 }
-
-async function triggerDownload(path: string, fallbackName: string) {
-  const res = await fetch(path)
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  const disposition = res.headers.get('Content-Disposition') ?? ''
-  const match = disposition.match(/filename="([^"]+)"/)
-  a.href = url
-  a.download = match?.[1] ?? fallbackName
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-const exportItems = [
-  [
-    {
-      label: 'As archive',
-      icon: 'i-lucide-archive',
-      description: 'Exports the full content directory as-is. Useful if you ever expect to re-import your data.',
-      onSelect: () => triggerDownload('/api/export/archive', 'mdpm-content.zip'),
-    },
-    {
-      label: 'Single-file',
-      icon: 'i-lucide-file-text',
-      description: 'Exports a single .md file with all projects and tasks inline. Great for when you need to migrate.',
-      onSelect: () => triggerDownload('/api/export/markdown', 'mdpm-export.md'),
-    },
-  ],
-]
 </script>
 
 <template>
   <UDashboardSidebar
-    collapsible
+    v-model:collapsed="isCollapsed"
+    :collapsible="true"
     :ui="{
       root: 'bg-muted',
       header: 'border-b border-default',
-      footer: 'border-t border-default',
+      footer: ['border-t border-default', isCollapsed ? 'flex-col! items-center!' : ''],
     }"
   >
-    <template #header>
-      <NuxtLink
-        to="/projects"
-        class="flex items-center gap-2 px-1"
-      >
-        <UIcon
-          name="i-lucide-square-check-big"
-          class="size-6 shrink-0 text-primary"
-        />
-        <span class="text-lg font-bold font-mono truncate">.mdpm</span>
-      </NuxtLink>
-      <UButton
-        :icon="colorModeIcon"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        :ui="{ base: 'ms-auto me-0' }"
-        @click="toggleColorMode"
-      />
+    <template #header="{ collapsed }">
+      <AppSidebarHeader :is-collapsed="collapsed" />
     </template>
 
-    <template #default>
+    <template #default="{ collapsed }">
+      <UTooltip v-if="collapsed" text="Search" :content="{ side: 'right' }">
+        <UButton
+          icon="i-lucide-search"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="openSearch"
+        />
+      </UTooltip>
       <UButton
+        v-else
         label="Search"
         icon="i-lucide-search"
         color="neutral"
@@ -115,28 +78,18 @@ const exportItems = [
           </div>
         </template>
       </UButton>
+      <hr class="border-default" />
       <UNavigationMenu
         :items="navigation"
-        :collapsed="false"
+        :collapsed="collapsed"
         orientation="vertical"
+        :tooltip="{ side: 'right' }"
+        :popover="{ side: 'right' }"
       />
     </template>
 
-    <template #footer>
-      <UDropdownMenu
-        :items="exportItems"
-        :ui="{ content: 'max-w-72 lg:max-w-120', itemDescription: 'whitespace-normal text-muted' }"
-      >
-        <UButton
-          label="Export"
-          icon="i-lucide-download"
-          trailing-icon="i-lucide-chevron-up"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          block
-        />
-      </UDropdownMenu>
+    <template #footer="{ collapsed }">
+      <AppSidebarFooter :collapsed="collapsed" />
     </template>
   </UDashboardSidebar>
 </template>
