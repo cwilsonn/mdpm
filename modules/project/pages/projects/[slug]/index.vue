@@ -398,7 +398,7 @@ const mobileActions = computed(() => [
         class="overflow-y-auto flex-1 min-h-0"
         :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
       >
-        <AppTaskStatusList
+        <TaskStatusGroup
           v-for="col in visibleColumns"
           :key="col.id"
           v-model="columns[col.id]"

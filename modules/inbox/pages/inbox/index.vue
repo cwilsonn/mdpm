@@ -12,7 +12,7 @@ const inboxStatuses = (STATUS_SELECT_ITEMS as Array<{ label: string; value: stri
     title="Inbox"
     icon="i-lucide-inbox"
   >
-    <AppTaskList
+    <InboxTaskList
       :tasks="((tasks ?? []) as any[])"
       :projects="((projects ?? []) as any[])"
       :preset-statuses="(inboxStatuses as any[])"
