@@ -1,4 +1,4 @@
-const ALL_TASK_STATUSES = ['todo', 'in-progress', 'in-review', 'done', 'blocked']
+const ALL_TASK_STATUSES = ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold']
 
 export default defineEventHandler((event) => {
   const slug = getRouterParam(event, 'slug')!

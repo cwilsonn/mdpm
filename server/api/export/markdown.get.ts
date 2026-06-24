@@ -1,12 +1,13 @@
 import { existsSync, readdirSync } from 'node:fs'
 
-const STATUS_ORDER = ['todo', 'in-progress', 'in-review', 'blocked', 'done']
+const STATUS_ORDER = ['todo', 'in-progress', 'in-review', 'blocked', 'on-hold', 'done']
 
 const STATUS_LABELS: Record<string, string> = {
   'todo': 'Todo',
   'in-progress': 'In Progress',
   'in-review': 'In Review',
   'blocked': 'Blocked',
+  'on-hold': 'On Hold',
   'done': 'Done',
 }
 

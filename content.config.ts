@@ -61,7 +61,7 @@ export default defineContentConfig({
       source: 'projects/*/tasks/*.md',
       schema: z.object({
         title: z.string(),
-        status: z.enum(['todo', 'in-progress', 'in-review', 'done', 'blocked']).default('todo'),
+        status: z.enum(['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold']).default('todo'),
         priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
         tags: z.array(z.string()).default([]),
         assignees: z.array(z.string()).default([]),

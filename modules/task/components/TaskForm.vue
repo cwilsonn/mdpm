@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   projectSlug: string
-  initialStatus?: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked'
+  initialStatus?: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked' | 'on-hold'
   availableStatuses?: string[]
   defaultPriority?: string
   defaultAssignee?: string
@@ -35,7 +35,7 @@ const currentTaskSlug = computed(() => props.task ? slugFromPath(props.task.path
 
 const form = reactive({
   title: props.task?.title ?? '',
-  status: (props.task?.status ?? props.initialStatus ?? 'todo') as 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked',
+  status: (props.task?.status ?? props.initialStatus ?? 'todo') as 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked' | 'on-hold',
   priority: (props.task?.priority ?? props.defaultPriority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
   tags: [...(props.task?.tags ?? [])] as string[],
   assignees: props.task ? [...(props.task.assignees ?? [])] : (props.defaultAssignee ? [props.defaultAssignee] : []) as string[],

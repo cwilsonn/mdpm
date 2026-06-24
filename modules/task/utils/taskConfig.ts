@@ -4,6 +4,7 @@ export const STATUS_CONFIG = [
   { id: 'in-progress', label: 'In Progress', icon: 'i-lucide-circle-dot', color: 'info' },
   { id: 'in-review', label: 'In Review', icon: 'i-lucide-eye', color: 'warning' },
   { id: 'blocked', label: 'Blocked', icon: 'i-lucide-circle-x', color: 'error' },
+  { id: 'on-hold', label: 'On Hold', icon: 'i-lucide-circle-pause', color: 'secondary' },
   { id: 'done', label: 'Done', icon: 'i-lucide-circle-check', color: 'success' },
 ] as const
 

@@ -263,7 +263,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           project: { type: 'string', description: 'Project slug. Omit for all projects.' },
           status: {
             type: 'array',
-            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
+            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
             description: 'Filter by status values. Omit for all.',
           },
           githubIssue: { type: 'number', description: 'Return only tasks linked to this GitHub issue number.' },
@@ -291,7 +291,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           project: { type: 'string' },
           title: { type: 'string' },
-          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
+          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
@@ -312,7 +312,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           project: { type: 'string' },
           slug: { type: 'string' },
           title: { type: 'string' },
-          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
+          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
@@ -410,7 +410,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           project: { type: 'string', description: 'Scope to a project. Omit for all projects.' },
           status: {
             type: 'array',
-            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked'] },
+            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
             description: 'Filter by status values.',
           },
         },

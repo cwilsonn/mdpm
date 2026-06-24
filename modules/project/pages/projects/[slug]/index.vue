@@ -75,6 +75,7 @@ const columns = reactive<Record<ColId, Task[]>>({
   'in-progress': [],
   'in-review': [],
   'blocked': [],
+  'on-hold': [],
   'done': [],
 })
 
