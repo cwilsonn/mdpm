@@ -1,6 +1,7 @@
 export default defineNuxtConfig({
   extends: [
     './modules/_core',
+    './modules/inbox',
     './modules/project',
     './modules/task',
     './modules/doc',
