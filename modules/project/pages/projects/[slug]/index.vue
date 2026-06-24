@@ -414,12 +414,12 @@ const mobileActions = computed(() => [
               size="sm"
             />
             <UButton
+              label="Add"
               icon="i-lucide-plus"
               color="neutral"
               variant="ghost"
               size="sm"
               class="ml-auto"
-              :tooltip="{ text: `Add ${col.label} task` }"
               @click="openCreateTask(col.id)"
             />
           </div>
