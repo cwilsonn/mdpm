@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import type { EditorToolbarItem } from '@nuxt/ui'
+import type { EditorToolbarItem, EditorProps, EditorToolbarProps } from '@nuxt/ui'
+
+const props = defineProps<{
+  editorProps?: EditorProps,
+  editorToolbarProps?: EditorToolbarProps,
+  variant?: 'none' | 'outline',
+}>();
 
 const model = defineModel<string>({ default: '' })
 
@@ -32,6 +38,34 @@ const toolbarItems: EditorToolbarItem[][] = [[
   { kind: 'mark', mark: 'strike', icon: 'i-lucide-strikethrough', tooltip: { text: 'Strike' } },
   { kind: 'mark', mark: 'code', icon: 'i-lucide-code', tooltip: { text: 'Inline Code' } },
 ]]
+
+const computedEditorClasses = computed(() => {
+  let classes = [];
+
+  if (props.variant === 'outline') {
+    classes.push('border border-default rounded-lg');
+  }
+
+  return classes;
+});
+
+const computedEditorUi = computed(() => {
+  let ui: EditorProps['ui'] = {
+    base: 'min-h-36 text-sm p-3',
+  }
+
+  if (props.variant === 'none') {
+    ui = {
+      ...ui,
+      content: '[&>.tiptap]:p-0! [&>.tiptap]:my-3',
+    }
+  }
+
+  return {
+    ...ui,
+    ...props.editorProps?.ui,
+  }
+});
 </script>
 
 <template>
@@ -40,13 +74,15 @@ const toolbarItems: EditorToolbarItem[][] = [[
     v-model="model"
     content-type="markdown"
     placeholder="Add a description…"
-    class="w-full rounded-lg border border-default overflow-hidden"
-    :ui="{ base: 'min-h-36 p-3 text-sm' }"
+    :class="computedEditorClasses"
+    :ui="computedEditorUi"
   >
+    <!-- class="w-full rounded-lg border border-default overflow-hidden" -->
     <UEditorToolbar
       :editor="editor"
       :items="toolbarItems"
-      class="border-b border-default px-2 py-1 bg-muted/30 overflow-x-auto sticky top-0 z-10"
+      class="bg-default border-b border-default px-2 py-1 overflow-x-auto sticky top-0 z-10"
     />
+    <UEditorToolbar :editor="editor" :items="toolbarItems" layout="bubble" />
   </UEditor>
 </template>

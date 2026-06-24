@@ -350,7 +350,7 @@ async function create() {
           <AppInputRichText
             v-else
             v-model="description"
-            class="w-full"
+            variant="outline"
           />
         </UFormField>
       </div>

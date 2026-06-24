@@ -20,11 +20,20 @@ const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyn
   () => $fetch<DocTreeItem[]>(`/api/docs/${slug.value}`),
 )
 
-const showCreateDoc = ref(false)
+const creating = ref(false)
 
-async function onDocCreated(docSlug: string) {
-  showCreateDoc.value = false
-  await navigateTo(`/projects/${slug.value}/docs/${docSlug}`)
+async function createBlankDoc() {
+  creating.value = true
+  try {
+    const { slug: docSlug } = await $fetch<{ slug: string }>(`/api/docs/${slug.value}`, {
+      method: 'POST',
+      body: { title: 'Untitled' },
+    })
+    await navigateTo({ path: `/projects/${slug.value}/docs/${docSlug}`, query: { new: '1' } })
+  }
+  finally {
+    creating.value = false
+  }
 }
 
 useHead(() => ({ title: `${project.value?.title ?? slug.value} — Docs` }))
@@ -41,7 +50,7 @@ const tabs = computed(() => [
 ])
 
 const mobileActions = [
-  { label: 'New Doc', icon: 'i-lucide-plus', onSelect: () => { showCreateDoc.value = true } },
+  { label: 'New Doc', icon: 'i-lucide-plus', onSelect: createBlankDoc },
 ]
 </script>
 
@@ -52,7 +61,8 @@ const mobileActions = [
         label="New Doc"
         icon="i-lucide-plus"
         size="sm"
-        @click="showCreateDoc = true"
+        :loading="creating"
+        @click="createBlankDoc"
       />
     </template>
 
@@ -60,7 +70,7 @@ const mobileActions = [
       <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
         <UIcon name="i-lucide-book-open" class="size-10 text-muted" />
         <p class="text-muted text-sm">No docs yet for this project.</p>
-        <UButton label="Create first doc" icon="i-lucide-plus" size="sm" @click="showCreateDoc = true" />
+        <UButton label="Create first doc" icon="i-lucide-plus" size="sm" :loading="creating" @click="createBlankDoc" />
       </div>
       <DocList
         v-else
@@ -70,14 +80,5 @@ const mobileActions = [
         @changed="refreshDocs"
       />
     </div>
-
-    <template #overlays>
-      <DocForm
-        v-if="showCreateDoc"
-        :project-slug="slug"
-        @close="showCreateDoc = false"
-        @saved="onDocCreated"
-      />
-    </template>
   </AppPageBase>
 </template>

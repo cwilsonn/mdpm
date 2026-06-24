@@ -15,11 +15,20 @@ const [{ data: allDocs, pending, refresh: refreshDocs }, { data: projects }] = a
   useAsyncData('all-projects', () => $fetch<ProjectHeader[]>('/api/projects')),
 ])
 
-const showCreate = ref(false)
+const creating = ref(false)
 
-async function onDocCreated(slug: string) {
-  showCreate.value = false
-  await navigateTo(`/docs/${slug}`)
+async function createBlankDoc() {
+  creating.value = true
+  try {
+    const { slug } = await $fetch<{ slug: string }>('/api/standalone-docs', {
+      method: 'POST',
+      body: { title: 'Untitled' },
+    })
+    await navigateTo({ path: `/docs/${slug}`, query: { new: '1' } })
+  }
+  finally {
+    creating.value = false
+  }
 }
 
 const hasAnyDocs = computed(() => !!allDocs.value?.length)
@@ -60,13 +69,13 @@ const groups = computed((): DocGroup[] => {
   <AppPageBase
     title="Docs"
     icon="i-lucide-book-open"
-    :actions="hasAnyDocs ? [{ label: 'New Doc', icon: 'i-lucide-plus', onSelect: () => showCreate = true }] : []"
+    :actions="hasAnyDocs ? [{ label: 'New Doc', icon: 'i-lucide-plus', loading: creating, onSelect: createBlankDoc }] : []"
     :empty="!hasAnyDocs"
     :empty-state="{
       icon: 'i-lucide-book-open',
       title: 'No docs yet',
       description: 'Create your first standalone doc.',
-      actions: [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: () => showCreate = true }],
+      actions: [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: createBlankDoc }],
     }"
   >
     <div class="flex flex-col flex-1 min-h-0" :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
@@ -76,13 +85,5 @@ const groups = computed((): DocGroup[] => {
         @changed="refreshDocs"
       />
     </div>
-
-    <template #overlays>
-      <DocForm
-        v-if="showCreate"
-        @close="showCreate = false"
-        @saved="onDocCreated"
-      />
-    </template>
   </AppPageBase>
 </template>
