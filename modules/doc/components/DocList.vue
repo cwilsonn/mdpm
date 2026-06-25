@@ -133,9 +133,7 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
         icon="i-lucide-search"
         placeholder="Search docs…"
         size="sm"
-        variant="none"
         class="w-full"
-        :ui="{ base: 'bg-transparent' }"
       >
         <template v-if="q" #trailing>
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="q = ''" />

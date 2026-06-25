@@ -254,7 +254,9 @@ const normalizedEmptyProps = computed(() => ({
         <UEmpty v-bind="normalizedEmptyProps" />
       </slot>
 
-      <slot v-else />
+      <div v-else class="flex flex-col flex-1 min-h-0 overflow-hidden p-2">
+        <slot />
+      </div>
 
       <slot name="overlays" />
     </template>
