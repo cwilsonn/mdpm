@@ -13,10 +13,7 @@ interface TaskDetail {
 
 interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
 
-const { data: project } = await useAsyncData(
-  () => `project-${projectSlug.value}`,
-  () => $fetch<ProjectHeader>(`/api/projects/${projectSlug.value}`).catch(() => null),
-)
+const project = inject<Ref<ProjectHeader>>('project')!
 
 const { data: task, refresh } = await useAsyncData(
   () => `task-${projectSlug.value}-${taskSlug.value}`,
@@ -60,7 +57,7 @@ async function deleteTask() {
   deleting.value = true
   try {
     await $fetch(`/api/tasks/${projectSlug.value}/${taskSlug.value}`, { method: 'DELETE' })
-    await navigateTo(`/projects/${projectSlug.value}`)
+    await navigateTo(`/projects/${projectSlug.value}/tasks`)
   }
   finally {
     deleting.value = false
@@ -72,7 +69,7 @@ useHead(() => ({ title: task.value?.title ?? taskSlug.value }))
 const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
   { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
-  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}`, icon: project.value?.icon || undefined },
+  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/tasks`, icon: project.value?.icon || undefined },
   { label: task.value?.title ?? taskSlug.value },
 ])
 

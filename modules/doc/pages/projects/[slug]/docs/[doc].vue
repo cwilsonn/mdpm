@@ -15,10 +15,7 @@ interface DocDetail {
 
 interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string }
 
-const { data: project } = await useAsyncData(
-  () => `project-${projectSlug.value}`,
-  () => $fetch<ProjectHeader>(`/api/projects/${projectSlug.value}`).catch(() => null),
-)
+const project = inject<Ref<ProjectHeader>>('project')!
 
 const { data: docMeta } = await useAsyncData(
   () => `doc-${projectSlug.value}-${docSlug.value}`,
@@ -37,7 +34,7 @@ const breadcrumb = computed(() => [
 ])
 
 const tabs = computed(() => [
-  { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${projectSlug.value}`, exact: true },
+  { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${projectSlug.value}/tasks` },
   { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${projectSlug.value}/docs`, active: true },
 ])
 </script>
