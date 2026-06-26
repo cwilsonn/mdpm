@@ -59,10 +59,8 @@ const mobileActions = [
       />
     </template>
 
-    <div class="flex flex-col h-full">
-      <div class="px-4 pt-4 pb-3 shrink-0">
-        <ProjectMetaBar :project="project" />
-      </div>
+    <div class="flex flex-col h-full space-y-3">
+      <ProjectMetaBar :project="project" class="shrink-0" />
 
       <div class="flex flex-col flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
         <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
