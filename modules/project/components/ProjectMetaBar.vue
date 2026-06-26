@@ -13,12 +13,12 @@ defineProps<{
   <div class="space-y-2 shrink-0">
     <div class="flex items-center gap-2 flex-wrap">
       <UBadge
-        :label="project.status"
-        :color="PROJECT_STATUS_MAP[project.status]?.color ?? 'neutral'"
+        :label="project?.status"
+        :color="PROJECT_STATUS_MAP[project?.status]?.color ?? 'neutral'"
         variant="subtle"
       />
       <UBadge
-        v-for="tag in project.tags"
+        v-for="tag in project?.tags"
         :key="tag"
         :label="tag"
         color="neutral"
@@ -26,7 +26,7 @@ defineProps<{
         size="sm"
       />
       <a
-        v-if="project.githubRepo"
+        v-if="project?.githubRepo"
         :href="`https://github.com/${project.githubRepo}`"
         target="_blank"
         rel="noopener noreferrer"

@@ -33,37 +33,39 @@ function openSearch() {
 </script>
 
 <template>
-  <UTooltip v-if="collapsed" text="Search" :content="{ side: 'right' }">
+  <div class="flex flex-col gap-2">
+    <UTooltip v-if="collapsed" text="Search" :content="{ side: 'right' }">
+      <UButton
+        icon="i-lucide-search"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        @click="openSearch"
+      />
+    </UTooltip>
     <UButton
+      v-else
+      label="Search"
       icon="i-lucide-search"
       color="neutral"
       variant="outline"
       size="sm"
       @click="openSearch"
+    >
+      <template #trailing>
+        <div class="ms-auto me-0 inline-flex gap-x-1">
+          <UKbd :ui="{ base: 'p-0!' }">⌘</UKbd>
+          <UKbd :ui="{ base: 'p-0!' }">K</UKbd>
+        </div>
+      </template>
+    </UButton>
+    <hr class="border-default" />
+    <UNavigationMenu
+      :items="navigation"
+      :collapsed="collapsed"
+      orientation="vertical"
+      tooltip
+      popover
     />
-  </UTooltip>
-  <UButton
-    v-else
-    label="Search"
-    icon="i-lucide-search"
-    color="neutral"
-    variant="outline"
-    size="sm"
-    @click="openSearch"
-  >
-    <template #trailing>
-      <div class="ms-auto me-0 inline-flex gap-x-1">
-        <UKbd>⌘</UKbd>
-        <UKbd>K</UKbd>
-      </div>
-    </template>
-  </UButton>
-  <hr class="border-default" />
-  <UNavigationMenu
-    :items="navigation"
-    :collapsed="collapsed"
-    orientation="vertical"
-    :tooltip="{ side: 'right' }"
-    :popover="{ side: 'right' }"
-  />
+  </div>
 </template>
