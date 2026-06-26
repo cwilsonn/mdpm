@@ -9,6 +9,9 @@ const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }
   useAsyncData('projects-doc-counts', () => $fetch('/api/docs')),
 ])
 
+const mounted = ref(false)
+onMounted(() => { mounted.value = true })
+
 const showCreate = ref(false)
 type ProjectItem = NonNullable<typeof projects.value>[0]
 const editingProject = ref<ProjectItem | null>(null)
@@ -150,7 +153,7 @@ async function executeDelete() {
   >
     <div class="overflow-y-auto flex-1 min-h-0" :class="projectsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
       <!-- Pinned section -->
-      <div v-if="pinnedProjects.length" class="mb-6">
+      <div v-if="pinnedProjects.length && mounted" class="mb-6">
         <p class="text-xs font-medium text-muted uppercase tracking-wide mb-3 flex items-center gap-1.5">
           <UIcon name="i-lucide-pin" class="size-3.5" />
           Pinned
@@ -249,7 +252,7 @@ async function executeDelete() {
       </div>
 
       <!-- All projects section -->
-      <div v-if="unpinnedProjects.length">
+      <div v-if="unpinnedProjects.length && mounted">
         <USeparator v-if="pinnedProjects.length" class="mb-6" />
         <VueDraggable
           v-model="unpinnedProjects"
