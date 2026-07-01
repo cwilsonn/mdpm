@@ -24,5 +24,5 @@ export default defineEventHandler((event) => {
         excerpt: file?.content?.slice(0, 200).replace(/[#*`_]/g, '').trim() ?? '',
       }
     })
-    .sort((a, b) => a.order - b.order || b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 })

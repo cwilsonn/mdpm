@@ -76,11 +76,11 @@ export default defineEventHandler((event) => {
     }
   }
 
-  // sort within each project group by order asc, then createdAt desc
+  // sort within each project group by createdAt desc (newest first)
   results.sort((a, b) => {
     const pCmp = String(a.project ?? '').localeCompare(String(b.project ?? ''))
     if (pCmp !== 0) return pCmp
-    return a.order - b.order || b.createdAt.localeCompare(a.createdAt)
+    return b.createdAt.localeCompare(a.createdAt)
   })
 
   return results
