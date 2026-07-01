@@ -19,7 +19,11 @@ const emit = defineEmits<{
 }>()
 
 const isDragging = ref(false)
-const updating = ref<string | null>(null)
+const { updating, persistOrder: persistReorder, moveTask } = useReorder()
+
+function persistOrder() {
+  return persistReorder(props.projectSlug, props.columns)
+}
 
 const tasksBySlug = computed(() => {
   const map: Record<string, Task> = {}
@@ -30,20 +34,9 @@ const tasksBySlug = computed(() => {
 })
 
 function hasBlockingDeps(task: Task) {
-  return (task.dependencies as string[] | undefined)?.some(
+  return task.dependencies?.some(
     dep => tasksBySlug.value[dep]?.status !== 'done',
   ) ?? false
-}
-
-async function persistOrder() {
-  const order: Record<string, string[]> = {}
-  for (const col of STATUS_CONFIG) {
-    order[col.id] = (props.columns[col.id] ?? []).map(t => slugFromPath(t.path))
-  }
-  await $fetch('/api/tasks/reorder', {
-    method: 'POST',
-    body: { project: props.projectSlug, order },
-  })
 }
 
 async function onColumnAdd(colId: string, evt: { newIndex?: number }) {
@@ -53,10 +46,7 @@ async function onColumnAdd(colId: string, evt: { newIndex?: number }) {
   task.status = colId
   updating.value = task.path
   try {
-    await $fetch(`/api/tasks/${props.projectSlug}/${tSlug}`, {
-      method: 'PATCH',
-      body: { status: colId },
-    })
+    await moveTask(props.projectSlug, tSlug, colId)
     await persistOrder()
     emit('refresh')
   }

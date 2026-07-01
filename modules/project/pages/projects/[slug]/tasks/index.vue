@@ -106,17 +106,10 @@ const totalVisible = computed(() => {
   return n
 })
 
-const updating = ref<string | null>(null)
+const { updating, persistOrder: persistReorder, moveTask } = useReorder()
 
-async function persistOrder() {
-  const order: Record<string, string[]> = {}
-  for (const col of STATUS_CONFIG) {
-    order[col.id] = columns[col.id].map(t => slugFromPath(t.path))
-  }
-  await $fetch('/api/tasks/reorder', {
-    method: 'POST',
-    body: { project: slug.value, order },
-  })
+function persistOrder() {
+  return persistReorder(slug.value, columns)
 }
 
 async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
@@ -126,10 +119,7 @@ async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
   task.status = colId
   updating.value = task.path
   try {
-    await $fetch(`/api/tasks/${slug.value}/${tSlug}`, {
-      method: 'PATCH',
-      body: { status: colId },
-    })
+    await moveTask(slug.value, tSlug, colId)
     await persistOrder()
     await refreshTasks()
   }

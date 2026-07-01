@@ -179,16 +179,10 @@ function toggleStatus(pSlug: string, statusId: string) {
 // Drag handlers
 const toast = useToast()
 const isDragging = ref(false)
+const { persistOrder: persistReorder, moveTask } = useReorder()
 
-async function persistProjectOrder(pSlug: string) {
-  const order: Record<string, string[]> = {}
-  for (const statusId of Object.keys(draggableGroups.value[pSlug] ?? {})) {
-    order[statusId] = (draggableGroups.value[pSlug]?.[statusId] ?? []).map(t => slugFromPath(t.path))
-  }
-  await $fetch('/api/tasks/reorder', {
-    method: 'POST',
-    body: { project: pSlug, order },
-  })
+function persistProjectOrder(pSlug: string) {
+  return persistReorder(pSlug, draggableGroups.value[pSlug] ?? {})
 }
 
 async function onGroupAdd(pSlug: string, targetStatusId: string, evt: { newIndex?: number }) {
@@ -196,7 +190,7 @@ async function onGroupAdd(pSlug: string, targetStatusId: string, evt: { newIndex
   if (!task) return
   const tSlug = slugFromPath(task.path)
   try {
-    await $fetch(`/api/tasks/${pSlug}/${tSlug}`, { method: 'PATCH', body: { status: targetStatusId } })
+    await moveTask(pSlug, tSlug, targetStatusId)
     if (sortBy.value === 'manual') await persistProjectOrder(pSlug)
     emit('refresh')
   }
