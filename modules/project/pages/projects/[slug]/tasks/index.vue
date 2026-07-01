@@ -84,6 +84,8 @@ watch(filterAssignees, () => syncColumns(tasks.value), { deep: true })
 watch(searchQuery, () => syncColumns(tasks.value))
 
 const { markingDone, markDone: _markDone } = useMarkDone()
+const { updateTask, removeTask } = useTasks()
+const { withErrorToast } = useApiToast()
 
 async function markTaskDone(tSlug: string) {
   await _markDone(slug.value, `/projects/${slug.value}/tasks/${tSlug}`, refreshTasks)
@@ -92,7 +94,7 @@ async function markTaskDone(tSlug: string) {
 async function reopenTask(tSlug: string) {
   updating.value = `/projects/${slug.value}/tasks/${tSlug}`
   try {
-    await $fetch(`/api/tasks/${slug.value}/${tSlug}`, { method: 'PATCH', body: { status: 'todo' } })
+    await updateTask(slug.value, tSlug, { status: 'todo' })
     await refreshTasks()
   }
   finally {
@@ -184,7 +186,6 @@ function openCreateTask(status?: ColId) {
 
 const taskToDelete = ref<string | null>(null)
 const deleting = ref(false)
-const toast = useToast()
 
 function confirmDeleteTask(tSlug: string) {
   taskToDelete.value = tSlug
@@ -194,13 +195,14 @@ async function deleteTask() {
   if (!taskToDelete.value) return
   deleting.value = true
   try {
-    await $fetch(`/api/tasks/${slug.value}/${taskToDelete.value}`, { method: 'DELETE' })
+    await withErrorToast(
+      () => removeTask(slug.value, taskToDelete.value!),
+      'Failed to delete task',
+    )
     await refreshTasks()
     taskToDelete.value = null
   }
-  catch {
-    toast.add({ title: 'Failed to delete task', color: 'error' })
-  }
+  catch {}
   finally {
     deleting.value = false
   }

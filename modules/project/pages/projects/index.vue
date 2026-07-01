@@ -9,6 +9,9 @@ const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }
   useAsyncData('projects-doc-counts', () => $fetch('/api/docs')),
 ])
 
+const { removeProject, reorderProjects } = useProjects()
+const { withErrorToast } = useApiToast()
+
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
 
@@ -32,12 +35,9 @@ watch(projects, (val) => {
 }, { immediate: true })
 
 async function saveOrder() {
-  await $fetch('/api/projects/reorder', {
-    method: 'POST',
-    body: {
-      pinned: pinnedProjects.value.map(p => projectSlug(p.path)!),
-      unpinned: unpinnedProjects.value.map(p => projectSlug(p.path)!),
-    },
+  await reorderProjects({
+    pinned: pinnedProjects.value.map(p => projectSlug(p.path)!),
+    unpinned: unpinnedProjects.value.map(p => projectSlug(p.path)!),
   })
 }
 
@@ -122,10 +122,14 @@ async function executeDelete() {
   if (!deletingProject.value) return
   deleteLoading.value = true
   try {
-    await $fetch(`/api/projects/${deletingProject.value.slug}`, { method: 'DELETE' })
+    await withErrorToast(
+      () => removeProject(deletingProject.value!.slug),
+      'Failed to delete project',
+    )
     deletingProject.value = null
     await refresh()
   }
+  catch {}
   finally {
     deleteLoading.value = false
   }

@@ -25,6 +25,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const toast = useToast()
+const { createDoc, updateDoc } = useDocs()
 
 // ── Search ─────────────────────────────────────────────────────────────────
 const q = ref('')
@@ -91,11 +92,8 @@ function toTreeItems(docs: DocTreeItem[]): AppTreeItem[] {
 
 // ── Reparent ───────────────────────────────────────────────────────────────
 async function handleReparent(payload: { slug: string; parent: string | null; order: number }, group: DocGroup) {
-  const url = group.projectSlug
-    ? `/api/docs/${group.projectSlug}/${payload.slug}`
-    : `/api/standalone-docs/${payload.slug}`
   try {
-    await $fetch(url, { method: 'PATCH', body: { parent: payload.parent, order: payload.order } })
+    await updateDoc(group.projectSlug, payload.slug, { parent: payload.parent, order: payload.order })
     emit('changed')
   }
   catch (e: any) {
@@ -105,17 +103,11 @@ async function handleReparent(payload: { slug: string; parent: string | null; or
 
 // ── Folder creation ─────────────────────────────────────────────────────────
 async function handleCreateFolder(payload: { parent: string | null; name: string }, group: DocGroup) {
-  const url = group.projectSlug
-    ? `/api/docs/${group.projectSlug}`
-    : '/api/standalone-docs'
   try {
-    await $fetch(url, {
-      method: 'POST',
-      body: {
-        title: payload.name,
-        isFolder: true,
-        ...(payload.parent ? { parent: payload.parent } : {}),
-      },
+    await createDoc(group.projectSlug, {
+      title: payload.name,
+      isFolder: true,
+      ...(payload.parent ? { parent: payload.parent } : {}),
     })
     emit('changed')
   }

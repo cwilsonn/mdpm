@@ -15,15 +15,13 @@ const [{ data: allDocs, pending, refresh: refreshDocs }, { data: projects }] = a
   useAsyncData('all-projects', () => $fetch<ProjectHeader[]>('/api/projects')),
 ])
 
+const { createDoc } = useDocs()
 const creating = ref(false)
 
 async function createBlankDoc() {
   creating.value = true
   try {
-    const { slug } = await $fetch<{ slug: string }>('/api/standalone-docs', {
-      method: 'POST',
-      body: { title: 'Untitled' },
-    })
+    const { slug } = await createDoc(undefined, { title: 'Untitled' })
     await navigateTo({ path: `/docs/${slug}`, query: { new: '1' } })
   }
   finally {

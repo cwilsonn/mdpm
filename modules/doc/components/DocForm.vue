@@ -50,23 +50,15 @@ onBeforeUnmount(() => cleanupAutoSave())
 const creating = ref(false)
 const createError = ref<string | null>(null)
 
-function patchUrl() {
-  const slug = slugFromPath(props.doc!.path)
-  return isStandalone.value
-    ? `/api/standalone-docs/${slug}`
-    : `/api/docs/${props.projectSlug}/${slug}`
-}
+const { createDoc, updateDoc } = useDocs()
 
 const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    await $fetch(patchUrl(), {
-      method: 'PATCH',
-      body: {
-        title: form.title,
-        tags: form.tags,
-        parent: form.parent || null,
-      },
+    await updateDoc(props.projectSlug, slugFromPath(props.doc!.path), {
+      title: form.title,
+      tags: form.tags,
+      parent: form.parent || null,
     })
   },
 )
@@ -80,17 +72,11 @@ async function create() {
   creating.value = true
   createError.value = null
   try {
-    const url = isStandalone.value
-      ? '/api/standalone-docs'
-      : `/api/docs/${props.projectSlug}`
-    const { slug } = await $fetch<{ slug: string }>(url, {
-      method: 'POST',
-      body: {
-        title: form.title,
-        tags: form.tags,
-        ...(form.parent ? { parent: form.parent } : {}),
-        ...(props.isFolder ? { isFolder: true } : {}),
-      },
+    const { slug } = await createDoc(props.projectSlug, {
+      title: form.title,
+      tags: form.tags,
+      ...(form.parent ? { parent: form.parent } : {}),
+      ...(props.isFolder ? { isFolder: true } : {}),
     })
     emit('saved', slug)
   }

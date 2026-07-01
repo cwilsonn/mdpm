@@ -20,6 +20,9 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+const { createProject, updateProject } = useProjects()
+const { listAuthors, createAuthor } = useAuthors()
+
 const isEdit = computed(() => !!props.project)
 
 const form = reactive({
@@ -57,28 +60,24 @@ watch(() => form.availableStatuses, (newVal) => {
 const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    const slug = slugFromPath(props.project!.path)
-    await $fetch(`/api/projects/${slug}`, {
-      method: 'PATCH',
-      body: {
-        title: form.title,
-        status: form.status,
-        icon: form.icon || null,
-        description: form.description || undefined,
-        tags: form.tags,
-        githubRepo: form.githubRepo || null,
-        availableStatuses: form.availableStatuses,
-        defaultStatus: form.defaultStatus || null,
-        defaultPriority: form.defaultPriority || null,
-        defaultAssignee: form.defaultAssignee || null,
-      },
+    await updateProject(slugFromPath(props.project!.path), {
+      title: form.title,
+      status: form.status,
+      icon: form.icon || null,
+      description: form.description || undefined,
+      tags: form.tags,
+      githubRepo: form.githubRepo || null,
+      availableStatuses: form.availableStatuses,
+      defaultStatus: form.defaultStatus || null,
+      defaultPriority: form.defaultPriority || null,
+      defaultAssignee: form.defaultAssignee || null,
     })
   },
 )
 
 onMounted(() => {
   initAutoSave()
-  $fetch<{ name: string }[]>('/api/authors').then(data => {
+  listAuthors().then(data => {
     authorNames.value = data.map(a => a.name)
   })
 })
@@ -97,7 +96,7 @@ watch(() => form.defaultAssignee, () => scheduleSave())
 
 async function handleCreateDefaultAssignee(name: string) {
   try {
-    await $fetch('/api/authors', { method: 'POST', body: { name } })
+    await createAuthor(name)
     if (!authorNames.value.includes(name)) authorNames.value.push(name)
     form.defaultAssignee = name
   }
@@ -112,20 +111,17 @@ async function create() {
   creating.value = true
   createError.value = null
   try {
-    await $fetch('/api/projects', {
-      method: 'POST',
-      body: {
-        title: form.title,
-        status: form.status,
-        icon: form.icon || undefined,
-        description: form.description || undefined,
-        tags: form.tags,
-        githubRepo: form.githubRepo || undefined,
-        availableStatuses: form.availableStatuses,
-        defaultStatus: form.defaultStatus || undefined,
-        defaultPriority: form.defaultPriority || undefined,
-        defaultAssignee: form.defaultAssignee || undefined,
-      },
+    await createProject({
+      title: form.title,
+      status: form.status,
+      icon: form.icon || undefined,
+      description: form.description || undefined,
+      tags: form.tags,
+      githubRepo: form.githubRepo || undefined,
+      availableStatuses: form.availableStatuses,
+      defaultStatus: form.defaultStatus || undefined,
+      defaultPriority: form.defaultPriority || undefined,
+      defaultAssignee: form.defaultAssignee || undefined,
     })
     emit('saved')
   }

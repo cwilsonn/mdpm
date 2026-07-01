@@ -13,15 +13,13 @@ const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyn
   () => $fetch<DocTreeItem[]>(`/api/docs/${slug.value}`),
 )
 
+const { createDoc } = useDocs()
 const creating = ref(false)
 
 async function createBlankDoc() {
   creating.value = true
   try {
-    const { slug: docSlug } = await $fetch<{ slug: string }>(`/api/docs/${slug.value}`, {
-      method: 'POST',
-      body: { title: 'Untitled' },
-    })
+    const { slug: docSlug } = await createDoc(slug.value, { title: 'Untitled' })
     await navigateTo({ path: `/projects/${slug.value}/docs/${docSlug}`, query: { new: '1' } })
   }
   finally {

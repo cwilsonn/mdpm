@@ -24,6 +24,9 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+const { createTask, updateTask } = useTasks()
+const { listAuthors, createAuthor } = useAuthors()
+
 const isEdit = computed(() => !!props.task)
 
 const taskPageUrl = computed(() => {
@@ -74,27 +77,23 @@ const authorNames = ref<string[]>([])
 const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    const slug = slugFromPath(props.task!.path)
-    await $fetch(`/api/tasks/${props.projectSlug}/${slug}`, {
-      method: 'PATCH',
-      body: {
-        title: form.title,
-        status: form.status,
-        priority: form.priority,
-        tags: form.tags,
-        assignees: form.assignees,
-        due: form.due || undefined,
-        dependencies: form.dependencies,
-        githubIssues: parseNums(form.githubIssues),
-        githubPRs: parseNums(form.githubPRs),
-        description: description.value,
-      },
+    await updateTask(props.projectSlug, slugFromPath(props.task!.path), {
+      title: form.title,
+      status: form.status,
+      priority: form.priority,
+      tags: form.tags,
+      assignees: form.assignees,
+      due: form.due || undefined,
+      dependencies: form.dependencies,
+      githubIssues: parseNums(form.githubIssues),
+      githubPRs: parseNums(form.githubPRs),
+      description: description.value,
     })
   },
 )
 
 onMounted(async () => {
-  $fetch<{ name: string }[]>('/api/authors').then((data) => {
+  listAuthors().then((data) => {
     authorNames.value = data.map(a => a.name)
   })
 
@@ -139,7 +138,7 @@ const createError = ref<string | null>(null)
 
 async function handleCreateAuthor(name: string) {
   try {
-    await $fetch('/api/authors', { method: 'POST', body: { name } })
+    await createAuthor(name)
     if (!authorNames.value.includes(name)) authorNames.value.push(name)
     if (!form.assignees.includes(name)) form.assignees.push(name)
   }
@@ -150,21 +149,18 @@ async function create() {
   creating.value = true
   createError.value = null
   try {
-    await $fetch('/api/tasks', {
-      method: 'POST',
-      body: {
-        project: props.projectSlug,
-        title: form.title,
-        status: form.status,
-        priority: form.priority,
-        tags: form.tags,
-        assignees: form.assignees,
-        due: form.due || undefined,
-        dependencies: form.dependencies,
-        githubIssues: parseNums(form.githubIssues),
-        githubPRs: parseNums(form.githubPRs),
-        description: description.value,
-      },
+    await createTask({
+      project: props.projectSlug,
+      title: form.title,
+      status: form.status,
+      priority: form.priority,
+      tags: form.tags,
+      assignees: form.assignees,
+      due: form.due || undefined,
+      dependencies: form.dependencies,
+      githubIssues: parseNums(form.githubIssues),
+      githubPRs: parseNums(form.githubPRs),
+      description: description.value,
     })
     emit('saved')
   }
