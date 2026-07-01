@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { VueDraggable } from 'vue-draggable-plus'
-
 const tasks = defineModel<Task[]>({ required: true })
 
 const props = withDefaults(defineProps<{
@@ -69,19 +67,16 @@ const emit = defineEmits<{
     />
   </button>
 
-  <VueDraggable
+  <AppDragList
     v-if="isOpen"
     v-model="tasks"
-    :group="{ name: group, pull: true, put: true }"
+    :group="group"
     :sort="sort"
-    :animation="150"
     class="divide-y divide-default/50 min-h-[2rem]"
-    ghost-class="opacity-40"
-    filter=".drag-ignore"
-    @start="emit('drag-start')"
-    @end="emit('drag-end')"
-    @add="(e) => emit('drag-add', e)"
-    @update="emit('drag-update')"
+    @drag-start="emit('drag-start')"
+    @drag-end="emit('drag-end')"
+    @drag-add="(e) => emit('drag-add', e)"
+    @drag-update="emit('drag-update')"
   >
     <div
       v-if="!tasks.length && !isDragging"
@@ -99,7 +94,7 @@ const emit = defineEmits<{
       @reopen="emit('reopen', task)"
       @delete="emit('delete', task)"
     />
-  </VueDraggable>
+  </AppDragList>
   <div
     v-else
     class="border-b border-default"

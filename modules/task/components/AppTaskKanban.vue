@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { VueDraggable } from 'vue-draggable-plus'
-
 const props = defineProps<{
   columns: Record<string, Task[]>
   visibleColumns: StatusCfg[]
@@ -104,17 +102,14 @@ async function onColumnUpdate() {
         />
       </div>
 
-      <VueDraggable
+      <AppDragList
         v-model="columns[col.id]!"
-        :group="{ name: 'tasks', pull: true, put: true }"
-        :animation="150"
+        group="tasks"
         class="flex flex-col gap-2 flex-1 rounded-xl p-2 bg-muted min-h-24 overflow-y-auto"
-        ghost-class="opacity-40"
-        filter=".drag-ignore"
-        @start="isDragging = true"
-        @end="isDragging = false"
-        @add="(e) => onColumnAdd(col.id, e)"
-        @update="onColumnUpdate"
+        @drag-start="isDragging = true"
+        @drag-end="isDragging = false"
+        @drag-add="(e) => onColumnAdd(col.id, e)"
+        @drag-update="onColumnUpdate"
       >
         <button
           v-if="!(columns[col.id] ?? []).length && !isDragging"
@@ -138,7 +133,7 @@ async function onColumnUpdate() {
           @reopen="emit('reopen', slugFromPath(task.path))"
           @delete="emit('delete', slugFromPath(task.path))"
         />
-      </VueDraggable>
+      </AppDragList>
     </div>
   </div>
 </template>
