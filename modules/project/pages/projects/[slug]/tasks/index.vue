@@ -94,9 +94,13 @@ async function markTaskDone(tSlug: string) {
 async function reopenTask(tSlug: string) {
   updating.value = `/projects/${slug.value}/tasks/${tSlug}`
   try {
-    await updateTask(slug.value, tSlug, { status: 'todo' })
+    await withErrorToast(
+      () => updateTask(slug.value, tSlug, { status: 'todo' }),
+      'Failed to reopen task',
+    )
     await refreshTasks()
   }
+  catch {}
   finally {
     updating.value = null
   }
@@ -121,8 +125,10 @@ async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
   task.status = colId
   updating.value = task.path
   try {
-    await moveTask(slug.value, tSlug, colId)
-    await persistOrder()
+    await withErrorToast(async () => {
+      await moveTask(slug.value, tSlug, colId)
+      await persistOrder()
+    }, 'Failed to move task')
     await refreshTasks()
   }
   catch {
@@ -135,7 +141,7 @@ async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
 
 async function onColumnUpdate() {
   try {
-    await persistOrder()
+    await withErrorToast(() => persistOrder(), 'Failed to save order')
     await refreshTasks()
   }
   catch {

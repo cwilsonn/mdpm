@@ -20,6 +20,7 @@ const emit = defineEmits<{
 
 const isDragging = ref(false)
 const { updating, persistOrder: persistReorder, moveTask } = useReorder()
+const { withErrorToast } = useApiToast()
 
 function persistOrder() {
   return persistReorder(props.projectSlug, props.columns)
@@ -46,24 +47,24 @@ async function onColumnAdd(colId: string, evt: { newIndex?: number }) {
   task.status = colId
   updating.value = task.path
   try {
-    await moveTask(props.projectSlug, tSlug, colId)
-    await persistOrder()
-    emit('refresh')
+    await withErrorToast(async () => {
+      await moveTask(props.projectSlug, tSlug, colId)
+      await persistOrder()
+    }, 'Failed to move task')
   }
-  catch {
-    emit('refresh')
-  }
+  catch {}
   finally {
+    emit('refresh')
     updating.value = null
   }
 }
 
 async function onColumnUpdate() {
   try {
-    await persistOrder()
-    emit('refresh')
+    await withErrorToast(() => persistOrder(), 'Failed to save order')
   }
-  catch {
+  catch {}
+  finally {
     emit('refresh')
   }
 }

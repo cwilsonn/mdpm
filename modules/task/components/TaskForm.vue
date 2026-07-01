@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const { createTask, updateTask } = useTasks()
 const { listAuthors, createAuthor } = useAuthors()
+const { withErrorToast } = useApiToast()
 
 const isEdit = computed(() => !!props.task)
 
@@ -138,7 +139,7 @@ const createError = ref<string | null>(null)
 
 async function handleCreateAuthor(name: string) {
   try {
-    await createAuthor(name)
+    await withErrorToast(() => createAuthor(name), 'Failed to add assignee')
     if (!authorNames.value.includes(name)) authorNames.value.push(name)
     if (!form.assignees.includes(name)) form.assignees.push(name)
   }
