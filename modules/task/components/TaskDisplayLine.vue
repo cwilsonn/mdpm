@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import type { TaskCardData } from './TaskDisplayCard.vue'
-
-export type { TaskCardData }
-
 const props = defineProps<{
-  task: TaskCardData
+  task: Task
   showStatus?: boolean
   loading?: boolean
 }>()
@@ -17,8 +13,8 @@ const emit = defineEmits<{
 }>()
 
 const dueInfo = computed(() => props.task.due ? formatDueDate(props.task.due) : null)
-const assignees = computed(() => (props.task.assignees as string[] | undefined) ?? [])
-const depCount = computed(() => (props.task.dependencies as string[] | undefined)?.length ?? 0)
+const assignees = computed(() => props.task.assignees ?? [])
+const depCount = computed(() => props.task.dependencies?.length ?? 0)
 const status = computed(() => STATUS_MAP[props.task.status])
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
 const isDone = computed(() => props.task.status === 'done')
@@ -26,14 +22,13 @@ const isAiInProgress = computed(() =>
   props.task.status === 'in-progress' && assignees.value.includes('Claude'),
 )
 const completedLabel = computed(() => {
-  const date = (props.task as any).completedAt
-  if (!date) return null
-  return new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  if (!props.task.completedAt) return null
+  return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 })
 
-const githubRepo = computed(() => (props.task as any).githubRepo as string | undefined)
-const githubIssues = computed(() => ((props.task as any).githubIssues as number[] | undefined) ?? [])
-const githubPRs = computed(() => ((props.task as any).githubPRs as number[] | undefined) ?? [])
+const githubRepo = computed(() => props.task.githubRepo)
+const githubIssues = computed(() => props.task.githubIssues ?? [])
+const githubPRs = computed(() => props.task.githubPRs ?? [])
 
 function issueUrl(n: number) {
   return githubRepo.value ? `https://github.com/${githubRepo.value}/issues/${n}` : null

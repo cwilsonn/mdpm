@@ -13,24 +13,15 @@ interface ProjectDetail {
   githubRepo?: string
 }
 
-interface TaskItem {
-  slug: string; path: string; project: string; title: string
-  status: string; priority: string; tags: string[]; assignees: string[]
-  dependencies: string[]; due?: string; createdAt: string
-  updatedAt?: string; order: number
-  githubIssues?: number[]; githubPRs?: number[]; githubRepo?: string
-}
-
 const project = inject<Ref<ProjectDetail>>('project')!
 const refreshProject = inject<() => Promise<void>>('refreshProject')!
 
 const { data: tasks, refresh: refreshTasks, pending: tasksPending } = await useAsyncData(
   () => `tasks-${slug.value}`,
-  () => $fetch<TaskItem[]>(`/api/tasks/${slug.value}`),
+  () => $fetch<Task[]>(`/api/tasks/${slug.value}`),
 )
 
 type ColId = StatusId
-type Task = NonNullable<typeof tasks.value>[0]
 
 interface SelectItem { label: string; value: string; icon?: string; color?: string; avatar?: { alt: string } }
 
@@ -77,7 +68,7 @@ function syncColumns(v: typeof tasks.value) {
     const filtered = all.filter(
       t => t.status === col.id
         && (filterPriorities.value.length === 0 || filterPriorities.value.some(p => p.value === t.priority))
-        && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => (t as any).assignees?.includes(a.value)))
+        && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => t.assignees?.includes(a.value)))
         && (!q || t.title.toLowerCase().includes(q)),
     )
     if (col.id === 'done') {

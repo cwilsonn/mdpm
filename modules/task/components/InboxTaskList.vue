@@ -1,16 +1,4 @@
 <script setup lang="ts">
-interface Task {
-  path: string
-  title: string
-  status: string
-  priority: string
-  tags?: string[]
-  assignees?: string[]
-  due?: string
-  dependencies?: string[]
-  [key: string]: unknown
-}
-
 interface Project {
   path: string
   title: string

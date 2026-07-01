@@ -1,25 +1,6 @@
 <script setup lang="ts">
 import { VueDraggable } from 'vue-draggable-plus'
 
-interface Task {
-  path: string
-  title: string
-  status: string
-  priority: string
-  tags?: string[]
-  assignees?: string[]
-  due?: string
-  dependencies?: string[]
-  [key: string]: unknown
-}
-
-interface StatusCfg {
-  id: string
-  label: string
-  icon: string
-  color: string
-}
-
 const props = defineProps<{
   columns: Record<string, Task[]>
   visibleColumns: StatusCfg[]

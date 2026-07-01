@@ -1,25 +1,10 @@
 <script setup lang="ts">
 import { VueDraggable } from 'vue-draggable-plus'
 
-interface Task {
-  path: string
-  title: string
-  status: string
-  priority: string
-  [key: string]: unknown
-}
-
-interface StatusConfig {
-  id: string
-  label: string
-  icon: string
-  color: string
-}
-
 const tasks = defineModel<Task[]>({ required: true })
 
 const props = withDefaults(defineProps<{
-  statusCfg: StatusConfig
+  statusCfg: StatusCfg
   group: string
   isOpen: boolean
   isDragging: boolean

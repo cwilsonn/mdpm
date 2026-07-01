@@ -1,19 +1,6 @@
 <script setup lang="ts">
-export interface TaskCardData {
-  path: string
-  title: string
-  status: string
-  priority: string
-  tags?: string[]
-  assignees?: string[]
-  due?: string
-  dependencies?: string[]
-  completedAt?: string
-  [key: string]: unknown
-}
-
 const props = defineProps<{
-  task: TaskCardData
+  task: Task
   hasBlockingDeps?: boolean
   loading?: boolean
 }>()
@@ -26,9 +13,9 @@ const emit = defineEmits<{
 }>()
 
 const dueInfo = computed(() => props.task.due ? formatDueDate(props.task.due) : null)
-const tags = computed(() => (props.task.tags as string[] | undefined) ?? [])
-const assignees = computed(() => (props.task.assignees as string[] | undefined) ?? [])
-const depCount = computed(() => (props.task.dependencies as string[] | undefined)?.length ?? 0)
+const tags = computed(() => props.task.tags ?? [])
+const assignees = computed(() => props.task.assignees ?? [])
+const depCount = computed(() => props.task.dependencies?.length ?? 0)
 const priority = computed(() => PRIORITY_MAP[props.task.priority])
 const isDone = computed(() => props.task.status === 'done')
 const isAiInProgress = computed(() =>
@@ -39,9 +26,9 @@ const completedLabel = computed(() => {
   return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 })
 
-const githubRepo = computed(() => props.task.githubRepo as string | undefined)
-const githubIssues = computed(() => (props.task.githubIssues as number[] | undefined) ?? [])
-const githubPRs = computed(() => (props.task.githubPRs as number[] | undefined) ?? [])
+const githubRepo = computed(() => props.task.githubRepo)
+const githubIssues = computed(() => props.task.githubIssues ?? [])
+const githubPRs = computed(() => props.task.githubPRs ?? [])
 const hasGithubRefs = computed(() => githubIssues.value.length > 0 || githubPRs.value.length > 0)
 
 function issueUrl(n: number) {
