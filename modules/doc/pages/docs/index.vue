@@ -45,14 +45,14 @@ const groups = computed((): DocGroup[] => {
   const result: DocGroup[] = []
 
   if (standalone.length) {
-    result.push({ label: 'General', icon: 'i-lucide-book-open', docs: standalone, baseUrl: '/docs', projectSlug: null })
+    result.push({ label: 'General', icon: DOC_ICON, docs: standalone, baseUrl: '/docs', projectSlug: null })
   }
 
   for (const [slug, docs] of projectMap) {
     const project = projects.value?.find(p => p.slug === slug)
     result.push({
       label: project?.title ?? slug,
-      icon: project?.icon || 'i-lucide-folder',
+      icon: project?.icon || DOC_FOLDER_ICON,
       docs,
       baseUrl: `/projects/${slug}/docs`,
       projectSlug: slug,
@@ -66,11 +66,11 @@ const groups = computed((): DocGroup[] => {
 <template>
   <AppPageBase
     title="Docs"
-    icon="i-lucide-book-open"
+    :icon="DOC_ICON"
     :actions="hasAnyDocs ? [{ label: 'New Doc', icon: 'i-lucide-plus', loading: creating, onSelect: createBlankDoc }] : []"
     :empty="!hasAnyDocs"
     :empty-state="{
-      icon: 'i-lucide-book-open',
+      icon: DOC_ICON,
       title: 'No docs yet',
       description: 'Create your first standalone doc.',
       actions: [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: createBlankDoc }],

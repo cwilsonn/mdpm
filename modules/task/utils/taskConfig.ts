@@ -42,23 +42,6 @@ export const PRIORITY_SELECT_ITEMS = PRIORITY_CONFIG.map(p => ({
   color: p.color,
 }))
 
-// Project status
-export const PROJECT_STATUS_CONFIG = [
-  { id: 'active', label: 'Active', color: 'success' },
-  { id: 'on-hold', label: 'On Hold', color: 'warning' },
-  { id: 'archived', label: 'Archived', color: 'neutral' },
-] as const
-
-export const PROJECT_STATUS_MAP = Object.fromEntries(
-  PROJECT_STATUS_CONFIG.map(s => [s.id, s]),
-) as Record<string, typeof PROJECT_STATUS_CONFIG[number]>
-
-export const PROJECT_STATUS_SELECT_ITEMS = PROJECT_STATUS_CONFIG.map(s => ({
-  label: s.label,
-  value: s.id,
-  chip: { color: s.color },
-}))
-
 export function slugFromPath(path: string): string {
   return path.split('/').at(-1) ?? ''
 }

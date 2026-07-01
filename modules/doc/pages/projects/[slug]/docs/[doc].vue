@@ -35,7 +35,7 @@ const breadcrumb = computed(() => [
 
 const tabs = computed(() => [
   { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${projectSlug.value}/tasks` },
-  { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${projectSlug.value}/docs`, active: true },
+  { label: 'Docs', icon: DOC_ICON, to: `/projects/${projectSlug.value}/docs`, active: true },
 ])
 </script>
 

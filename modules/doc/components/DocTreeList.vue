@@ -67,7 +67,7 @@ const treeItems = computed((): DocTreeNode[] => {
       out.push({
         slug: n.slug,
         label: n.title,
-        icon: childrenMap.has(n.slug) ? 'i-lucide-folder' : 'i-lucide-file-text',
+        icon: childrenMap.has(n.slug) ? DOC_FOLDER_ICON : DOC_FILE_ICON,
         defaultExpanded: true,
         children: toItems(childrenMap.get(n.slug) ?? []),
       })

@@ -37,7 +37,7 @@ const breadcrumb = computed(() => [
 
 const tabs = computed(() => [
   { label: 'Tasks', icon: 'i-lucide-list-checks', to: `/projects/${slug.value}/tasks` },
-  { label: 'Docs', icon: 'i-lucide-book-open', to: `/projects/${slug.value}/docs` },
+  { label: 'Docs', icon: DOC_ICON, to: `/projects/${slug.value}/docs` },
 ])
 
 const mobileActions = [
@@ -62,7 +62,7 @@ const mobileActions = [
 
       <div class="flex flex-col flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
         <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
-          <UIcon name="i-lucide-book-open" class="size-10 text-muted" />
+          <UIcon :name="DOC_ICON" class="size-10 text-muted" />
           <p class="text-muted text-sm">No docs yet for this project.</p>
           <UButton label="Create first doc" icon="i-lucide-plus" size="sm" :loading="creating" @click="createBlankDoc" />
         </div>
