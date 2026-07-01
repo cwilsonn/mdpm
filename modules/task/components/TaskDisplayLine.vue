@@ -12,30 +12,10 @@ const emit = defineEmits<{
   delete: []
 }>()
 
-const dueInfo = computed(() => props.task.due ? formatDueDate(props.task.due) : null)
-const assignees = computed(() => props.task.assignees ?? [])
-const depCount = computed(() => props.task.dependencies?.length ?? 0)
-const status = computed(() => STATUS_MAP[props.task.status])
-const priority = computed(() => PRIORITY_MAP[props.task.priority])
-const isDone = computed(() => props.task.status === 'done')
-const isAiInProgress = computed(() =>
-  props.task.status === 'in-progress' && assignees.value.includes('Claude'),
-)
-const completedLabel = computed(() => {
-  if (!props.task.completedAt) return null
-  return new Date(props.task.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-})
-
-const githubRepo = computed(() => props.task.githubRepo)
-const githubIssues = computed(() => props.task.githubIssues ?? [])
-const githubPRs = computed(() => props.task.githubPRs ?? [])
-
-function issueUrl(n: number) {
-  return githubRepo.value ? `https://github.com/${githubRepo.value}/issues/${n}` : null
-}
-function prUrl(n: number) {
-  return githubRepo.value ? `https://github.com/${githubRepo.value}/pull/${n}` : null
-}
+const {
+  dueInfo, assignees, depCount, status, priority, isDone, isAiInProgress,
+  completedLabel, githubIssues, githubPRs, issueUrl, prUrl,
+} = useTaskCard(() => props.task)
 </script>
 
 <template>
