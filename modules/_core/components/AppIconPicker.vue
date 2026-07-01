@@ -52,7 +52,7 @@ const items = computed(() =>
       color="neutral"
       variant="ghost"
       size="sm"
-      @click="model = ''"
+      @click="() => { model = '' }"
     />
   </div>
 </template>

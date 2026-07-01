@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DocTreeItem } from './DocTreeList.vue'
-import type { AppTreeItem } from './AppTree.vue'
+import type { AppTreeItem } from '../../_core/components/AppTree.vue'
 
 export interface DocGroup {
   label: string
@@ -136,7 +136,7 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
         class="w-full"
       >
         <template v-if="q" #trailing>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="q = ''" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="() => { q = '' }" />
         </template>
       </UInput>
     </div>

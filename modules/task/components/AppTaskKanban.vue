@@ -133,7 +133,7 @@ async function onColumnUpdate() {
       </div>
 
       <VueDraggable
-        v-model="columns[col.id]"
+        v-model="columns[col.id]!"
         :group="{ name: 'tasks', pull: true, put: true }"
         :animation="150"
         class="flex flex-col gap-2 flex-1 rounded-xl p-2 bg-muted min-h-24 overflow-y-auto"

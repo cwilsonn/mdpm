@@ -6,7 +6,7 @@ export interface DueDateInfo {
 
 export function formatDueDate(dateStr: string | null | undefined): DueDateInfo | null {
   if (!dateStr) return null
-  const [y, m, d] = dateStr.split('-').map(Number)
+  const [y, m, d] = dateStr.split('-').map(Number) as [number, number, number]
   const due = new Date(y, m - 1, d)
   const today = new Date()
   today.setHours(0, 0, 0, 0)

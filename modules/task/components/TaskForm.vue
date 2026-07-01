@@ -45,6 +45,9 @@ const form = reactive({
   githubPRs: [...(props.task?.githubPRs ?? [])].map(String),
 })
 
+const statusMeta = computed(() => STATUS_MAP[form.status])
+const priorityMeta = computed(() => PRIORITY_MAP[form.priority])
+
 const statusSelectItems = computed(() => {
   const available = props.availableStatuses ?? STATUS_CONFIG.map(s => s.id)
   return STATUS_SELECT_ITEMS.filter(s =>
@@ -228,9 +231,9 @@ async function create() {
             >
               <template #leading>
                 <UIcon
-                  v-if="STATUS_MAP[form.status]"
-                  :name="STATUS_MAP[form.status].icon"
-                  :class="`text-${STATUS_MAP[form.status].color}`"
+                  v-if="statusMeta"
+                  :name="statusMeta.icon"
+                  :class="`text-${statusMeta.color}`"
                   class="size-4 shrink-0"
                 />
               </template>
@@ -253,9 +256,9 @@ async function create() {
             >
               <template #leading>
                 <UIcon
-                  v-if="PRIORITY_MAP[form.priority]"
-                  :name="PRIORITY_MAP[form.priority].icon"
-                  :class="`text-${PRIORITY_MAP[form.priority].color}`"
+                  v-if="priorityMeta"
+                  :name="priorityMeta.icon"
+                  :class="`text-${priorityMeta.color}`"
                   class="size-4 shrink-0"
                 />
               </template>

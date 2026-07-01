@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
+
 export interface FilterItem {
   label: string
   value: string
@@ -32,11 +34,11 @@ const dropdownItems = computed(() => [
       model.value = current
     },
   })),
-])
+] as DropdownMenuItem[][])
 
 const triggerLabel = computed(() => {
   if (!model.value.length) return props.placeholder
-  if (model.value.length === 1) return model.value[0].label
+  if (model.value.length === 1) return model.value[0]?.label ?? props.placeholder
   return `${props.placeholder} · ${model.value.length}`
 })
 

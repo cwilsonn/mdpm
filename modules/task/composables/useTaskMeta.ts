@@ -1,4 +1,4 @@
-import { STATUS_MAP, PRIORITY_MAP } from '~/utils/taskConfig'
+import { STATUS_MAP, PRIORITY_MAP } from '../utils/taskConfig'
 
 export function useTaskMeta() {
   function statusColor(status: string) {

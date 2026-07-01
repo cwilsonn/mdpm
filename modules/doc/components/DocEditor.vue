@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PageBreadcrumbItem, PageTab } from '~/components/AppPageBase.vue'
+import type { PageBreadcrumbItem, PageTab } from '../../_core/components/AppPageBase.vue'
 
 const props = defineProps<{
   saveUrl: string
@@ -89,7 +89,7 @@ const mobileActions = [
         color="error"
         variant="ghost"
         size="sm"
-        @click="showDeleteConfirm = true"
+        @click="() => { showDeleteConfirm = true }"
       />
     </template>
     <template #right>

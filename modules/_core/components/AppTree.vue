@@ -330,7 +330,7 @@ function onSelect(item: AppTreeNode) {
         :ui="{ base: 'bg-transparent' }"
       >
         <template v-if="q" #trailing>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="q = ''" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="() => { q = '' }" />
         </template>
       </UInput>
     </div>

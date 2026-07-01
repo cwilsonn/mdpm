@@ -29,11 +29,14 @@ const form = reactive({
   description: props.project?.description ?? '',
   tags: [...(props.project?.tags ?? [])] as string[],
   githubRepo: props.project?.githubRepo ?? '',
-  availableStatuses: [...(props.project?.availableStatuses ?? ['todo', 'in-progress', 'done'])] as string[],
-  defaultStatus: props.project?.defaultStatus ?? null as string | null,
-  defaultPriority: props.project?.defaultPriority ?? null as string | null,
-  defaultAssignee: props.project?.defaultAssignee ?? null as string | null,
+  availableStatuses: [...(props.project?.availableStatuses ?? ['todo', 'in-progress', 'done'])] as StatusId[],
+  defaultStatus: (props.project?.defaultStatus ?? undefined) as StatusId | undefined,
+  defaultPriority: (props.project?.defaultPriority ?? undefined) as PriorityId | undefined,
+  defaultAssignee: props.project?.defaultAssignee ?? undefined,
 })
+
+const defaultStatusMeta = computed(() => form.defaultStatus ? STATUS_MAP[form.defaultStatus] : undefined)
+const defaultPriorityMeta = computed(() => form.defaultPriority ? PRIORITY_MAP[form.defaultPriority] : undefined)
 
 const authorNames = ref<string[]>([])
 
@@ -43,11 +46,11 @@ const defaultStatusItems = computed(() =>
 
 watch(() => form.availableStatuses, (newVal) => {
   if (newVal.length === 0) {
-    form.availableStatuses = ['todo']
+    form.availableStatuses = ['todo'] as StatusId[]
     return
   }
   if (form.defaultStatus && !newVal.includes(form.defaultStatus)) {
-    form.defaultStatus = newVal[0] ?? null
+    form.defaultStatus = newVal[0] ?? undefined
   }
 }, { deep: true })
 
@@ -236,9 +239,9 @@ async function create() {
             >
               <template #leading>
                 <UIcon
-                  v-if="form.defaultStatus && STATUS_MAP[form.defaultStatus]"
-                  :name="STATUS_MAP[form.defaultStatus].icon"
-                  :class="`text-${STATUS_MAP[form.defaultStatus].color}`"
+                  v-if="defaultStatusMeta"
+                  :name="defaultStatusMeta.icon"
+                  :class="`text-${defaultStatusMeta.color}`"
                   class="size-4 shrink-0"
                 />
               </template>
@@ -262,9 +265,9 @@ async function create() {
             >
               <template #leading>
                 <UIcon
-                  v-if="form.defaultPriority && PRIORITY_MAP[form.defaultPriority]"
-                  :name="PRIORITY_MAP[form.defaultPriority].icon"
-                  :class="`text-${PRIORITY_MAP[form.defaultPriority].color}`"
+                  v-if="defaultPriorityMeta"
+                  :name="defaultPriorityMeta.icon"
+                  :class="`text-${defaultPriorityMeta.color}`"
                   class="size-4 shrink-0"
                 />
               </template>
