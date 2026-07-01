@@ -92,7 +92,7 @@ const emit = defineEmits<{
     <TaskDisplayLine
       v-for="task in tasks"
       :key="task.path"
-      :task="(task as any)"
+      :task="task"
       :loading="loadingPath === task.path"
       @click="emit('task-click', task)"
       @mark-done="emit('mark-done', task)"

@@ -370,7 +370,7 @@ function clearFilters() {
   <TaskForm
     v-if="editingTask"
     :project-slug="projectSlugOf(editingTask.path)"
-    :task="(editingTask as any)"
+    :task="editingTask"
     @close="closeEdit"
   />
 </template>

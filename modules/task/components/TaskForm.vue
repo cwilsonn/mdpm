@@ -5,18 +5,7 @@ const props = defineProps<{
   availableStatuses?: string[]
   defaultPriority?: string
   defaultAssignee?: string
-  task?: {
-    path: string
-    title: string
-    status: string
-    priority: string
-    tags?: string[]
-    assignees?: string[]
-    due?: string
-    dependencies?: string[]
-    githubIssues?: number[]
-    githubPRs?: number[]
-  }
+  task?: Task
 }>()
 
 const emit = defineEmits<{
