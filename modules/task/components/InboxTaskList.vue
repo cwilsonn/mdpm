@@ -179,7 +179,8 @@ function toggleStatus(pSlug: string, statusId: string) {
 // Drag handlers
 const toast = useToast()
 const isDragging = ref(false)
-const { persistOrder: persistReorder, moveTask } = useReorder()
+const { persistOrder: persistReorder } = useReorder()
+const { updateTask } = useTasks()
 
 function persistProjectOrder(pSlug: string) {
   return persistReorder(pSlug, draggableGroups.value[pSlug] ?? {})
@@ -190,7 +191,7 @@ async function onGroupAdd(pSlug: string, targetStatusId: string, evt: { newIndex
   if (!task) return
   const tSlug = slugFromPath(task.path)
   try {
-    await moveTask(pSlug, tSlug, targetStatusId)
+    await updateTask(pSlug, tSlug, { status: targetStatusId })
     if (sortBy.value === 'manual') await persistProjectOrder(pSlug)
     emit('refresh')
   }

@@ -24,9 +24,6 @@ export interface Task {
   githubPRs?: number[]
 }
 
-/** Back-compat alias — display components historically referenced `TaskCardData`. */
-export type TaskCardData = Task
-
 /** A status column descriptor (shape of a `STATUS_CONFIG` entry, mutable). */
 export interface StatusCfg {
   id: string

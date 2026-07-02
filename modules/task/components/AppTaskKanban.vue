@@ -5,6 +5,8 @@ const props = defineProps<{
   projectSlug: string
   loadingPath?: string | null
   pending?: boolean
+  /** True when a filter/search is active — suppresses manual-order persistence. */
+  filtered?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,12 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const isDragging = ref(false)
-const { updating, persistOrder: persistReorder, moveTask } = useReorder()
-const { withErrorToast } = useApiToast()
-
-function persistOrder() {
-  return persistReorder(props.projectSlug, props.columns)
-}
+const { updating, handleColumnAdd, handleColumnUpdate } = useReorder()
 
 const tasksBySlug = computed(() => {
   const map: Record<string, Task> = {}
@@ -38,33 +35,18 @@ function hasBlockingDeps(task: Task) {
   ) ?? false
 }
 
-async function onColumnAdd(colId: string, evt: { newIndex?: number }) {
-  const task = props.columns[colId]?.[evt.newIndex ?? 0]
-  if (!task) return
-  const tSlug = slugFromPath(task.path)
-  task.status = colId
-  updating.value = task.path
-  try {
-    await withErrorToast(async () => {
-      await moveTask(props.projectSlug, tSlug, colId)
-      await persistOrder()
-    }, 'Failed to move task')
-  }
-  catch {}
-  finally {
-    emit('refresh')
-    updating.value = null
-  }
+function onColumnAdd(colId: string, evt: { newIndex?: number }) {
+  return handleColumnAdd(props.projectSlug, props.columns, colId, evt, {
+    onRefresh: () => emit('refresh'),
+    persist: !props.filtered,
+  })
 }
 
-async function onColumnUpdate() {
-  try {
-    await withErrorToast(() => persistOrder(), 'Failed to save order')
-  }
-  catch {}
-  finally {
-    emit('refresh')
-  }
+function onColumnUpdate() {
+  return handleColumnUpdate(props.projectSlug, props.columns, {
+    onRefresh: () => emit('refresh'),
+    persist: !props.filtered,
+  })
 }
 </script>
 

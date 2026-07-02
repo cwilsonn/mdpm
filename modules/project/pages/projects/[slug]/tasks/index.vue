@@ -112,41 +112,27 @@ const totalVisible = computed(() => {
   return n
 })
 
-const { updating, persistOrder: persistReorder, moveTask } = useReorder()
+const { updating, handleColumnAdd, handleColumnUpdate } = useReorder()
 
-function persistOrder() {
-  return persistReorder(slug.value, columns)
+// Within-column task lists are subset by search/priority/assignee (not by status,
+// which only hides whole columns). When any of those is active, suppress manual
+// order persistence to avoid colliding with hidden tasks' order values.
+const columnsAreFiltered = computed(() =>
+  !!searchQuery.value.trim() || filterPriorities.value.length > 0 || filterAssignees.value.length > 0,
+)
+
+function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
+  return handleColumnAdd(slug.value, columns, colId, evt, {
+    onRefresh: refreshTasks,
+    persist: !columnsAreFiltered.value,
+  })
 }
 
-async function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
-  const task = columns[colId][evt.newIndex ?? 0]
-  if (!task) return
-  const tSlug = slugFromPath(task.path)
-  task.status = colId
-  updating.value = task.path
-  try {
-    await withErrorToast(async () => {
-      await moveTask(slug.value, tSlug, colId)
-      await persistOrder()
-    }, 'Failed to move task')
-    await refreshTasks()
-  }
-  catch {
-    await refreshTasks()
-  }
-  finally {
-    updating.value = null
-  }
-}
-
-async function onColumnUpdate() {
-  try {
-    await withErrorToast(() => persistOrder(), 'Failed to save order')
-    await refreshTasks()
-  }
-  catch {
-    await refreshTasks()
-  }
+function onColumnUpdate() {
+  return handleColumnUpdate(slug.value, columns, {
+    onRefresh: refreshTasks,
+    persist: !columnsAreFiltered.value,
+  })
 }
 
 const showCreateTask = ref(false)
@@ -334,6 +320,7 @@ const mobileActions = computed(() => [
         :project-slug="slug"
         :loading-path="markingDone || updating"
         :pending="tasksPending"
+        :filtered="columnsAreFiltered"
         @task-click="editTask = ($event as unknown as Task)"
         @add-task="openCreateTask($event as ColId)"
         @mark-done="markTaskDone($event)"
