@@ -2,12 +2,9 @@
 // already communicated inline (autosave's saved indicator, a closing modal, a
 // list refresh), so success toasts would be noise.
 //
-// Two shapes:
-//  - tryWithToast: the common "notify and stop" case — toasts on failure and
-//    returns a success boolean, so callers gate their follow-up (`if (await …)`)
-//    without a load-bearing try/catch.
-//  - withErrorToast: toasts then RE-THROWS — for callers that run their own
-//    finally/cleanup and need the error to propagate.
+// tryWithToast handles the "notify and stop" case: toast on failure and return
+// a success boolean, so callers gate their follow-up (`if (await …)`) without a
+// load-bearing try/catch.
 export function useApiToast() {
   const toast = useToast()
 
@@ -22,15 +19,5 @@ export function useApiToast() {
     }
   }
 
-  async function withErrorToast<T>(fn: () => Promise<T>, message: string): Promise<T> {
-    try {
-      return await fn()
-    }
-    catch (err) {
-      toast.add({ title: message, color: 'error' })
-      throw err
-    }
-  }
-
-  return { tryWithToast, withErrorToast }
+  return { tryWithToast }
 }
