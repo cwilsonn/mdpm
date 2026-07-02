@@ -17,9 +17,12 @@ interface ProjectHeader { slug: string; path: string; title: string; icon?: stri
 
 const project = inject<Ref<ProjectHeader>>('project')!
 
+const { docUrl } = useDocs()
+const apiUrl = computed(() => docUrl(projectSlug.value, docSlug.value))
+
 const { data: docMeta } = await useAsyncData(
   () => `doc-${projectSlug.value}-${docSlug.value}`,
-  () => $fetch<DocDetail>(`/api/docs/${projectSlug.value}/${docSlug.value}`),
+  () => $fetch<DocDetail>(apiUrl.value),
 )
 
 if (!docMeta.value) {
@@ -42,8 +45,8 @@ const tabs = computed(() => [
 <template>
   <DocEditor
     :key="docSlug"
-    :save-url="`/api/docs/${projectSlug}/${docSlug}`"
-    :delete-url="`/api/docs/${projectSlug}/${docSlug}`"
+    :save-url="apiUrl"
+    :delete-url="apiUrl"
     :after-delete="`/projects/${projectSlug}/docs`"
     :initial-title="docMeta!.title"
     :initial-tags="docMeta!.tags ?? []"

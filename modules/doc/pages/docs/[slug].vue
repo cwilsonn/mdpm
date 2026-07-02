@@ -13,9 +13,12 @@ interface DocDetail {
   body: string
 }
 
+const { docUrl } = useDocs()
+const apiUrl = computed(() => docUrl(null, slug.value))
+
 const { data: docMeta } = await useAsyncData(
   () => `standalone-doc-${slug.value}`,
-  () => $fetch<DocDetail>(`/api/standalone-docs/${slug.value}`),
+  () => $fetch<DocDetail>(apiUrl.value),
 )
 
 if (!docMeta.value) {
@@ -32,8 +35,8 @@ const breadcrumb = computed(() => [
 <template>
   <DocEditor
     :key="slug"
-    :save-url="`/api/standalone-docs/${slug}`"
-    :delete-url="`/api/standalone-docs/${slug}`"
+    :save-url="apiUrl"
+    :delete-url="apiUrl"
     after-delete="/docs"
     :initial-title="docMeta!.title"
     :initial-tags="docMeta!.tags ?? []"

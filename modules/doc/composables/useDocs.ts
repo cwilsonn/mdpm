@@ -19,6 +19,11 @@ export function useDocs() {
     return project ? `/api/docs/${project}` : '/api/standalone-docs'
   }
 
+  /** URL for a single doc — the builder the doc pages use for GET / DocEditor's save+delete. */
+  function docUrl(project: string | null | undefined, slug: string) {
+    return `${base(project)}/${slug}`
+  }
+
   function createDoc(project: string | null | undefined, body: DocPayload) {
     return $fetch<{ slug: string }>(base(project), { method: 'POST', body })
   }
@@ -31,5 +36,5 @@ export function useDocs() {
     return $fetch(`${base(project)}/${slug}`, { method: 'DELETE' })
   }
 
-  return { createDoc, updateDoc, removeDoc }
+  return { docUrl, createDoc, updateDoc, removeDoc }
 }
