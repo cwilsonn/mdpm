@@ -10,7 +10,7 @@
 // persistOrder from here.
 export function useReorder() {
   const { updateTask } = useTasks()
-  const { withErrorToast } = useApiToast()
+  const { tryWithToast } = useApiToast()
 
   // Path of the task currently being persisted (drive per-card loading state).
   const updating = ref<string | null>(null)
@@ -55,17 +55,12 @@ export function useReorder() {
     const tSlug = slugFromPath(task.path)
     task.status = colId
     updating.value = task.path
-    try {
-      await withErrorToast(async () => {
-        await updateTask(project, tSlug, { status: colId })
-        if (persist) await persistOrder(project, columns)
-      }, 'Failed to move task')
-    }
-    catch {}
-    finally {
-      await onRefresh()
-      updating.value = null
-    }
+    await tryWithToast(async () => {
+      await updateTask(project, tSlug, { status: colId })
+      if (persist) await persistOrder(project, columns)
+    }, 'Failed to move task')
+    await onRefresh()
+    updating.value = null
   }
 
   /** Handle a reorder WITHIN a column (manual order only). */
@@ -74,15 +69,10 @@ export function useReorder() {
     columns: Record<string, Task[]>,
     { onRefresh, persist = true }: ColumnDragOptions,
   ) {
-    try {
-      if (persist) {
-        await withErrorToast(() => persistOrder(project, columns), 'Failed to save order')
-      }
+    if (persist) {
+      await tryWithToast(() => persistOrder(project, columns), 'Failed to save order')
     }
-    catch {}
-    finally {
-      await onRefresh()
-    }
+    await onRefresh()
   }
 
   return { updating, persistOrder, handleColumnAdd, handleColumnUpdate }

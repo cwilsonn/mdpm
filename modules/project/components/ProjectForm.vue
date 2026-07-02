@@ -22,7 +22,7 @@ const emit = defineEmits<{
 
 const { createProject, updateProject } = useProjects()
 const { listAuthors, createAuthor } = useAuthors()
-const { withErrorToast } = useApiToast()
+const { tryWithToast } = useApiToast()
 
 const isEdit = computed(() => !!props.project)
 
@@ -96,12 +96,9 @@ watch(() => form.defaultPriority, () => flushSave())
 watch(() => form.defaultAssignee, () => scheduleSave())
 
 async function handleCreateDefaultAssignee(name: string) {
-  try {
-    await withErrorToast(() => createAuthor(name), 'Failed to add assignee')
-    if (!authorNames.value.includes(name)) authorNames.value.push(name)
-    form.defaultAssignee = name
-  }
-  catch {}
+  if (!await tryWithToast(() => createAuthor(name), 'Failed to add assignee')) return
+  if (!authorNames.value.includes(name)) authorNames.value.push(name)
+  form.defaultAssignee = name
 }
 
 // create mode

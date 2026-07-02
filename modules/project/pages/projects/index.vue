@@ -10,7 +10,7 @@ const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }
 ])
 
 const { removeProject, reorderProjects } = useProjects()
-const { withErrorToast } = useApiToast()
+const { tryWithToast } = useApiToast()
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
@@ -122,14 +122,11 @@ async function executeDelete() {
   if (!deletingProject.value) return
   deleteLoading.value = true
   try {
-    await withErrorToast(
-      () => removeProject(deletingProject.value!.slug),
-      'Failed to delete project',
-    )
-    deletingProject.value = null
-    await refresh()
+    if (await tryWithToast(() => removeProject(deletingProject.value!.slug), 'Failed to delete project')) {
+      deletingProject.value = null
+      await refresh()
+    }
   }
-  catch {}
   finally {
     deleteLoading.value = false
   }

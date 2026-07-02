@@ -177,10 +177,10 @@ function toggleStatus(pSlug: string, statusId: string) {
 }
 
 // Drag handlers
-const toast = useToast()
 const isDragging = ref(false)
 const { persistOrder: persistReorder } = useReorder()
 const { updateTask } = useTasks()
+const { tryWithToast } = useApiToast()
 
 function persistProjectOrder(pSlug: string) {
   return persistReorder(pSlug, draggableGroups.value[pSlug] ?? {})
@@ -190,25 +190,16 @@ async function onGroupAdd(pSlug: string, targetStatusId: string, evt: { newIndex
   const task = draggableGroups.value[pSlug]?.[targetStatusId]?.[evt.newIndex ?? 0]
   if (!task) return
   const tSlug = slugFromPath(task.path)
-  try {
+  await tryWithToast(async () => {
     await updateTask(pSlug, tSlug, { status: targetStatusId })
     if (sortBy.value === 'manual') await persistProjectOrder(pSlug)
-    emit('refresh')
-  }
-  catch {
-    toast.add({ title: 'Failed to move task', color: 'error' })
-    emit('refresh')
-  }
+  }, 'Failed to move task')
+  emit('refresh')
 }
 
 async function onGroupUpdate(pSlug: string) {
   if (sortBy.value !== 'manual') return
-  try {
-    await persistProjectOrder(pSlug)
-  }
-  catch {
-    toast.add({ title: 'Failed to save order', color: 'error' })
-  }
+  await tryWithToast(() => persistProjectOrder(pSlug), 'Failed to save order')
 }
 
 // Mark done

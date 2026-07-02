@@ -85,7 +85,7 @@ watch(searchQuery, () => syncColumns(tasks.value))
 
 const { markingDone, markDone: _markDone } = useMarkDone()
 const { updateTask, removeTask } = useTasks()
-const { withErrorToast } = useApiToast()
+const { tryWithToast } = useApiToast()
 
 async function markTaskDone(tSlug: string) {
   await _markDone(slug.value, `/projects/${slug.value}/tasks/${tSlug}`, refreshTasks)
@@ -94,13 +94,10 @@ async function markTaskDone(tSlug: string) {
 async function reopenTask(tSlug: string) {
   updating.value = `/projects/${slug.value}/tasks/${tSlug}`
   try {
-    await withErrorToast(
-      () => updateTask(slug.value, tSlug, { status: 'todo' }),
-      'Failed to reopen task',
-    )
-    await refreshTasks()
+    if (await tryWithToast(() => updateTask(slug.value, tSlug, { status: 'todo' }), 'Failed to reopen task')) {
+      await refreshTasks()
+    }
   }
-  catch {}
   finally {
     updating.value = null
   }
@@ -187,14 +184,11 @@ async function deleteTask() {
   if (!taskToDelete.value) return
   deleting.value = true
   try {
-    await withErrorToast(
-      () => removeTask(slug.value, taskToDelete.value!),
-      'Failed to delete task',
-    )
-    await refreshTasks()
-    taskToDelete.value = null
+    if (await tryWithToast(() => removeTask(slug.value, taskToDelete.value!), 'Failed to delete task')) {
+      await refreshTasks()
+      taskToDelete.value = null
+    }
   }
-  catch {}
   finally {
     deleting.value = false
   }

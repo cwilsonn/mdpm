@@ -37,7 +37,7 @@ if (!task.value) {
 
 const { statusColor, statusIcon, priorityColor, priorityIcon } = useTaskMeta()
 const { updateTask, removeTask } = useTasks()
-const { withErrorToast } = useApiToast()
+const { tryWithToast } = useApiToast()
 
 const showEdit = ref(false)
 const showDeleteConfirm = ref(false)
@@ -47,13 +47,10 @@ const toggling = ref(false)
 async function setStatus(status: string) {
   toggling.value = true
   try {
-    await withErrorToast(
-      () => updateTask(projectSlug.value, taskSlug.value, { status }),
-      'Failed to update task',
-    )
-    await refresh()
+    if (await tryWithToast(() => updateTask(projectSlug.value, taskSlug.value, { status }), 'Failed to update task')) {
+      await refresh()
+    }
   }
-  catch {}
   finally {
     toggling.value = false
   }
@@ -62,13 +59,10 @@ async function setStatus(status: string) {
 async function deleteTask() {
   deleting.value = true
   try {
-    await withErrorToast(
-      () => removeTask(projectSlug.value, taskSlug.value),
-      'Failed to delete task',
-    )
-    await navigateTo(`/projects/${projectSlug.value}/tasks`)
+    if (await tryWithToast(() => removeTask(projectSlug.value, taskSlug.value), 'Failed to delete task')) {
+      await navigateTo(`/projects/${projectSlug.value}/tasks`)
+    }
   }
-  catch {}
   finally {
     deleting.value = false
   }

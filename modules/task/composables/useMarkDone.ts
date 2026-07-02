@@ -1,4 +1,10 @@
+// Shortcut for the common "mark this task done" action. Delegates the status
+// PATCH to useTasks().updateTask (one home for that endpoint) and toasts on
+// failure instead of swallowing silently.
 export function useMarkDone() {
+  const { updateTask } = useTasks()
+  const { tryWithToast } = useApiToast()
+
   const markingDone = ref<string | null>(null)
 
   async function markDone(
@@ -9,13 +15,12 @@ export function useMarkDone() {
     const tSlug = slugFromPath(taskPath)
     markingDone.value = taskPath
     try {
-      await $fetch(`/api/tasks/${projectSlug}/${tSlug}`, {
-        method: 'PATCH',
-        body: { status: 'done' },
-      })
-      await onSuccess()
+      const ok = await tryWithToast(
+        () => updateTask(projectSlug, tSlug, { status: 'done' }),
+        'Failed to mark task done',
+      )
+      if (ok) await onSuccess()
     }
-    catch {}
     finally {
       markingDone.value = null
     }
