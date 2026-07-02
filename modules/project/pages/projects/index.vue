@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { VueDraggable } from 'vue-draggable-plus'
-
 definePageMeta({ title: 'Projects', icon: 'i-lucide-notebook' })
 
 const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }, { data: allDocs }] = await Promise.all([
@@ -159,14 +157,12 @@ async function executeDelete() {
           <UIcon name="i-lucide-pin" class="size-3.5" />
           Pinned
         </p>
-        <VueDraggable
+        <AppDragList
           v-model="pinnedProjects"
-          :group="{ name: 'projects', pull: true, put: true }"
-          :animation="150"
-          ghost-class="opacity-40"
+          group="projects"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch"
-          @end="saveOrder"
-          @add="saveOrder"
+          @drag-end="saveOrder"
+          @drag-add="saveOrder"
         >
           <div
             v-for="project in pinnedProjects"
@@ -249,20 +245,18 @@ async function executeDelete() {
           >
             Drag a project here to pin it
           </div>
-        </VueDraggable>
+        </AppDragList>
       </div>
 
       <!-- All projects section -->
       <div v-if="unpinnedProjects.length && mounted">
         <USeparator v-if="pinnedProjects.length" class="mb-6" />
-        <VueDraggable
+        <AppDragList
           v-model="unpinnedProjects"
-          :group="{ name: 'projects', pull: true, put: true }"
-          :animation="150"
-          ghost-class="opacity-40"
+          group="projects"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch"
-          @end="saveOrder"
-          @add="saveOrder"
+          @drag-end="saveOrder"
+          @drag-add="saveOrder"
         >
           <div
             v-for="project in unpinnedProjects"
@@ -339,7 +333,7 @@ async function executeDelete() {
               </UCard>
             </NuxtLink>
           </div>
-        </VueDraggable>
+        </AppDragList>
       </div>
     </div>
 
