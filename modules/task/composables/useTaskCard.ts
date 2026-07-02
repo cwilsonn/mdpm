@@ -11,8 +11,15 @@ export function useTaskCard(task: MaybeRefOrGetter<Task>) {
   const tags = computed(() => t.value.tags ?? [])
   const assignees = computed(() => t.value.assignees ?? [])
   const depCount = computed(() => t.value.dependencies?.length ?? 0)
-  const status = computed(() => STATUS_MAP[t.value.status])
-  const priority = computed(() => PRIORITY_MAP[t.value.priority])
+  // Fall back to a neutral descriptor for statuses/priorities not in the config
+  // (legacy or hand-edited frontmatter) so templates never deref undefined.
+  // Fallback color/icon match useTaskMeta's guarded helpers.
+  const status = computed(() =>
+    STATUS_MAP[t.value.status] ?? { id: t.value.status, label: t.value.status, icon: 'i-lucide-circle', color: 'neutral' as const },
+  )
+  const priority = computed(() =>
+    PRIORITY_MAP[t.value.priority] ?? { id: t.value.priority, label: t.value.priority, icon: 'i-lucide-arrow-right', color: 'neutral' as const },
+  )
   const isDone = computed(() => t.value.status === 'done')
   const isAiInProgress = computed(() =>
     t.value.status === 'in-progress' && assignees.value.includes('Claude'),
