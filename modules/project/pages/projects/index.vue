@@ -173,7 +173,7 @@ async function executeDelete() {
               :to="`/projects/${projectSlug(project.path)}`"
               class="block h-full"
             >
-              <UCard class="h-full group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
+              <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
                 <div class="flex flex-col h-full gap-3">
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
@@ -267,7 +267,7 @@ async function executeDelete() {
               :to="`/projects/${projectSlug(project.path)}`"
               class="block h-full"
             >
-              <UCard class="h-full group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
+              <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
                 <div class="flex flex-col h-full gap-3">
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
