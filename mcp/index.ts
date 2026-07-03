@@ -361,13 +361,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'create_project',
-      description: 'Create a new project.',
+      description: 'Create a new project. Use when tracking a new repo/effort in mdpm for the first time; pass githubRepo to link the repo. Follow up with the onboard skill to scaffold architecture/context docs.',
       inputSchema: {
         type: 'object',
         properties: {
           title: { type: 'string' },
           description: { type: 'string' },
           icon: { type: 'string' },
+          status: { type: 'string', description: 'Project status. Defaults to "active".' },
+          tags: { type: 'array', items: { type: 'string' } },
+          githubRepo: { type: 'string', description: 'GitHub repo, e.g. "owner/name".' },
           availableStatuses: { type: 'array', items: { type: 'string' } },
           defaultStatus: { type: 'string' },
           defaultPriority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
