@@ -10,6 +10,7 @@ interface DocDetail {
   parent: string | null
   createdAt: string
   updatedAt?: string
+  archivedAt?: string
   body: string
 }
 
@@ -41,6 +42,7 @@ const breadcrumb = computed(() => [
     :initial-title="docMeta!.title"
     :initial-tags="docMeta!.tags ?? []"
     :initial-body="docMeta!.body ?? ''"
+    :initial-archived-at="docMeta!.archivedAt"
     :fallback-title="slug"
     :breadcrumb="breadcrumb"
     back-to="/docs"

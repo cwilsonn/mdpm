@@ -11,6 +11,7 @@ export interface DocTreeItem {
   order?: number
   createdAt: string
   updatedAt?: string
+  archivedAt?: string
   excerpt?: string
 }
 

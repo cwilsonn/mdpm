@@ -8,6 +8,7 @@ const props = defineProps<{
   initialTitle: string
   initialTags: string[]
   initialBody: string
+  initialArchivedAt?: string
   fallbackTitle: string
   breadcrumb: PageBreadcrumbItem[]
   backTo?: string
@@ -69,11 +70,36 @@ async function deleteDoc() {
   }
 }
 
+const archivedAt = ref(props.initialArchivedAt)
+const archiving = ref(false)
+
+async function toggleArchive() {
+  archiving.value = true
+  const wasArchived = !!archivedAt.value
+  try {
+    await $fetch(props.saveUrl, {
+      method: 'PATCH',
+      body: { archivedAt: wasArchived ? null : new Date().toISOString() },
+    })
+    // Archiving drops the doc from the default list; unarchiving stays put.
+    if (wasArchived) archivedAt.value = undefined
+    else await navigateTo(props.afterDelete)
+  }
+  finally {
+    archiving.value = false
+  }
+}
+
 useHead(() => ({ title: title.value || props.fallbackTitle }))
 
-const mobileActions = [
+const mobileActions = computed(() => [
+  {
+    label: archivedAt.value ? 'Unarchive doc' : 'Archive doc',
+    icon: archivedAt.value ? 'i-lucide-archive-restore' : 'i-lucide-archive',
+    onSelect: toggleArchive,
+  },
   { label: 'Delete doc', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { showDeleteConfirm.value = true } },
-]
+])
 </script>
 
 <template>
@@ -84,6 +110,15 @@ const mobileActions = [
     :mobile-actions="mobileActions"
   >
     <template #actions>
+      <UButton
+        :label="archivedAt ? 'Unarchive' : 'Archive'"
+        :icon="archivedAt ? 'i-lucide-archive-restore' : 'i-lucide-archive'"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        :loading="archiving"
+        @click="toggleArchive"
+      />
       <UButton
         icon="i-lucide-trash-2"
         color="error"

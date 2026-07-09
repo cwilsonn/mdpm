@@ -23,6 +23,7 @@ export default defineEventHandler(() => {
         updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
         pinned: (file.data.pinned as boolean | undefined) ?? false,
         pinnedOrder: (file.data.pinnedOrder as number | undefined) ?? Infinity,
+        archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
       }]
     })
     .sort((a, b) => {

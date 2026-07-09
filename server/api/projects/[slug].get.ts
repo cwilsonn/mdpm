@@ -20,5 +20,6 @@ export default defineEventHandler((event) => {
     defaultPriority: (file.data.defaultPriority as string | undefined) ?? undefined,
     defaultAssignee: (file.data.defaultAssignee as string | undefined) ?? undefined,
     githubRepo: (file.data.githubRepo as string | undefined) ?? undefined,
+    archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
   }
 })

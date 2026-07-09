@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
   assertSafeSlug(project, slug)
-  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string }>(event)
+  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string; archivedAt?: string | null }>(event)
 
   const file = readMarkdown(`projects/${project}/docs/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Doc not found' })

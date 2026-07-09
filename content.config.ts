@@ -15,7 +15,7 @@ export default defineContentConfig({
       source: 'projects/*/index.md',
       schema: z.object({
         title: z.string(),
-        status: z.enum(['active', 'archived', 'on-hold']).default('active'),
+        status: z.enum(['active', 'on-hold']).default('active'),
         icon: z.string().optional(),
         tags: z.array(z.string()).default([]),
         description: z.string().optional(),
@@ -28,6 +28,7 @@ export default defineContentConfig({
         defaultAssignee: z.string().optional(),
         pinned: z.boolean().optional(),
         pinnedOrder: z.number().optional(),
+        archivedAt: z.string().optional(),
       }),
     }),
     docs: defineCollection({
@@ -41,6 +42,7 @@ export default defineContentConfig({
         order: z.number().default(0),
         createdAt: z.string(),
         updatedAt: z.string().optional(),
+        archivedAt: z.string().optional(),
       }),
     }),
     standalone_docs: defineCollection({
@@ -54,6 +56,7 @@ export default defineContentConfig({
         order: z.number().default(0),
         createdAt: z.string(),
         updatedAt: z.string().optional(),
+        archivedAt: z.string().optional(),
       }),
     }),
     tasks: defineCollection({
@@ -71,6 +74,7 @@ export default defineContentConfig({
         githubPRs: z.array(z.number()).default([]),
         createdAt: z.string(),
         updatedAt: z.string().optional(),
+        archivedAt: z.string().optional(),
         order: z.number().default(0),
       }),
     }),

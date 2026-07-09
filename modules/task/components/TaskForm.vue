@@ -13,7 +13,7 @@ const emit = defineEmits<{
   saved: []
 }>()
 
-const { createTask, updateTask } = useTasks()
+const { createTask, updateTask, archiveTask, unarchiveTask } = useTasks()
 const { listAuthors, createAuthor } = useAuthors()
 const { tryWithToast } = useApiToast()
 
@@ -58,6 +58,26 @@ const dependencyItems = computed(() =>
 
 function parseNums(tags: string[]): number[] {
   return tags.map(s => parseInt(s, 10)).filter(n => !isNaN(n) && n > 0)
+}
+
+const isArchived = computed(() => !!props.task?.archivedAt)
+const archiving = ref(false)
+
+async function toggleArchive() {
+  if (!props.task) return
+  archiving.value = true
+  const tSlug = slugFromPath(props.task.path)
+  const wasArchived = isArchived.value
+  try {
+    const ok = await tryWithToast(
+      () => wasArchived ? unarchiveTask(props.projectSlug, tSlug) : archiveTask(props.projectSlug, tSlug),
+      `Failed to ${wasArchived ? 'unarchive' : 'archive'} task`,
+    )
+    if (ok) { emit('saved'); emit('close') }
+  }
+  finally {
+    archiving.value = false
+  }
 }
 
 const description = ref('')
@@ -368,6 +388,16 @@ async function create() {
           <template v-else-if="savedAt">Saved {{ savedAgo }}</template>
           <template v-else>Changes save automatically</template>
         </span>
+        <UButton
+          :label="isArchived ? 'Unarchive' : 'Archive'"
+          :icon="isArchived ? 'i-lucide-archive-restore' : 'i-lucide-archive'"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="ml-auto shrink-0"
+          :loading="archiving"
+          @click="toggleArchive"
+        />
       </div>
       <div
         v-else

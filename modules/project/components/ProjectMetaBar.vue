@@ -5,6 +5,7 @@ defineProps<{
     tags?: string[]
     description?: string
     githubRepo?: string
+    archivedAt?: string
   }
 }>()
 </script>
@@ -16,6 +17,13 @@ defineProps<{
         :label="project?.status"
         :color="PROJECT_STATUS_MAP[project?.status]?.color ?? 'neutral'"
         variant="subtle"
+      />
+      <UBadge
+        v-if="project?.archivedAt"
+        label="Archived"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-archive"
       />
       <UBadge
         v-for="tag in project?.tags"

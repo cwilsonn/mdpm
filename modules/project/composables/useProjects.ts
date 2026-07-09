@@ -13,6 +13,7 @@ export interface ProjectPayload {
   defaultStatus?: string | null
   defaultPriority?: string | null
   defaultAssignee?: string | null
+  archivedAt?: string | null
 }
 
 export function useProjects() {
@@ -33,5 +34,13 @@ export function useProjects() {
     return $fetch('/api/projects/reorder', { method: 'POST', body: order })
   }
 
-  return { createProject, updateProject, removeProject, reorderProjects }
+  function archiveProject(slug: string) {
+    return updateProject(slug, { archivedAt: new Date().toISOString() })
+  }
+
+  function unarchiveProject(slug: string) {
+    return updateProject(slug, { archivedAt: null })
+  }
+
+  return { createProject, updateProject, removeProject, reorderProjects, archiveProject, unarchiveProject }
 }

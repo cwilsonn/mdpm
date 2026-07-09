@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
     githubPRs?: number[]
     description?: string
     order?: number
+    archivedAt?: string | null
   }>(event)
 
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
@@ -25,13 +26,13 @@ export default defineEventHandler(async (event) => {
   const newStatus = body.status ?? (file.data.status as string)
   const now = new Date().toISOString()
 
-  const updated: Record<string, unknown> = {
-    ...file.data,
-    ...Object.fromEntries(
-      Object.entries(frontmatterFields).filter(([, v]) => v !== undefined && v !== null),
-    ),
-    updatedAt: now,
+  const updated: Record<string, unknown> = { ...file.data }
+  for (const [k, v] of Object.entries(frontmatterFields)) {
+    if (v === undefined) continue
+    if (v === null) { delete updated[k]; continue }
+    updated[k] = v
   }
+  updated.updatedAt = now
 
   if (newStatus === 'done' && !file.data.completedAt) {
     updated.completedAt = now

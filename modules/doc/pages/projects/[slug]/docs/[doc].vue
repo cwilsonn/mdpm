@@ -10,6 +10,7 @@ interface DocDetail {
   tags: string[]
   createdAt: string
   updatedAt?: string
+  archivedAt?: string
   body: string
 }
 
@@ -51,6 +52,7 @@ const tabs = computed(() => [
     :initial-title="docMeta!.title"
     :initial-tags="docMeta!.tags ?? []"
     :initial-body="docMeta!.body ?? ''"
+    :initial-archived-at="docMeta!.archivedAt"
     :fallback-title="docSlug"
     :breadcrumb="breadcrumb"
     :tabs="tabs"

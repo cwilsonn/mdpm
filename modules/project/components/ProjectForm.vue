@@ -28,7 +28,7 @@ const isEdit = computed(() => !!props.project)
 
 const form = reactive({
   title: props.project?.title ?? '',
-  status: (props.project?.status ?? 'active') as 'active' | 'archived' | 'on-hold',
+  status: (props.project?.status ?? 'active') as 'active' | 'on-hold',
   icon: props.project?.icon ?? '',
   description: props.project?.description ?? '',
   tags: [...(props.project?.tags ?? [])] as string[],

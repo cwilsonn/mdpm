@@ -179,7 +179,6 @@ const normalizedEmptyProps = computed(() => ({
           >
             <UButton
               label="Actions"
-              icon="i-lucide-chevron-down"
               trailing-icon="i-lucide-chevron-down"
               color="neutral"
               variant="outline"

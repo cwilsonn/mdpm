@@ -18,6 +18,7 @@ export interface Task {
   completedAt?: string
   createdAt?: string
   updatedAt?: string
+  archivedAt?: string
   order?: number
   githubRepo?: string
   githubIssues?: number[]

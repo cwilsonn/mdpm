@@ -31,7 +31,9 @@ const { createDoc, updateDoc } = useDocs()
 const q = ref('')
 const isSearching = computed(() => q.value.trim().length > 0)
 
-const effectiveGroups = computed((): DocGroup[] => {
+const { showArchived } = useArchiveFilter()
+
+const rawGroups = computed((): DocGroup[] => {
   if (props.groups) return props.groups
   return [{
     label: '',
@@ -40,6 +42,33 @@ const effectiveGroups = computed((): DocGroup[] => {
     projectSlug: props.projectSlug ?? null,
   }]
 })
+
+// A doc is hidden when it — or any ancestor folder — is archived. archivedAt
+// lives only on the archived node itself; descendants are inferred here, so
+// unarchiving a folder is a single write that restores the whole subtree.
+function visibleDocs(docs: DocTreeItem[]): DocTreeItem[] {
+  if (showArchived.value) return docs
+  const bySlug = new Map(docs.map(d => [d.slug, d]))
+  function isHidden(d: DocTreeItem): boolean {
+    let cur: DocTreeItem | undefined = d
+    const seen = new Set<string>()
+    while (cur && !seen.has(cur.slug)) {
+      if (cur.archivedAt) return true
+      seen.add(cur.slug)
+      cur = cur.parent ? bySlug.get(cur.parent) : undefined
+    }
+    return false
+  }
+  return docs.filter(d => !isHidden(d))
+}
+
+const effectiveGroups = computed((): DocGroup[] =>
+  rawGroups.value.map(g => ({ ...g, docs: visibleDocs(g.docs) })),
+)
+
+const archivedCount = computed(() =>
+  rawGroups.value.reduce((n, g) => n + g.docs.filter(d => d.archivedAt).length, 0),
+)
 
 const allDocs = computed(() =>
   effectiveGroups.value.flatMap(g =>
@@ -119,18 +148,28 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
 
 <template>
   <div class="flex flex-col gap-0 h-full">
-    <div class="px-4 py-2 border-b border-default shrink-0">
+    <div class="px-4 py-2 border-b border-default shrink-0 flex items-center gap-2">
       <UInput
         v-model="q"
         icon="i-lucide-search"
         placeholder="Search docs…"
         size="sm"
-        class="w-full"
+        class="flex-1"
       >
         <template v-if="q" #trailing>
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="() => { q = '' }" />
         </template>
       </UInput>
+      <UButton
+        v-if="archivedCount"
+        :icon="showArchived ? 'i-lucide-eye-off' : 'i-lucide-archive'"
+        :label="showArchived ? 'Hide archived' : `Archived (${archivedCount})`"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        class="shrink-0"
+        @click="() => { showArchived = !showArchived }"
+      />
     </div>
 
     <!-- Search: flat results across all groups -->

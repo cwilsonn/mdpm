@@ -7,8 +7,9 @@ const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }
   useAsyncData('projects-doc-counts', () => $fetch('/api/docs')),
 ])
 
-const { removeProject, reorderProjects } = useProjects()
+const { removeProject, reorderProjects, archiveProject, unarchiveProject } = useProjects()
 const { tryWithToast } = useApiToast()
+const { showArchived, visible, isArchived, archivedCount } = useArchiveFilter()
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
@@ -27,9 +28,15 @@ const projectSlug = slugFromPath
 const pinnedProjects = ref<ProjectItem[]>([])
 const unpinnedProjects = ref<ProjectItem[]>([])
 
-watch(projects, (val) => {
-  pinnedProjects.value = (val ?? []).filter(p => p.pinned)
-  unpinnedProjects.value = (val ?? []).filter(p => !p.pinned)
+// Archived projects are hidden by default and never pinned when revealed.
+const visibleProjects = computed(() => visible(projects.value ?? []))
+
+watch(visibleProjects, (val) => {
+  pinnedProjects.value = val.filter(p => p.pinned && !p.archivedAt)
+  // Archived never pin and always sort last, regardless of createdAt order.
+  unpinnedProjects.value = val
+    .filter(p => !p.pinned || p.archivedAt)
+    .sort((a, b) => (a.archivedAt ? 1 : 0) - (b.archivedAt ? 1 : 0))
 }, { immediate: true })
 
 async function saveOrder() {
@@ -105,6 +112,17 @@ function cardActions(project: ProjectItem) {
       icon: 'i-lucide-pin',
       onSelect: () => togglePin(project),
     },
+    project.archivedAt
+      ? {
+          label: 'Unarchive',
+          icon: 'i-lucide-archive-restore',
+          onSelect: () => doArchive(project, false),
+        }
+      : {
+          label: 'Archive',
+          icon: 'i-lucide-archive',
+          onSelect: () => doArchive(project, true),
+        },
     {
       label: 'Delete',
       icon: 'i-lucide-trash-2',
@@ -114,6 +132,33 @@ function cardActions(project: ProjectItem) {
       },
     },
   ]]
+}
+
+const pageActions = computed(() => {
+  const actions = []
+  const arch = archivedCount(projects.value ?? [])
+  if (arch) {
+    actions.push({
+      label: showArchived.value ? 'Hide archived' : `Show archived (${arch})`,
+      icon: showArchived.value ? 'i-lucide-eye-off' : 'i-lucide-archive',
+      color: 'neutral' as const,
+      variant: 'ghost' as const,
+      onSelect: () => { showArchived.value = !showArchived.value },
+    })
+  }
+  if (projects.value?.length) {
+    actions.push({ label: 'New Project', icon: 'i-lucide-plus', onSelect: () => { showCreate.value = true } })
+  }
+  return actions
+})
+
+async function doArchive(project: ProjectItem, archive: boolean) {
+  const slug = projectSlug(project.path)!
+  const ok = await tryWithToast(
+    () => archive ? archiveProject(slug) : unarchiveProject(slug),
+    `Failed to ${archive ? 'archive' : 'unarchive'} project`,
+  )
+  if (ok) await refresh()
 }
 
 async function executeDelete() {
@@ -135,7 +180,7 @@ async function executeDelete() {
   <AppPageBase
     title="Projects"
     icon="i-lucide-folder"
-    :actions="projects?.length ? [{ label: 'New Project', icon: 'i-lucide-plus', onSelect: () => showCreate = true }] : []"
+    :actions="pageActions"
     :empty="!projects?.length"
     :empty-state="{
       icon: 'i-lucide-folder-plus',
@@ -168,6 +213,7 @@ async function executeDelete() {
             v-for="project in pinnedProjects"
             :key="project.path"
             class="group relative h-full"
+            :class="{ 'opacity-60': isArchived(project) }"
           >
             <NuxtLink
               :to="`/projects/${projectSlug(project.path)}`"
@@ -194,6 +240,15 @@ async function executeDelete() {
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                       <UBadge
+                        v-if="project.archivedAt"
+                        label="Archived"
+                        color="neutral"
+                        variant="subtle"
+                        size="sm"
+                        icon="i-lucide-archive"
+                      />
+                      <UBadge
+                        v-else
                         :label="project.status"
                         :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
                         variant="subtle"
@@ -262,6 +317,7 @@ async function executeDelete() {
             v-for="project in unpinnedProjects"
             :key="project.path"
             class="group relative h-full"
+            :class="{ 'opacity-60': isArchived(project) }"
           >
             <NuxtLink
               :to="`/projects/${projectSlug(project.path)}`"
@@ -288,6 +344,15 @@ async function executeDelete() {
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                       <UBadge
+                        v-if="project.archivedAt"
+                        label="Archived"
+                        color="neutral"
+                        variant="subtle"
+                        size="sm"
+                        icon="i-lucide-archive"
+                      />
+                      <UBadge
+                        v-else
                         :label="project.status"
                         :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
                         variant="subtle"

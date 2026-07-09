@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
     defaultAssignee?: string | null
     pinned?: boolean | null
     pinnedOrder?: number | null
+    archivedAt?: string | null
   }>(event)
 
   const file = readMarkdown(`projects/${slug}/index.md`)

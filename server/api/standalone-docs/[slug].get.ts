@@ -11,6 +11,7 @@ export default defineEventHandler((event) => {
     parent: (file.data.parent as string | undefined) ?? null,
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
+    archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
     body: file.content,
   }
 })

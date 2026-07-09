@@ -57,6 +57,7 @@ function getProjects() {
       description: (file?.data?.description as string) ?? null,
       githubRepo: (file?.data?.githubRepo as string) ?? null,
       createdAt: (file?.data?.createdAt as string) ?? '',
+      archivedAt: (file?.data?.archivedAt as string) ?? null,
       taskCount,
       docCount,
     }
@@ -92,6 +93,7 @@ function getTasks(projectSlug: string, statusFilter?: string[], githubIssueFilte
       githubRepo,
       createdAt: (file.data.createdAt as string) ?? '',
       updatedAt: (file.data.updatedAt as string) ?? null,
+      archivedAt: (file.data.archivedAt as string) ?? null,
       order: (file.data.order as number) ?? 0,
       body: file.content.trim(),
     }]
@@ -107,6 +109,7 @@ function getDocs(projectSlug?: string, standaloneOnly = false) {
     parent: string | null
     createdAt: string
     updatedAt: string | null
+    archivedAt: string | null
     excerpt: string
     body: string
   }[] = []
@@ -127,6 +130,7 @@ function getDocs(projectSlug?: string, standaloneOnly = false) {
           parent: (file.data.parent as string | undefined) ?? null,
           createdAt: (file.data.createdAt as string) ?? '',
           updatedAt: (file.data.updatedAt as string) ?? null,
+          archivedAt: (file.data.archivedAt as string) ?? null,
           excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
           body: file.content.trim(),
         })
@@ -148,6 +152,7 @@ function getDocs(projectSlug?: string, standaloneOnly = false) {
         parent: (file.data.parent as string | undefined) ?? null,
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string) ?? null,
+        archivedAt: (file.data.archivedAt as string) ?? null,
         excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
         body: file.content.trim(),
       })
@@ -242,8 +247,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_projects',
-      description: 'List all projects with metadata and counts.',
-      inputSchema: { type: 'object', properties: {} },
+      description: 'List all projects with metadata and counts. Archived projects are excluded unless includeArchived is set.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          includeArchived: { type: 'boolean', description: 'Include archived projects. Defaults to false.' },
+        },
+      },
     },
     {
       name: 'get_project',
@@ -256,7 +266,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: 'List tasks, optionally filtered by project, status, or linked GitHub issue/PR number. Omit project for all projects.',
+      description: 'List tasks, optionally filtered by project, status, or linked GitHub issue/PR number. Omit project for all projects. Archived tasks are excluded unless includeArchived is set.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -268,6 +278,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           githubIssue: { type: 'number', description: 'Return only tasks linked to this GitHub issue number.' },
           githubPR: { type: 'number', description: 'Return only tasks linked to this GitHub PR number.' },
+          includeArchived: { type: 'boolean', description: 'Include archived tasks. Defaults to false.' },
         },
       },
     },
@@ -326,12 +337,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_docs',
-      description: 'List docs. Pass project to scope to a project. Omit both for all docs including standalone.',
+      description: 'List docs. Pass project to scope to a project. Omit both for all docs including standalone. Archived docs (and children of archived folders) are excluded unless includeArchived is set.',
       inputSchema: {
         type: 'object',
         properties: {
           project: { type: 'string', description: 'Project slug. Omit for all docs (project + standalone).' },
           standalone: { type: 'boolean', description: 'Set true to list only standalone (non-project) docs.' },
+          includeArchived: { type: 'boolean', description: 'Include archived docs and descendants of archived folders. Defaults to false.' },
         },
       },
     },
@@ -474,7 +486,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'list_projects': {
-        return { content: [{ type: 'text', text: JSON.stringify(getProjects(), null, 2) }] }
+        const { includeArchived } = args as { includeArchived?: boolean }
+        const projects = getProjects().filter(p => includeArchived || !p.archivedAt)
+        return { content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }] }
       }
 
       case 'get_project': {
@@ -486,8 +500,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'list_tasks': {
-        const { project, status, githubIssue, githubPR } = args as { project?: string; status?: string[]; githubIssue?: number; githubPR?: number }
-        const tasks = project ? getTasks(project, status, githubIssue, githubPR) : getAllTasks(status, githubIssue, githubPR)
+        const { project, status, githubIssue, githubPR, includeArchived } = args as { project?: string; status?: string[]; githubIssue?: number; githubPR?: number; includeArchived?: boolean }
+        const tasks = (project ? getTasks(project, status, githubIssue, githubPR) : getAllTasks(status, githubIssue, githubPR))
+          .filter(t => includeArchived || !t.archivedAt)
         return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] }
       }
 
@@ -547,8 +562,24 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'list_docs': {
-        const { project, standalone } = args as { project?: string; standalone?: boolean }
-        const docs = getDocs(project, standalone).map(({ body: _, ...d }) => d)
+        const { project, standalone, includeArchived } = args as { project?: string; standalone?: boolean; includeArchived?: boolean }
+        const all = getDocs(project, standalone)
+        // Hide archived docs and any doc under an archived folder (archivedAt
+        // lives only on the archived node; descendants are inferred here).
+        const bySlug = new Map(all.map(d => [d.slug, d]))
+        const hidden = (d: typeof all[number]): boolean => {
+          let cur: typeof all[number] | undefined = d
+          const seen = new Set<string>()
+          while (cur && !seen.has(cur.slug)) {
+            if (cur.archivedAt) return true
+            seen.add(cur.slug)
+            cur = cur.parent ? bySlug.get(cur.parent) : undefined
+          }
+          return false
+        }
+        const docs = all
+          .filter(d => includeArchived || !hidden(d))
+          .map(({ body: _, ...d }) => d)
         return { content: [{ type: 'text', text: JSON.stringify(docs, null, 2) }] }
       }
 

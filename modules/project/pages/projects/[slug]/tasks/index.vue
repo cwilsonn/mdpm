@@ -52,6 +52,11 @@ const statusFilterItems = computed(() =>
   STATUS_SELECT_ITEMS.filter(s => projectAvailableStatuses.value.includes(s.value)),
 )
 
+const { showArchived } = useArchiveFilter()
+const archivedCfg = { id: 'archived', label: 'Archived', icon: 'i-lucide-archive', color: 'neutral' }
+const archivedOpen = ref(true)
+const archivedList = ref<Task[]>([])
+
 const columns = reactive<Record<ColId, Task[]>>({
   'todo': [],
   'in-progress': [],
@@ -61,21 +66,29 @@ const columns = reactive<Record<ColId, Task[]>>({
   'done': [],
 })
 
+function matchesFilters(t: Task, q: string) {
+  return (filterPriorities.value.length === 0 || filterPriorities.value.some(p => p.value === t.priority))
+    && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => t.assignees?.includes(a.value)))
+    && (!q || t.title.toLowerCase().includes(q))
+}
+
 function syncColumns(v: typeof tasks.value) {
   const q = searchQuery.value.trim().toLowerCase()
   const all = (v ?? []).map(t => ({ ...t }))
+  // Archived tasks are pulled out of the status columns into their own group,
+  // never dimmed in-column (ambiguous next to a done task).
   for (const col of STATUS_CONFIG) {
     const filtered = all.filter(
-      t => t.status === col.id
-        && (filterPriorities.value.length === 0 || filterPriorities.value.some(p => p.value === t.priority))
-        && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => t.assignees?.includes(a.value)))
-        && (!q || t.title.toLowerCase().includes(q)),
+      t => t.status === col.id && !t.archivedAt && matchesFilters(t, q),
     )
     if (col.id === 'done') {
       filtered.sort((a, b) => ((b.updatedAt ?? '') as string).localeCompare((a.updatedAt ?? '') as string))
     }
     columns[col.id] = filtered
   }
+  archivedList.value = all
+    .filter(t => t.archivedAt && matchesFilters(t, q))
+    .sort((a, b) => ((b.archivedAt ?? '') as string).localeCompare((a.archivedAt ?? '') as string))
 }
 
 watch(tasks, syncColumns, { immediate: true })
@@ -286,6 +299,15 @@ const mobileActions = computed(() => [
             :items="assigneeFilterItems"
             placeholder="Assignees"
           />
+          <UButton
+            v-if="archivedList.length"
+            :label="showArchived ? 'Hide archived' : `Show archived (${archivedList.length})`"
+            :icon="showArchived ? 'i-lucide-eye-off' : 'i-lucide-archive'"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="() => { showArchived = !showArchived }"
+          />
           <span class="text-xs text-muted ml-auto">
             {{ totalVisible }} task{{ totalVisible !== 1 ? 's' : '' }}
           </span>
@@ -356,6 +378,25 @@ const mobileActions = computed(() => [
         >
           No tasks match the current filters.
         </div>
+      </div>
+
+      <!-- Archived tasks — collapsed group, revealed by the toggle, both views -->
+      <div
+        v-if="showArchived && archivedList.length"
+        class="shrink-0 max-h-64 overflow-y-auto rounded-lg border border-default"
+      >
+        <TaskStatusGroup
+          v-model="archivedList"
+          :status-cfg="archivedCfg"
+          group="archived-tasks"
+          :is-open="archivedOpen"
+          :is-dragging="false"
+          :sort="false"
+          muted
+          @toggle="archivedOpen = !archivedOpen"
+          @task-click="editTask = ($event as unknown as Task)"
+          @delete="confirmDeleteTask(slugFromPath($event.path))"
+        />
       </div>
     </div>
 

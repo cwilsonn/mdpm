@@ -12,6 +12,7 @@ export interface DocPayload {
   order?: number
   body?: string
   isFolder?: boolean
+  archivedAt?: string | null
 }
 
 export function useDocs() {
@@ -36,5 +37,13 @@ export function useDocs() {
     return $fetch(`${base(project)}/${slug}`, { method: 'DELETE' })
   }
 
-  return { docUrl, createDoc, updateDoc, removeDoc }
+  function archiveDoc(project: string | null | undefined, slug: string) {
+    return updateDoc(project, slug, { archivedAt: new Date().toISOString() })
+  }
+
+  function unarchiveDoc(project: string | null | undefined, slug: string) {
+    return updateDoc(project, slug, { archivedAt: null })
+  }
+
+  return { docUrl, createDoc, updateDoc, removeDoc, archiveDoc, unarchiveDoc }
 }

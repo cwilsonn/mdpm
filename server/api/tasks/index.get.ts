@@ -43,6 +43,7 @@ export default defineEventHandler((event) => {
         githubRepo,
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
+        archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
         order: (file.data.order as number) ?? 0,
       })
     }

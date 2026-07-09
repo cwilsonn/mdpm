@@ -15,6 +15,7 @@ export default defineEventHandler((event) => {
     order: number
     createdAt: string
     updatedAt?: string
+    archivedAt?: string
     excerpt: string
   }[] = []
 
@@ -45,6 +46,7 @@ export default defineEventHandler((event) => {
             order: (file.data.order as number) ?? 0,
             createdAt: (file.data.createdAt as string) ?? '',
             updatedAt: (file.data.updatedAt as string) ?? undefined,
+            archivedAt: (file.data.archivedAt as string) ?? undefined,
             excerpt: file.content.slice(0, 200).replace(/[#*`_]/g, '').trim(),
           })
         }

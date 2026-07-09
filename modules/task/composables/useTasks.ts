@@ -16,6 +16,7 @@ export interface TaskPayload {
   githubIssues?: number[]
   githubPRs?: number[]
   description?: string
+  archivedAt?: string | null
 }
 
 export function useTasks() {
@@ -31,5 +32,13 @@ export function useTasks() {
     return $fetch(`/api/tasks/${project}/${slug}`, { method: 'DELETE' })
   }
 
-  return { createTask, updateTask, removeTask }
+  function archiveTask(project: string, slug: string) {
+    return updateTask(project, slug, { archivedAt: new Date().toISOString() })
+  }
+
+  function unarchiveTask(project: string, slug: string) {
+    return updateTask(project, slug, { archivedAt: null })
+  }
+
+  return { createTask, updateTask, removeTask, archiveTask, unarchiveTask }
 }
