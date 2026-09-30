@@ -64,14 +64,14 @@ Location: `mcp/index.ts` (runs via `tsx`, no build step).
 Registered globally: `~/.claude.json` under `mcpServers.mdpm`.
 
 Required env vars (set in shell profile or `.env`):
-- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/mdpm/content`)
+- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
 Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`
 
 ## Claude Code Skills
 
-Global skills in `~/.claude/commands/`:
+Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<name>.md` are symlinks into it (edit in the repo, never the symlink target dir). They stay global because `/pickup <project>` runs in every registered project:
 
 | Skill | When to use |
 |-------|-------------|
