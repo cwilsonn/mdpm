@@ -10,18 +10,7 @@ Everything here was tested from a fresh clone of `main` (v0.3.0) on macOS: clone
 - **Project data is safe by default:** `content/projects/*/` and `content/authors/*.md` are gitignored. But **`content/docs/` is tracked**: standalone docs created in the app land there and would show up as changes in `git status`. Keep work notes in *project* docs, and disable pushing from the work checkout (step 2) so nothing can leak by accident.
 - **No authentication.** The dev server listens on loopback only (`mdpm.local` → `127.0.0.1`/`::1`). Never expose it (no tunnels, no `--host 0.0.0.0`, no port forwarding).
 - **Check policy first:** installing third-party tooling and running a local web app may need approval on a managed VM.
-- **Platform:** macOS or Linux. **Windows (including Azure Virtual Desktop) needs WSL2**; native Windows is not supported yet. See [Windows](#windows-including-azure-virtual-desktop).
-
-## Windows (including Azure Virtual Desktop)
-
-Not supported natively. `mdpm start`/`stop` spawn `pnpm` directly and signal process groups (`process.kill(-pid)`), neither of which works on Windows, and the hosts file, symlinked skills, and shell snippets below all assume a POSIX system. The supported route is **WSL2** (Ubuntu) inside the Windows machine:
-
-1. In PowerShell: `wsl --status`, then `wsl --install -d Ubuntu` (needs admin and a reboot). WSL2 needs virtualization; on an AVD that means a VM size with nested virtualization, and some organisations disable WSL entirely. **If `wsl --install` fails with a virtualization error or is blocked by policy, mdpm cannot run on that machine today.**
-2. Open the Ubuntu shell and follow sections 1-9 *inside it*, cloning into the Linux filesystem (`~/mdpm`), **not** under `/mnt/c` (slow file watching and broken permissions).
-3. Your Windows browser reaches servers running in WSL2 through `localhost` forwarding, but the name `mdpm.local` must also resolve **on Windows**. Add `127.0.0.1 mdpm.local` to `C:\Windows\System32\drivers\etc\hosts` (edit as Administrator) in addition to the `/etc/hosts` entries inside Ubuntu.
-4. Claude Code is expected to run inside WSL too, so the `mdpm` command, MCP server, and skills all live in the same Linux environment.
-
-None of this has been tested. Making the CLI work on native Windows is possible but is real work (Windows-safe spawning, `taskkill /T` instead of process groups, skills install without symlinks); it is not scheduled.
+- **Platform:** macOS or Linux (WSL2 counts as Linux). Native Windows is not supported: the lifecycle commands use POSIX process groups.
 
 ## 1. Prerequisites
 
@@ -68,6 +57,8 @@ grep -q 'mdpm.local' /etc/hosts || printf '127.0.0.1 mdpm.local\n::1 mdpm.local\
 ```
 
 Check: `ping -c1 mdpm.local` should answer from `127.0.0.1` or `::1`.
+
+WSL2: if your browser runs on Windows, also add `127.0.0.1 mdpm.local` to `C:\Windows\System32\drivers\etc\hosts` (edit as Administrator), so the name resolves there too. Keep the repo in the Linux filesystem (`~/mdpm`), not under `/mnt/c`. Untested.
 
 No admin rights? Then the server can't be reached by that name today. See [Not tested](#not-tested).
 
@@ -201,4 +192,4 @@ Remove: `mdpm stop`; `pnpm remove --global mdpm` (or delete the `mdpm` link in t
 - Uninstall steps and the telemetry variable (documented by Nuxt, not exercised here).
 - Fully offline use after install. The first dev run may try to fetch assets such as fonts; not verified either way.
 - No-admin setups: the hostname is fixed in `nuxt.config.ts` (`devServer.host`), so without the hosts entry the server can't bind. A configurable host would be a small change; ask before relying on this.
-- Windows in any form, including the WSL2 route above.
+- WSL2 specifically (treated as Linux); native Windows is unsupported.
