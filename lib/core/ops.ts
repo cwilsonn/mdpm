@@ -30,9 +30,30 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     )
   }
 
-  // Resolve a user-typed reference to one task: `slug`, `project/slug`, a unique slug prefix,
-  // a unique slug substring, or a unique title substring, tried in that order. Archived tasks
-  // are included so they can be unarchived or deleted.
+  // Resolve a user-typed reference to exactly one item. Stages, first unique hit wins:
+  // exact slug, slug prefix, slug substring, title substring. Several hits in a stage is
+  // ambiguous; no hits anywhere is not-found.
+  function matchRef<T extends { slug: string; title: string }>(ref: string, items: T[], label: string, describe: (item: T) => string, scope?: string) {
+    const lower = ref.toLowerCase()
+    const stages = [
+      (i: T) => i.slug === ref,
+      (i: T) => i.slug.toLowerCase().startsWith(lower),
+      (i: T) => i.slug.toLowerCase().includes(lower),
+      (i: T) => i.title.toLowerCase().includes(lower),
+    ]
+    for (const match of stages) {
+      const hits = items.filter(match)
+      if (hits.length === 1) return hits[0]!
+      if (hits.length > 1) {
+        const list = hits.slice(0, 8).map(i => `  ${describe(i)}`).join('\n')
+        throw new AmbiguousError(`'${ref}' matches ${hits.length} ${label}s; be more specific:\n${list}${hits.length > 8 ? '\n  …' : ''}`)
+      }
+    }
+    throw new NotFoundError(`No ${label} matches '${ref}'${scope ? ` in ${scope}` : ''}`)
+  }
+
+  // `slug`, `project/slug`, or any unique fragment (see matchRef). Archived tasks are included
+  // so they can be unarchived or deleted.
   function resolveTask(ref: string, project?: string) {
     let scope = project
     let needle = ref
@@ -42,23 +63,24 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
       needle = ref.slice(slash + 1)
     }
     if (scope) getProject(scope)
-    const tasks = listTasks({ project: scope, includeArchived: true })
-    const lower = needle.toLowerCase()
-    const stages = [
-      (t: typeof tasks[number]) => t.slug === needle,
-      (t: typeof tasks[number]) => t.slug.startsWith(lower),
-      (t: typeof tasks[number]) => t.slug.includes(lower),
-      (t: typeof tasks[number]) => t.title.toLowerCase().includes(lower),
-    ]
-    for (const match of stages) {
-      const hits = tasks.filter(match)
-      if (hits.length === 1) return hits[0]!
-      if (hits.length > 1) {
-        const list = hits.slice(0, 8).map(t => `  ${t.project}/${t.slug}`).join('\n')
-        throw new AmbiguousError(`'${ref}' matches ${hits.length} tasks; be more specific:\n${list}${hits.length > 8 ? '\n  …' : ''}`)
-      }
-    }
-    throw new NotFoundError(`No task matches '${ref}'${scope ? ` in project '${scope}'` : ''}`)
+    return matchRef(needle, listTasks({ project: scope, includeArchived: true }), 'task', t => `${t.project}/${t.slug}`, scope && `project '${scope}'`)
+  }
+
+  function resolveProject(ref: string) {
+    return matchRef(ref, listProjects({ includeArchived: true }), 'project', p => p.slug)
+  }
+
+  function archiveProject(slug: string, archived = true) {
+    return api.patch(`/api/projects/${slug}`, { archivedAt: archived ? new Date().toISOString() : null })
+  }
+
+  // Docs are scoped like getDocs: a project, standalone only, or (neither) everything. Archived included.
+  function resolveDoc(ref: string, opts: { project?: string; standalone?: boolean } = {}) {
+    const { project, standalone } = opts
+    if (project) getProject(project)
+    const scope = project ? `project '${project}'` : standalone ? 'standalone docs' : undefined
+    const docs = reader.getDocs(project, standalone)
+    return matchRef(ref, docs, 'doc', d => d.project ? `${d.project}/${d.slug}` : d.slug, scope)
   }
 
   function archiveTask(project: string, slug: string, archived = true) {
@@ -148,6 +170,9 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     listTasks,
     getTask,
     resolveTask,
+    resolveProject,
+    archiveProject,
+    resolveDoc,
     archiveTask,
     createTask,
     updateTask,
