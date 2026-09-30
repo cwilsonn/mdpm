@@ -4,231 +4,15 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import matter from 'gray-matter'
+import { createCore } from '../lib/core'
 
-const CONTENT_PATH = process.env.MDPM_CONTENT_PATH
-const BASE_URL = process.env.MDPM_BASE_URL ?? 'http://localhost:3000'
-
-if (!CONTENT_PATH) {
-  console.error('MDPM_CONTENT_PATH env var is required')
+let core: ReturnType<typeof createCore>
+try {
+  core = createCore()
+}
+catch (err: any) {
+  console.error(err.message)
   process.exit(1)
-}
-
-function contentPath(...parts: string[]) {
-  return join(CONTENT_PATH!, ...parts)
-}
-
-function readMd(relPath: string) {
-  const full = contentPath(relPath)
-  if (!existsSync(full)) return null
-  return matter(readFileSync(full, 'utf-8'))
-}
-
-function listDirs(dir: string): string[] {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name)
-}
-
-function listMdFiles(dir: string): string[] {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir).filter(f => f.endsWith('.md'))
-}
-
-// ─── Read helpers ────────────────────────────────────────────────────────────
-
-function getProjects() {
-  const projectsDir = contentPath('projects')
-  return listDirs(projectsDir).map((slug) => {
-    const file = readMd(`projects/${slug}/index.md`)
-    const tasksDir = contentPath('projects', slug, 'tasks')
-    const taskCount = listMdFiles(tasksDir).length
-    const docsDir = contentPath('projects', slug, 'docs')
-    const docCount = listMdFiles(docsDir).length
-    return {
-      slug,
-      title: (file?.data?.title as string) ?? slug,
-      status: (file?.data?.status as string) ?? 'active',
-      icon: (file?.data?.icon as string) ?? null,
-      tags: (file?.data?.tags as string[]) ?? [],
-      description: (file?.data?.description as string) ?? null,
-      githubRepo: (file?.data?.githubRepo as string) ?? null,
-      createdAt: (file?.data?.createdAt as string) ?? '',
-      archivedAt: (file?.data?.archivedAt as string) ?? null,
-      taskCount,
-      docCount,
-    }
-  })
-}
-
-function getTasks(projectSlug: string, statusFilter?: string[], githubIssueFilter?: number, githubPRFilter?: number) {
-  const projectFile = readMd(`projects/${projectSlug}/index.md`)
-  const githubRepo = (projectFile?.data?.githubRepo as string) ?? null
-  const tasksDir = contentPath('projects', projectSlug, 'tasks')
-  return listMdFiles(tasksDir).flatMap((f) => {
-    const slug = f.replace('.md', '')
-    const file = readMd(`projects/${projectSlug}/tasks/${slug}.md`)
-    if (!file) return []
-    const status = (file.data.status as string) ?? 'todo'
-    if (statusFilter?.length && !statusFilter.includes(status)) return []
-    const githubIssues = (file.data.githubIssues as number[]) ?? []
-    const githubPRs = (file.data.githubPRs as number[]) ?? []
-    if (githubIssueFilter !== undefined && !githubIssues.includes(githubIssueFilter)) return []
-    if (githubPRFilter !== undefined && !githubPRs.includes(githubPRFilter)) return []
-    return [{
-      slug,
-      project: projectSlug,
-      title: (file.data.title as string) ?? slug,
-      status,
-      priority: (file.data.priority as string) ?? 'medium',
-      tags: (file.data.tags as string[]) ?? [],
-      assignees: (file.data.assignees as string[]) ?? [],
-      due: (file.data.due as string) ?? null,
-      dependencies: (file.data.dependencies as string[]) ?? [],
-      githubIssues,
-      githubPRs,
-      githubRepo,
-      createdAt: (file.data.createdAt as string) ?? '',
-      updatedAt: (file.data.updatedAt as string) ?? null,
-      archivedAt: (file.data.archivedAt as string) ?? null,
-      order: (file.data.order as number) ?? 0,
-      body: file.content.trim(),
-    }]
-  }).sort((a, b) => a.order - b.order)
-}
-
-function getDocs(projectSlug?: string, standaloneOnly = false) {
-  const results: {
-    slug: string
-    project: string | null
-    title: string
-    tags: string[]
-    parent: string | null
-    createdAt: string
-    updatedAt: string | null
-    archivedAt: string | null
-    excerpt: string
-    body: string
-  }[] = []
-
-  if (!standaloneOnly) {
-    const projectSlugs = projectSlug ? [projectSlug] : listDirs(contentPath('projects'))
-    for (const pSlug of projectSlugs) {
-      const docsDir = contentPath('projects', pSlug, 'docs')
-      for (const f of listMdFiles(docsDir)) {
-        const slug = f.replace('.md', '')
-        const file = readMd(`projects/${pSlug}/docs/${slug}.md`)
-        if (!file) continue
-        results.push({
-          slug,
-          project: pSlug,
-          title: (file.data.title as string) ?? slug,
-          tags: (file.data.tags as string[]) ?? [],
-          parent: (file.data.parent as string | undefined) ?? null,
-          createdAt: (file.data.createdAt as string) ?? '',
-          updatedAt: (file.data.updatedAt as string) ?? null,
-          archivedAt: (file.data.archivedAt as string) ?? null,
-          excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
-          body: file.content.trim(),
-        })
-      }
-    }
-  }
-
-  if (!projectSlug) {
-    const docsDir = contentPath('docs')
-    for (const f of listMdFiles(docsDir)) {
-      const slug = f.replace('.md', '')
-      const file = readMd(`docs/${slug}.md`)
-      if (!file) continue
-      results.push({
-        slug,
-        project: null,
-        title: (file.data.title as string) ?? slug,
-        tags: (file.data.tags as string[]) ?? [],
-        parent: (file.data.parent as string | undefined) ?? null,
-        createdAt: (file.data.createdAt as string) ?? '',
-        updatedAt: (file.data.updatedAt as string) ?? null,
-        archivedAt: (file.data.archivedAt as string) ?? null,
-        excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
-        body: file.content.trim(),
-      })
-    }
-  }
-
-  return results
-}
-
-function getAllTasks(statusFilter?: string[], githubIssueFilter?: number, githubPRFilter?: number) {
-  const projectsDir = contentPath('projects')
-  if (!existsSync(projectsDir)) return []
-  return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter, githubIssueFilter, githubPRFilter))
-}
-
-function searchTasks(query: string, projectSlug?: string, statusFilter?: string[]) {
-  const q = query.toLowerCase()
-  const tasks = projectSlug ? getTasks(projectSlug, statusFilter) : getAllTasks(statusFilter)
-  return tasks.filter(t =>
-    t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q),
-  )
-}
-
-function searchDocs(query: string, projectSlug?: string) {
-  const q = query.toLowerCase()
-  return getDocs(projectSlug).filter(
-    d => d.title.toLowerCase().includes(q) || d.body.toLowerCase().includes(q),
-  ).map(d => ({
-    slug: d.slug,
-    project: d.project,
-    title: d.title,
-    tags: d.tags,
-    updatedAt: d.updatedAt,
-    excerpt: d.body
-      .split('\n')
-      .find(line => line.toLowerCase().includes(q))
-      ?.trim()
-      .slice(0, 200) ?? d.excerpt,
-  }))
-}
-
-// ─── Write helpers (via HTTP API) ────────────────────────────────────────────
-
-async function apiPost(path: string, body: unknown) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error((err as any).message ?? res.statusText)
-  }
-  return res.json()
-}
-
-async function apiDelete(path: string) {
-  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error((err as any).message ?? res.statusText)
-  }
-  return res.json()
-}
-
-async function apiPatch(path: string, body: unknown) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error((err as any).message ?? res.statusText)
-  }
-  return res.json()
 }
 
 // ─── Server ──────────────────────────────────────────────────────────────────
@@ -466,167 +250,85 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args = {} } = req.params
+  const json = (value: unknown, pretty = false) => ({
+    content: [{ type: 'text', text: JSON.stringify(value, null, pretty ? 2 : undefined) }],
+  })
 
   try {
     switch (name) {
       case 'ping': {
-        const projects = getProjects()
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify({
-              ok: true,
-              contentPath: CONTENT_PATH,
-              baseUrl: BASE_URL,
-              projectCount: projects.length,
-              projects: projects.map(p => p.slug),
-            }, null, 2),
-          }],
-        }
+        const projects = core.listProjects({ includeArchived: true })
+        return json({
+          ok: true,
+          contentPath: core.config.contentPath,
+          baseUrl: core.config.baseUrl,
+          projectCount: projects.length,
+          projects: projects.map(p => p.slug),
+        }, true)
       }
 
-      case 'list_projects': {
-        const { includeArchived } = args as { includeArchived?: boolean }
-        const projects = getProjects().filter(p => includeArchived || !p.archivedAt)
-        return { content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }] }
-      }
+      case 'list_projects':
+        return json(core.listProjects(args as { includeArchived?: boolean }), true)
 
-      case 'get_project': {
-        const { slug } = args as { slug: string }
-        const projects = getProjects()
-        const project = projects.find(p => p.slug === slug)
-        if (!project) throw new Error(`Project '${slug}' not found`)
-        return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] }
-      }
+      case 'get_project':
+        return json(core.getProject((args as { slug: string }).slug), true)
 
-      case 'list_tasks': {
-        const { project, status, githubIssue, githubPR, includeArchived } = args as { project?: string; status?: string[]; githubIssue?: number; githubPR?: number; includeArchived?: boolean }
-        const tasks = (project ? getTasks(project, status, githubIssue, githubPR) : getAllTasks(status, githubIssue, githubPR))
-          .filter(t => includeArchived || !t.archivedAt)
-        return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] }
-      }
+      case 'list_tasks':
+        return json(core.listTasks(args as Parameters<typeof core.listTasks>[0]), true)
 
       case 'get_task': {
         const { project, slug } = args as { project: string; slug: string }
-        const tasks = getTasks(project)
-        const task = tasks.find(t => t.slug === slug)
-        if (!task) throw new Error(`Task '${slug}' not found in project '${project}'`)
-        return { content: [{ type: 'text', text: JSON.stringify(task, null, 2) }] }
+        return json(core.getTask(project, slug), true)
       }
 
       case 'create_task': {
         const { project, ...rest } = args as { project: string; [k: string]: unknown }
-        const result = await apiPost('/api/tasks', { project, ...rest })
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+        return json(await core.createTask(project, rest))
       }
 
       case 'update_task': {
         const { project, slug, ...rest } = args as { project: string; slug: string; [k: string]: unknown }
-        const result = await apiPatch(`/api/tasks/${project}/${slug}`, rest)
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+        return json(await core.updateTask(project, slug, rest))
       }
 
-      case 'create_project': {
-        const result = await apiPost('/api/projects', args)
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
-      }
+      case 'create_project':
+        return json(await core.createProject(args))
 
       case 'delete_task': {
         const { project, slug } = args as { project: string; slug: string }
-        const result = await apiDelete(`/api/tasks/${project}/${slug}`)
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+        return json(await core.deleteTask(project, slug))
       }
 
       case 'delete_doc': {
         const { project, slug } = args as { project: string; slug: string }
-        const result = await apiDelete(`/api/docs/${project}/${slug}`)
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+        return json(await core.deleteDoc(project, slug))
       }
 
       case 'search_tasks': {
         const { query, project, status } = args as { query: string; project?: string; status?: string[] }
-        const results = searchTasks(query, project, status)
-        return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] }
+        return json(core.searchTasks(query, project, status), true)
       }
 
       case 'append_task_note': {
         const { project, slug, note } = args as { project: string; slug: string; note: string }
-        const tasks = getTasks(project)
-        const task = tasks.find(t => t.slug === slug)
-        if (!task) throw new Error(`Task '${slug}' not found in project '${project}'`)
-        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
-        const separator = task.body.trim() ? '\n\n' : ''
-        const newBody = `${task.body.trim()}${separator}---\n**Note** _(${timestamp})_\n\n${note.trim()}`
-        const result = await apiPatch(`/api/tasks/${project}/${slug}`, { description: newBody })
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+        return json(await core.appendTaskNote(project, slug, note))
       }
 
-      case 'list_docs': {
-        const { project, standalone, includeArchived } = args as { project?: string; standalone?: boolean; includeArchived?: boolean }
-        const all = getDocs(project, standalone)
-        // Hide archived docs and any doc under an archived folder (archivedAt
-        // lives only on the archived node; descendants are inferred here).
-        const bySlug = new Map(all.map(d => [d.slug, d]))
-        const hidden = (d: typeof all[number]): boolean => {
-          let cur: typeof all[number] | undefined = d
-          const seen = new Set<string>()
-          while (cur && !seen.has(cur.slug)) {
-            if (cur.archivedAt) return true
-            seen.add(cur.slug)
-            cur = cur.parent ? bySlug.get(cur.parent) : undefined
-          }
-          return false
-        }
-        const docs = all
-          .filter(d => includeArchived || !hidden(d))
-          .map(({ body: _, ...d }) => d)
-        return { content: [{ type: 'text', text: JSON.stringify(docs, null, 2) }] }
-      }
+      case 'list_docs':
+        return json(core.listDocs(args as Parameters<typeof core.listDocs>[0]), true)
 
       case 'get_doc': {
         const { project, slug } = args as { project?: string; slug: string }
-        const docs = getDocs(project)
-        const doc = docs.find(d => d.slug === slug && (project ? d.project === project : !d.project))
-        if (!doc) throw new Error(`Doc '${slug}' not found${project ? ` in project '${project}'` : ' (standalone)'}`)
-        return { content: [{ type: 'text', text: JSON.stringify(doc, null, 2) }] }
+        return json(core.getDoc(slug, project), true)
       }
 
       case 'search_docs': {
         const { query, project } = args as { query: string; project?: string }
-        const results = searchDocs(query, project)
-        return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] }
+        return json(core.searchDocs(query, project), true)
       }
 
-      case 'upsert_doc': {
-        const { project, slug, title, body, tags, parent } = args as {
-          project?: string
-          slug?: string
-          title: string
-          body: string
-          tags?: string[]
-          parent?: string
-        }
-        let result
-        if (project) {
-          if (slug && existsSync(contentPath('projects', project, 'docs', `${slug}.md`))) {
-            result = await apiPatch(`/api/docs/${project}/${slug}`, { title, body, tags, parent })
-            result.slug = slug
-          }
-          else {
-            result = await apiPost(`/api/docs/${project}`, { title, body, tags, parent, slug })
-          }
-        }
-        else {
-          if (slug && existsSync(contentPath('docs', `${slug}.md`))) {
-            result = await apiPatch(`/api/standalone-docs/${slug}`, { title, body, tags, parent })
-            result.slug = slug
-          }
-          else {
-            result = await apiPost('/api/standalone-docs', { title, body, tags, parent, slug })
-          }
-        }
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
-      }
+      case 'upsert_doc':
+        return json(await core.upsertDoc(args as Parameters<typeof core.upsertDoc>[0]))
 
       default:
         throw new Error(`Unknown tool: ${name}`)
