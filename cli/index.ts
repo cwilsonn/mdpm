@@ -15,6 +15,7 @@ export const root = defineCommand({
     ping: () => import('./commands/ping').then(m => m.default),
     project: () => import('./commands/project/index').then(m => m.default),
     doc: () => import('./commands/doc/index').then(m => m.default),
+    pickup: () => import('./commands/pickup').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),

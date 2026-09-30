@@ -122,7 +122,9 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
 
   // Hides archived docs and any doc under an archived folder (archivedAt lives
   // only on the archived node; descendants are inferred here).
-  function listDocs(opts: { project?: string; standalone?: boolean; includeArchived?: boolean } = {}) {
+  // Full docs (with body), minus archived ones and children of archived folders unless asked.
+  // archivedAt lives only on the archived node; descendants are inferred here.
+  function listDocsWithBody(opts: { project?: string; standalone?: boolean; includeArchived?: boolean } = {}) {
     const all = reader.getDocs(opts.project, opts.standalone)
     const bySlug = new Map(all.map(d => [d.slug, d]))
     const hidden = (d: Doc): boolean => {
@@ -135,9 +137,11 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
       }
       return false
     }
-    return all
-      .filter(d => opts.includeArchived || !hidden(d))
-      .map(({ body: _, ...d }) => d)
+    return all.filter(d => opts.includeArchived || !hidden(d))
+  }
+
+  function listDocs(opts: { project?: string; standalone?: boolean; includeArchived?: boolean } = {}) {
+    return listDocsWithBody(opts).map(({ body: _, ...d }) => d)
   }
 
   function getDoc(slug: string, project?: string) {
@@ -180,6 +184,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     appendTaskNote,
     createProject,
     listDocs,
+    listDocsWithBody,
     getDoc,
     deleteDoc,
     upsertDoc,
