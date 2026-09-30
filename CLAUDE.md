@@ -81,6 +81,30 @@ Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<n
 | `/sync` | Mid-session — sync task statuses + update stale docs |
 | `/handoff` | End of session — writes `session-notes` doc, marks tasks done |
 
+## Commit Messages
+
+[Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>)?: <description>`, subject ≤ 100 chars, imperative mood, lowercase type.
+
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Append `!` for breaking changes (`feat(api)!: ...`).
+- Scope is the area touched, matching existing history: `mcp`, `cli`, `core`, `skills`, `archive`, `pnpm`, `task`, `doc`, `project`, ...
+- Body explains *why* and lists notable side effects (e.g. bugs fixed along the way). Keep commits scoped: one concern per commit; don't mix tooling fixes with features.
+- Never commit unless asked. Propose the split, then commit.
+
+**Gate:** `scripts/check-commits.mjs` (no dependencies) validates subjects. CI (`.github/workflows/commits.yml`) runs it on every PR (all commits plus the PR title, since squash merges use the title) and on pushes to `main`. Only new commit ranges are checked; a handful of pre-convention commits in early history don't conform and are exempt by design.
+
+Check locally before pushing:
+
+```sh
+node scripts/check-commits.mjs origin/main..HEAD
+node scripts/check-commits.mjs --message "feat(cli): add thing"
+```
+
+Optional local hook (rejects bad messages at commit time):
+
+```sh
+printf '#!/bin/sh\nnode scripts/check-commits.mjs --file "$1"\n' > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+```
+
 ## UI Conventions
 
 Project pages use route-linked tabs via `AppPageBase`:
