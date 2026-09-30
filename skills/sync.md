@@ -6,13 +6,9 @@ Steps:
 1. Call `ping` to confirm mdpm MCP is reachable. If it fails, output:
    > ⚠️ mdpm MCP server is unreachable. Check that MDPM_CONTENT_PATH is set correctly.
    Then stop.
-2. Check that the mdpm dev server is running by fetching http://mdpm.local:3333.
-   - If it responds, continue.
-   - If not, start it automatically:
-     - Run `pnpm --dir /Users/cody/dev/projects/mdpm dev` in the background.
-     - Poll http://mdpm.local:3333 every 2s for up to 15 seconds.
-     - If it comes up, output: `> ✓ mdpm started, continuing…` and proceed.
-     - If it doesn't come up in 15s, output: `> ⚠️ mdpm did not start in time. Check the terminal for errors.` Then stop.
+2. Ensure the mdpm dev server is running: run `mdpm start` (idempotent: a no-op if it is already up).
+   - On exit 0, continue.
+   - On a non-zero exit, output: `> ⚠️ mdpm server did not start: <error from mdpm start>` Then stop.
 3. Call `list_tasks` for the project with status `["todo", "in-progress", "in-review", "blocked"]`.
 4. Call `list_docs` for the project to get current docs.
 5. Review the conversation so far. For each task that has been touched or completed:

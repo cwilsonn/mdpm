@@ -6,7 +6,7 @@ Steps:
 1. Call the `ping` tool to confirm mdpm MCP is reachable. If it fails, output:
    > ⚠️ mdpm MCP server is unreachable. Check that MDPM_CONTENT_PATH is set correctly.
    Then stop.
-2. Note: read operations work without the mdpm dev server running. Write operations (update_task, upsert_doc) require it at http://mdpm.local:3333 — warn the user if they plan to use /sync or /handoff this session.
+2. Note: read operations work without the mdpm dev server running. Write operations (update_task, upsert_doc) require it at http://mdpm.local:3333 (`mdpm status` checks it, `mdpm start` starts it) — warn the user if they plan to use /sync or /handoff this session.
 3. Call `list_tasks` with the project slug and status filter `["todo", "in-progress", "in-review", "blocked"]` to get all open work.
 4. Call `list_docs` with the project slug to get all reference docs.
 5. From the doc list, find docs tagged `session-notes`. Sort by slug descending (slugs are `YYYY-MM-DD-session-notes`); call `get_doc` on the most recent one to retrieve last session's handoff notes.
