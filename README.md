@@ -27,6 +27,8 @@ Feel free to poke around — create projects, drag tasks between columns, write 
 
 ## Local setup
 
+Setting up on another machine (CLI, MCP server, Claude Code skills)? See [INSTALL.md](INSTALL.md).
+
 ```bash
 pnpm install
 pnpm dev
