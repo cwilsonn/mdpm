@@ -11,3 +11,7 @@ export class ServerUnreachableError extends Error {
 export class ConfigError extends Error {
   override name = 'ConfigError'
 }
+
+export class AmbiguousError extends Error {
+  override name = 'AmbiguousError'
+}

@@ -12,6 +12,7 @@ export const root = defineCommand({
   subCommands: {
     config: () => import('./commands/config').then(m => m.default),
     ping: () => import('./commands/ping').then(m => m.default),
+    task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
     restart: () => import('./commands/restart').then(m => m.default),
@@ -50,7 +51,8 @@ export async function main(rawArgs = process.argv.slice(2)) {
   }
   catch (err) {
     const code = reportError(err, json, stderrStyle)
-    if (code === ExitCode.usage && !json) {
+    // Only parse errors (unknown command, missing argument) warrant the usage dump.
+    if (!json && (err as Error)?.name === 'CLIError') {
       console.error(`\n${await renderUsage(...await resolveUsageTarget(root, rawArgs))}`)
     }
     process.exitCode = code

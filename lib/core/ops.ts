@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
-import { NotFoundError } from './errors'
+import { AmbiguousError, NotFoundError } from './errors'
 import type { Doc, Reader } from './read'
 
 // Higher-level operations shared by the MCP server and the CLI. Reads go
@@ -17,12 +17,52 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return project
   }
 
-  function listTasks(opts: { project?: string; status?: string[]; githubIssue?: number; githubPR?: number; includeArchived?: boolean } = {}) {
-    const { project, status, githubIssue, githubPR, includeArchived } = opts
+  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; githubIssue?: number; githubPR?: number; includeArchived?: boolean } = {}) {
+    const { project, status, priority, tags, assignee, githubIssue, githubPR, includeArchived } = opts
     return (project
       ? reader.getTasks(project, status, githubIssue, githubPR)
       : reader.getAllTasks(status, githubIssue, githubPR)
-    ).filter(t => includeArchived || !t.archivedAt)
+    ).filter(t =>
+      (includeArchived || !t.archivedAt)
+      && (!priority?.length || priority.includes(t.priority))
+      && (!tags?.length || tags.some(tag => t.tags.includes(tag)))
+      && (!assignee || t.assignees.includes(assignee)),
+    )
+  }
+
+  // Resolve a user-typed reference to one task: `slug`, `project/slug`, a unique slug prefix,
+  // a unique slug substring, or a unique title substring, tried in that order. Archived tasks
+  // are included so they can be unarchived or deleted.
+  function resolveTask(ref: string, project?: string) {
+    let scope = project
+    let needle = ref
+    const slash = ref.indexOf('/')
+    if (slash > 0) {
+      scope = ref.slice(0, slash)
+      needle = ref.slice(slash + 1)
+    }
+    if (scope) getProject(scope)
+    const tasks = listTasks({ project: scope, includeArchived: true })
+    const lower = needle.toLowerCase()
+    const stages = [
+      (t: typeof tasks[number]) => t.slug === needle,
+      (t: typeof tasks[number]) => t.slug.startsWith(lower),
+      (t: typeof tasks[number]) => t.slug.includes(lower),
+      (t: typeof tasks[number]) => t.title.toLowerCase().includes(lower),
+    ]
+    for (const match of stages) {
+      const hits = tasks.filter(match)
+      if (hits.length === 1) return hits[0]!
+      if (hits.length > 1) {
+        const list = hits.slice(0, 8).map(t => `  ${t.project}/${t.slug}`).join('\n')
+        throw new AmbiguousError(`'${ref}' matches ${hits.length} tasks; be more specific:\n${list}${hits.length > 8 ? '\n  …' : ''}`)
+      }
+    }
+    throw new NotFoundError(`No task matches '${ref}'${scope ? ` in project '${scope}'` : ''}`)
+  }
+
+  function archiveTask(project: string, slug: string, archived = true) {
+    return api.patch(`/api/tasks/${project}/${slug}`, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
   function getTask(project: string, slug: string) {
@@ -107,6 +147,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     getProject,
     listTasks,
     getTask,
+    resolveTask,
+    archiveTask,
     createTask,
     updateTask,
     deleteTask,
