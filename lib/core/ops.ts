@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
+import { NotFoundError } from './errors'
 import type { Doc, Reader } from './read'
 
 // Higher-level operations shared by the MCP server and the CLI. Reads go
@@ -12,7 +13,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
 
   function getProject(slug: string) {
     const project = reader.getProjects().find(p => p.slug === slug)
-    if (!project) throw new Error(`Project '${slug}' not found`)
+    if (!project) throw new NotFoundError(`Project '${slug}' not found`)
     return project
   }
 
@@ -26,7 +27,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
 
   function getTask(project: string, slug: string) {
     const task = reader.getTasks(project).find(t => t.slug === slug)
-    if (!task) throw new Error(`Task '${slug}' not found in project '${project}'`)
+    if (!task) throw new NotFoundError(`Task '${slug}' not found in project '${project}'`)
     return task
   }
 
@@ -79,7 +80,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
 
   function getDoc(slug: string, project?: string) {
     const doc = reader.getDocs(project).find(d => d.slug === slug && (project ? d.project === project : !d.project))
-    if (!doc) throw new Error(`Doc '${slug}' not found${project ? ` in project '${project}'` : ' (standalone)'}`)
+    if (!doc) throw new NotFoundError(`Doc '${slug}' not found${project ? ` in project '${project}'` : ' (standalone)'}`)
     return doc
   }
 
@@ -117,6 +118,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     upsertDoc,
     searchTasks: reader.searchTasks,
     searchDocs: reader.searchDocs,
+    probeServer: api.probe,
   }
 }
 

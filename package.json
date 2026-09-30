@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "mdpm": "./bin/mdpm.mjs"
+  },
   "scripts": {
     "dev": "TMPDIR=/tmp nuxt dev",
     "build": "pnpm rebuild better-sqlite3 && nuxt build",
@@ -21,6 +24,7 @@
     "@tiptap/vue-3": "^3.26.0",
     "@vueuse/core": "^14.3.0",
     "better-sqlite3": "^12.10.0",
+    "citty": "^0.2.2",
     "fflate": "^0.8.3",
     "gray-matter": "^4.0.3",
     "nuxt": "^4.4.2",

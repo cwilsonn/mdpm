@@ -6,14 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import { createCore } from '../lib/core'
 
-let core: ReturnType<typeof createCore>
-try {
-  core = createCore()
-}
-catch (err: any) {
-  console.error(err.message)
-  process.exit(1)
-}
+const core = createCore()
 
 // ─── Server ──────────────────────────────────────────────────────────────────
 
