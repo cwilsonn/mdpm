@@ -14,9 +14,10 @@ pnpm dev       # http://mdpm.local:3333
 
 Server lifecycle goes through the CLI: `mdpm start | stop | restart | status` (background, pid record in `~/.local/state/mdpm/`; `--foreground` to attach). A server started by plain `pnpm dev` is still found and stoppable: `status`/`stop` fall back to Nuxt's own `.nuxt/nuxt.lock`. Install the CLI once with `pnpm add --global "link:$(pwd)"`. Type-check CLI/core/MCP with `pnpm typecheck:cli`.
 
-Add to `/etc/hosts` if not present:
+Add to `/etc/hosts` if not present (the `::1` line avoids a ~5s per-request mDNS delay on macOS; README has the WSL notes):
 ```
 127.0.0.1 mdpm.local
+::1 mdpm.local
 ```
 
 ## Stack

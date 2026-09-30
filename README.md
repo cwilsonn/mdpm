@@ -14,6 +14,7 @@ Feel free to poke around — create projects, drag tasks between columns, write 
 - **Projects** — create and manage projects with status, tags, description, and a custom icon
 - **Tasks** — kanban board per project (todo / in-progress / in-review / blocked / done), drag to reorder and move between columns, priority levels, assignees, dependencies, due dates, markdown descriptions
 - **Docs** — reference docs per project with a rich text editor; also a global searchable/filterable docs page across all projects
+- **CLI** — `mdpm` for the terminal: server lifecycle, projects, tasks, docs, and a session briefing, with `--json` output for scripts and agents
 - **MCP server** — local stdio MCP server (`mcp/index.ts`) so Claude Code can read and write your projects, tasks, and docs directly
 
 ## Stack
@@ -25,22 +26,167 @@ Feel free to poke around — create projects, drag tasks between columns, write 
 - [vue-draggable-plus](https://github.com/Alfred-Skyblue/vue-draggable-plus) — drag-and-drop kanban
 - [gray-matter](https://github.com/jonschlinkert/gray-matter) — frontmatter parsing (used by MCP server)
 
-## Local setup
+## Installation
 
-Setting up on another machine (CLI, MCP server, Claude Code skills)? See [INSTALL.md](INSTALL.md).
+Works on macOS and Linux. **WSL2 is confirmed working** (Ubuntu on a Windows VM); native Windows is not supported because the lifecycle commands use POSIX process groups.
+
+**Before you start**
+- The repo is public, so cloning needs no credentials. On a machine holding private or work data, run `git remote set-url --push origin no_push` in the checkout: `content/projects/` is gitignored, but `content/docs/` (standalone docs) is tracked and would show up in `git status`.
+- There is no authentication. The dev server listens on loopback only; don't tunnel or expose it.
+- Installing third-party tooling may need approval on a managed machine.
+
+### 1. Prerequisites
+
+- **Node 24** (`.nvmrc`; `nvm install 24`)
+- **pnpm 11.22.0**, pinned by `packageManager`: `corepack enable` (bundled with Node 24) or `npm i -g pnpm@11.22.0`
+- **git**, and admin rights once to edit the hosts file
+- Build tools (`build-essential`, `python3` on Debian/Ubuntu; Xcode CLT on macOS) only if `better-sqlite3` has no prebuilt binary for your platform
+- Claude Code, optional, for the MCP server and skills
+
+### 2. Clone and install
 
 ```bash
+git clone https://github.com/cwilsonn/mdpm.git ~/mdpm
+cd ~/mdpm
 pnpm install
-pnpm dev
 ```
 
-Dev server runs at `http://mdpm.local:3333`. Add this to `/etc/hosts` first:
+### 3. Hosts entries
 
-```
-127.0.0.1 mdpm.local
+The dev server is bound to the hostname `mdpm.local`. Add both lines (the `::1` one avoids a ~5s per-request delay on macOS, where `.local` names otherwise go through mDNS):
+
+```bash
+grep -q mdpm.local /etc/hosts || printf '127.0.0.1 mdpm.local\n::1 mdpm.local\n' | sudo tee -a /etc/hosts
 ```
 
-On first run with an empty `content/` directory the app won't auto-seed locally — that only happens in production. Add your first project via the UI.
+On **WSL2**, the name also has to resolve on the Windows side if you want `mdpm.local` in a Windows browser: add `127.0.0.1 mdpm.local` (and `::1 mdpm.local`) to `C:\Windows\System32\drivers\etc\hosts` as Administrator. Without that, `http://localhost:3333` works from the Windows browser (the WSL entry is still needed so the server can start). Keep the checkout in the Linux filesystem, not under `/mnt/c`.
+
+### 4. Install the CLI
+
+pnpm 11 refuses global installs until its global bin directory is on `PATH`:
+
+```bash
+pnpm setup                         # then open a new terminal
+cd ~/mdpm && pnpm add --global "link:$(pwd)"
+mdpm --version
+```
+
+The checkout is linked live, so `git pull` updates the CLI. If `mdpm` isn't found, `$PNPM_HOME/bin` (for example `~/Library/pnpm/bin`) must be on `PATH`; a symlink is an equivalent fallback: `ln -s ~/mdpm/bin/mdpm.mjs ~/.local/bin/mdpm`.
+
+### 5. First run
+
+```bash
+mdpm ping        # config and content check; "server down" is expected
+mdpm start       # background dev server; the first start can take ~30s
+mdpm status
+```
+
+Open <http://mdpm.local:3333>. A fresh install has no projects (the app seeds demo data only in production). Create one:
+
+```bash
+mdpm project create "My Project" --description "What this is"
+mdpm task add "First task" --project my-project --priority high
+mdpm pickup my-project
+```
+
+Logs are in `~/.local/state/mdpm/server-3333.log`. Stop with `mdpm stop`.
+
+> **Leave the content path at its default** (`<checkout>/content`). The web app and API ignore `MDPM_CONTENT_PATH`, which only the CLI and MCP honor, so pointing them elsewhere splits reads from writes.
+
+### 6. Claude Code (optional)
+
+MCP server, no environment variables needed:
+
+```bash
+claude mcp add mdpm --scope user -- ~/mdpm/node_modules/.bin/tsx ~/mdpm/mcp/index.ts
+claude mcp list                    # mdpm ... Connected
+```
+
+Skills, symlinked so they update with `git pull`:
+
+```bash
+mkdir -p ~/.claude/commands
+for f in ~/mdpm/skills/*.md; do ln -s "$f" ~/.claude/commands/"$(basename "$f")"; done
+```
+
+`ln` won't overwrite an existing file of the same name. Start a new Claude Code session and run `/pickup my-project`. The skills call the `mdpm` CLI, so it must be on `PATH` in the shell Claude Code uses.
+
+### Updating and removing
+
+```bash
+cd ~/mdpm && git pull --ff-only && pnpm install && mdpm restart
+```
+
+To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, delete the skill symlinks in `~/.claude/commands/`, remove the `mdpm.local` hosts lines, and delete the checkout and `~/.local/state/mdpm`.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `mdpm: command not found`, or pnpm says its global bin dir "is not in PATH" | `pnpm setup`, put `$PNPM_HOME/bin` on `PATH`, open a new terminal |
+| Every request takes ~5s | Missing `::1 mdpm.local` hosts line |
+| `mdpm start` times out | Read `~/.local/state/mdpm/server-3333.log` |
+| `Another Nuxt dev is already running` | One dev server per checkout: `mdpm status`, then `mdpm stop` |
+| `stop` says the server wasn't started by `mdpm start` | Something else holds the port; stop it yourself |
+| `better-sqlite3` build or binding error | Install build tools, then `pnpm rebuild better-sqlite3` (also after switching Node versions) |
+| Exit code 3 on writes | The server is down: `mdpm start`, or `--auto-start` |
+| Port 3333 busy | `mdpm start --port 3344` and set `MDPM_BASE_URL=http://mdpm.local:3344` |
+
+Not verified: a corporate proxy or private registry (set `pnpm config set registry <url>` as needed), fully offline use, and uninstall.
+
+## CLI
+
+`mdpm --help` and `mdpm <command> --help` list everything. Reads work without the server; writes go through it.
+
+| Command | What it does |
+|---|---|
+| `mdpm start \| stop \| restart \| status` | Dev server lifecycle (`--port`, `--foreground`); `status` exits 3 when down |
+| `mdpm project list \| show \| create \| archive \| unarchive` | Projects |
+| `mdpm task list \| search \| show \| add \| set \| done \| note \| archive \| unarchive \| delete` | Tasks; refs can be a slug, unique prefix, substring, or title fragment |
+| `mdpm doc list \| show \| search` | Read-only docs; `doc show` prints only the body, so it pipes cleanly |
+| `mdpm pickup [project]` | Session briefing: open tasks, docs, latest session notes, suggested focus |
+| `mdpm config show` | Resolved settings and where each came from |
+| `mdpm ping` | Config, content, and server check |
+
+- **Project scope:** inside a repo, commands default to that repo's project, matched by the `origin` remote against the project's `githubRepo` (`github.com` remotes only), then by directory name equal to the project slug. `--project <slug>` always works; `--all` spans projects.
+- **Output:** add `--json` for machine-readable output; text flags accept `-` to read stdin (`mdpm task note <ref> -`).
+- **Exit codes:** `0` ok, `1` error, `2` usage or ambiguous ref, `3` server unreachable, `4` not found.
+- **Auto-start:** write commands accept `--auto-start`: if the server is down it is started, the write runs, and it is stopped again only if that command started it (`--keep-running` to leave it up). Make it the default with `MDPM_AUTO_START=1` or `"autoStart": true` in the config file. The MCP server honors the same setting but never stops the server.
+- **Config:** precedence is flag, then environment (`MDPM_CONTENT_PATH`, `MDPM_BASE_URL`, `MDPM_AUTO_START`), then `~/.config/mdpm/config.json` (`XDG_CONFIG_HOME` and `MDPM_CONFIG` honored), then defaults derived from the checkout.
+
+## MCP server
+
+Lets Claude Code read and write mdpm data from any project you're working on. Registered in step 6 above.
+
+Read tools query the markdown files directly and work without the dev server. Write tools go through the server, which must be running unless auto-start is on.
+
+**Tools:** `ping` · `list_projects` · `get_project` · `create_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `delete_task` · `append_task_note` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `delete_doc`
+
+CLI vs MCP: the CLI is the first-class interface and works the same for you and for agents (`--json`); the MCP server is the native tool surface inside Claude Code. Both go through the same core library.
+
+## Claude Code skills
+
+Global skills in `skills/`, symlinked into `~/.claude/commands/`. They run through the `mdpm` CLI.
+
+| Skill | When |
+|---|---|
+| `/pickup [project]` | Start of session: briefing with open tasks, docs, last session notes |
+| `/sync [project]` | Mid-session: update task statuses and write a notes snapshot |
+| `/handoff [project]` | End of session: update task statuses and write a dated `session-notes` doc |
+| `/start-mdpm` | Start the dev server (`mdpm start`) |
+| `/stop-mdpm` | Stop the dev server (`mdpm stop`) |
+
+Each `/handoff` writes a new doc named `YYYY-MM-DD-HHmm-session-notes`; `/pickup` loads the newest by the date in the slug.
+
+## Development
+
+```bash
+pnpm dev             # dev server at http://mdpm.local:3333
+pnpm typecheck:cli   # strict type-check of cli/, lib/, mcp/, tests/
+pnpm test            # node:test smoke tests (core, CLI, lifecycle, MCP); no real server needed
+```
+
+CI runs the type-check and tests on every push and pull request. Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (checked in CI); releases are cut by release-please.
 
 ## Content structure
 
@@ -58,44 +204,6 @@ content/
 ```
 
 You can edit these files directly in any editor — the app picks up changes automatically.
-
-## MCP server
-
-The MCP server lets Claude Code read and write mdpm data from any project you're working on.
-
-### Setup
-
-1. Add `127.0.0.1 mdpm.local` to `/etc/hosts`
-2. Register the server (already done if you're using this repo):
-   ```bash
-   claude mcp add mdpm --scope user -- /path/to/mdpm/node_modules/.bin/tsx /path/to/mdpm/mcp/index.ts
-   ```
-3. Set env vars in `~/.claude.json` under `mcpServers.mdpm.env`:
-   ```json
-   {
-     "MDPM_CONTENT_PATH": "/absolute/path/to/mdpm/content",
-     "MDPM_BASE_URL": "http://mdpm.local:3333"
-   }
-   ```
-
-Read operations (list/get tasks and docs) work without the dev server running. Write operations require it.
-
-### Tools
-
-`ping` · `list_projects` · `get_project` · `list_tasks` · `get_task` · `create_task` · `update_task` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc`
-
-## Claude Code skills
-
-Three global skills for session-to-session PM handoff. Lives in `~/.claude/commands/`.
-
-| Skill | When |
-|---|---|
-| `/pickup <project>` | Start of session — briefing with open tasks, docs, last session notes |
-| `/sync <project>` | Mid-session — confirm task status updates + stale doc updates |
-| `/handoff <project>` | End of session — write task updates + `session-notes` doc for next session |
-| `/start-mdpm` | Start the dev server in the background if it's not already running |
-
-`session-notes` is a reserved doc slug that gets overwritten each session. Git history is the log.
 
 ## Deployment
 
