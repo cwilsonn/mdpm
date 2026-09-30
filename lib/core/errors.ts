@@ -7,3 +7,7 @@ export class NotFoundError extends Error {
 export class ServerUnreachableError extends Error {
   override name = 'ServerUnreachableError'
 }
+
+export class ConfigError extends Error {
+  override name = 'ConfigError'
+}

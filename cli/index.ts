@@ -10,6 +10,7 @@ const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'),
 export const root = defineCommand({
   meta: { name: 'mdpm', version, description: 'Markdown-based project management: projects, tasks, and docs as files' },
   subCommands: {
+    config: () => import('./commands/config').then(m => m.default),
     ping: () => import('./commands/ping').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
