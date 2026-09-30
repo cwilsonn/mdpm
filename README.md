@@ -91,7 +91,7 @@ mdpm pickup my-project
 
 Logs are in `~/.local/state/mdpm/server-3333.log`. Stop with `mdpm stop`.
 
-> **Leave the content path at its default** (`<checkout>/content`). The web app and API ignore `MDPM_CONTENT_PATH`, which only the CLI and MCP honor, so pointing them elsewhere splits reads from writes.
+> **Content directory:** the web app, API, CLI, and MCP server all use one content root, `<checkout>/content` by default. To keep it elsewhere set `MDPM_CONTENT_PATH` (or `contentPath` in the config file, or `--content-path`); `mdpm start` hands that path to the server it launches. If a server started some other way (for example plain `pnpm dev`) uses a different directory, writes are refused with an explanation and `mdpm ping` reports the mismatch; `mdpm restart` fixes it. For a manually started server, set the same `MDPM_CONTENT_PATH` in its environment.
 
 ### 6. Claude Code (optional)
 

@@ -1,15 +1,20 @@
 import { strict as assert } from 'node:assert'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { FIXTURE_CONTENT, mockApi, runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
 
 let api: Awaited<ReturnType<typeof mockApi>>
 let failWith: { status: number; body: unknown } | undefined
-before(async () => { api = await mockApi(() => failWith ?? {}) })
+let healthRoot: string | undefined
+before(async () => {
+  api = await mockApi(req => req.path === '/api/health'
+    ? { body: { ok: true, ...(healthRoot && { contentRoot: healthRoot }) } }
+    : failWith ?? {})
+})
 after(() => api.close())
-beforeEach(() => { api.requests.length = 0; failWith = undefined })
+beforeEach(() => { api.requests.length = 0; failWith = undefined; healthRoot = undefined })
 
 const cli = (args: string[], input?: string) =>
   runCli(args, { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url }, input })
@@ -106,5 +111,39 @@ describe('failures', () => {
     const r = await cli(['task', 'add', 'x', '--project', 'alpha'])
     assert.equal(r.code, 1)
     assert.match(r.stderr, /Title is required/)
+  })
+})
+
+describe('content root guard', () => {
+  it('refuses to write when the server uses a different content directory', async () => {
+    healthRoot = '/somewhere/else'
+    const r = await cli(['task', 'done', 'parser', '--project', 'alpha'])
+    assert.equal(r.code, 1)
+    assert.match(r.stderr, /uses content directory \/somewhere\/else/)
+    assert.match(r.stderr, /mdpm restart/)
+    assert.ok(api.requests.every(req => req.path === '/api/health'), 'no write may be sent')
+  })
+
+  it('writes when the server reports the same directory', async () => {
+    healthRoot = FIXTURE_CONTENT
+    assert.equal((await cli(['task', 'done', 'parser', '--project', 'alpha'])).code, 0)
+    assert.equal(last().method, 'PATCH')
+  })
+
+  it('writes when the server does not disclose a root (older server, or production)', async () => {
+    assert.equal((await cli(['task', 'done', 'parser', '--project', 'alpha'])).code, 0)
+  })
+
+  it('checks once per process, not once per write', async () => {
+    healthRoot = FIXTURE_CONTENT
+    await cli(['task', 'done', 'parser', '--project', 'alpha'])
+    assert.equal(api.requests.filter(req => req.path === '/api/health').length, 1)
+  })
+
+  it('ping reports the mismatch', async () => {
+    healthRoot = '/somewhere/else'
+    const r = await cli(['ping', '--json'])
+    assert.equal(r.code, 0)
+    assert.deepEqual([r.json.serverContentPath, r.json.contentMismatch], ['/somewhere/else', true])
   })
 })

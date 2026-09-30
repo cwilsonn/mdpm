@@ -1,9 +1,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import matter from 'gray-matter'
 
+// Same variable the CLI and MCP server honor, so every writer and reader agrees on one root.
+// Unset (the default, and always in production) keeps the checkout's own content/ directory.
 export function contentRoot() {
-  return join(process.cwd(), 'content')
+  const override = process.env.MDPM_CONTENT_PATH
+  return override ? resolve(override) : join(process.cwd(), 'content')
 }
 
 export function contentPath(...parts: string[]) {

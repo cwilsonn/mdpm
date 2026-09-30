@@ -1,5 +1,6 @@
 import type { CoreConfig } from './config'
-import { ServerUnreachableError } from './errors'
+import { ContentRootMismatchError, ServerUnreachableError } from './errors'
+import { samePath } from './paths'
 
 export type ApiClient = ReturnType<typeof createApi>
 
@@ -20,7 +21,34 @@ export function createApi(config: CoreConfig, hooks: ApiHooks = {}) {
     })
   }
 
+  // What the running server says about itself, or undefined when it is down, too old to have
+  // /api/health, or (in production) doesn't disclose its content root.
+  async function health(timeoutMs = 3000): Promise<{ ok: boolean; contentRoot?: string } | undefined> {
+    try {
+      const res = await fetch(`${config.baseUrl}/api/health`, { signal: AbortSignal.timeout(timeoutMs) })
+      return res.ok ? await res.json() : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  // Before the first write: refuse if the server reads/writes a different content directory than
+  // this process reads from, since the write would land where the next read can't see it.
+  let rootChecked: Promise<void> | undefined
+  function assertSameContentRoot() {
+    return rootChecked ??= health().then((info) => {
+      if (info?.contentRoot && !samePath(info.contentRoot, config.contentPath)) {
+        throw new ContentRootMismatchError(
+          `the server at ${config.baseUrl} uses content directory ${info.contentRoot}, but this process reads ${config.contentPath}; `
+          + 'writes would be invisible to reads. Restart the server with `mdpm restart` (it inherits the CLI\'s content path) or make both use the same MDPM_CONTENT_PATH.',
+        )
+      }
+    })
+  }
+
   async function request(method: string, path: string, body?: unknown) {
+    await assertSameContentRoot()
     let res: Response
     try {
       res = await send(method, path, body)
@@ -62,5 +90,6 @@ export function createApi(config: CoreConfig, hooks: ApiHooks = {}) {
     patch: (path: string, body: unknown) => request('PATCH', path, body),
     delete: (path: string) => request('DELETE', path),
     probe,
+    health,
   }
 }

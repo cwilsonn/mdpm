@@ -191,6 +191,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     searchTasks: reader.searchTasks,
     searchDocs: reader.searchDocs,
     probeServer: api.probe,
+    serverHealth: api.health,
   }
 }
 

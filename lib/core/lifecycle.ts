@@ -210,6 +210,8 @@ export function createLifecycle(config: CoreConfig) {
     const [command, ...commandArgs] = process.env.MDPM_SERVER_COMMAND?.split(/\s+/).filter(Boolean) ?? ['pnpm', 'dev']
     const child = spawn(command!, [...commandArgs, '--port', String(port)], {
       cwd: REPO_ROOT,
+      // The server must read/write the same content directory the CLI resolved (flag, env, or config).
+      env: { ...process.env, MDPM_CONTENT_PATH: config.contentPath },
       detached: true,
       stdio: opts.foreground ? 'inherit' : ['ignore', log!, log!],
     })

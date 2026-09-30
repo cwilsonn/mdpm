@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, after } from 'node:test'
-import { AmbiguousError, buildPickup, createCore, inferProject, loadConfig, NotFoundError, normalizeGithubRepo } from '../lib/core'
+import { AmbiguousError, buildPickup, createCore, inferProject, loadConfig, NotFoundError, normalizeGithubRepo, samePath } from '../lib/core'
 import { sessionNotesOrder, summarize } from '../lib/core/pickup'
 import { FIXTURE_CONTENT, scratchDir } from './helpers'
 
@@ -183,5 +183,18 @@ describe('project inference', () => {
     mkdirSync(dir)
     assert.deepEqual(inferProject(dir, projects), { slug: 'beta', via: 'directory-name', detail: 'beta' })
     assert.equal(inferProject(scratch.dir, projects), undefined)
+  })
+})
+
+describe('samePath', () => {
+  it('sees through symlinks and ignores missing paths', () => {
+    const scratch = scratchDir()
+    after(scratch.cleanup)
+    const real = join(scratch.dir, 'real')
+    mkdirSync(real)
+    symlinkSync(real, join(scratch.dir, 'link'))
+    assert.ok(samePath(real, join(scratch.dir, 'link')))
+    assert.ok(!samePath(real, join(scratch.dir, 'other')))
+    assert.ok(samePath('/no/such/dir', '/no/such/dir'))
   })
 })

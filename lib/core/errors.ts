@@ -15,3 +15,7 @@ export class ConfigError extends Error {
 export class AmbiguousError extends Error {
   override name = 'AmbiguousError'
 }
+
+export class ContentRootMismatchError extends Error {
+  override name = 'ContentRootMismatchError'
+}

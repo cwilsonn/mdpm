@@ -67,7 +67,7 @@ Location: `mcp/index.ts` (runs via `tsx`, no build step).
 Registered globally: `~/.claude.json` under `mcpServers.mdpm`.
 
 Required env vars (set in shell profile or `.env`):
-- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`)
+- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and writes are refused when the server reports a different root (`GET /api/health`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
 Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`

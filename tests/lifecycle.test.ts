@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, describe, it } from 'node:test'
-import { FAKE_SERVER, freePort, runCli, scratchDir } from './helpers'
+import { FAKE_SERVER, FIXTURE_CONTENT, freePort, runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -88,6 +88,42 @@ describe('lifecycle', () => {
   it('rejects an invalid --port', async () => {
     const { cli } = await setup()
     assert.equal((await cli(['start', '--port', 'abc'])).code, 2)
+  })
+})
+
+describe('content root handoff', () => {
+  it('start passes the CLI\'s resolved content path to the server', async () => {
+    const { cli } = await setup()
+    cleanupStop = () => cli(['stop'])
+    await cli(['start'])
+    const r = await cli(['ping', '--json'])
+    assert.equal(r.json.serverUp, true)
+    assert.equal(r.json.serverContentPath, FIXTURE_CONTENT)
+    assert.equal(r.json.contentMismatch, false)
+  })
+
+  it('--content-path flows through to the server', async () => {
+    const { cli } = await setup()
+    cleanupStop = () => cli(['stop', '--content-path', join(scratch.dir, 'other')])
+    const other = join(scratch.dir, 'other')
+    mkdirSync(other, { recursive: true })
+    await cli(['start', '--content-path', other])
+    const r = await cli(['ping', '--content-path', other, '--json'])
+    assert.equal(r.json.serverContentPath, other)
+    assert.equal(r.json.contentMismatch, false)
+  })
+
+  it('a server on a different root is flagged by ping and blocks writes', async () => {
+    const { cli } = await setup()
+    cleanupStop = () => cli(['stop'])
+    const other = join(scratch.dir, 'elsewhere')
+    mkdirSync(other, { recursive: true })
+    await cli(['start', '--content-path', other])
+    const ping = await cli(['ping', '--json'])
+    assert.equal(ping.json.contentMismatch, true)
+    const write = await cli(['task', 'done', 'parser', '--project', 'alpha'])
+    assert.equal(write.code, 1)
+    assert.match(write.stderr, /uses content directory/)
   })
 })
 
