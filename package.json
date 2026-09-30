@@ -10,6 +10,7 @@
     "dev": "TMPDIR=/tmp nuxt dev",
     "build": "pnpm rebuild better-sqlite3 && nuxt build",
     "start": "node .output/server/index.mjs",
+    "typecheck:cli": "tsc -p tsconfig.cli.json",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -35,6 +36,7 @@
     "@iconify-json/lucide": "^1.2.102",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.19.0",
     "tsx": "^4.19.4",
     "typescript": "^5.0.0"
   }
