@@ -9,7 +9,9 @@ export function createCore(config: CoreConfig = resolveConfig()) {
   return createOps(config, reader, api)
 }
 
-export { REPO_ROOT } from './config'
+export { REPO_ROOT, resolveConfig } from './config'
+export { createLifecycle, LifecycleError } from './lifecycle'
+export type { Lifecycle, ServerStatus } from './lifecycle'
 export type { CoreConfig } from './config'
 export { NotFoundError, ServerUnreachableError } from './errors'
 export type { Ops } from './ops'

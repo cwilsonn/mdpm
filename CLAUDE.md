@@ -12,6 +12,8 @@ pnpm install
 pnpm dev       # http://mdpm.local:3333
 ```
 
+Server lifecycle goes through the CLI: `mdpm start | stop | restart | status` (background, pid record in `~/.local/state/mdpm/`; `--foreground` to attach). A server started by plain `pnpm dev` is still found and stoppable: `status`/`stop` fall back to Nuxt's own `.nuxt/nuxt.lock`. Install the CLI once with `pnpm add --global "link:$(pwd)"`. Type-check CLI/core/MCP with `pnpm typecheck:cli`.
+
 Add to `/etc/hosts` if not present:
 ```
 127.0.0.1 mdpm.local
@@ -75,8 +77,8 @@ Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<n
 
 | Skill | When to use |
 |-------|-------------|
-| `/start-mdpm` | Start dev server (idempotent — safe to call if already running) |
-| `/stop-mdpm` | Stop dev server |
+| `/start-mdpm` | Start dev server via `mdpm start` (idempotent — safe to call if already running) |
+| `/stop-mdpm` | Stop dev server via `mdpm stop` |
 | `/pickup <project>` | Start of session — loads open tasks, docs, last session notes |
 | `/sync` | Mid-session — sync task statuses + update stale docs |
 | `/handoff` | End of session — writes `session-notes` doc, marks tasks done |

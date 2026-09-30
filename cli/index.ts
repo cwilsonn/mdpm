@@ -11,6 +11,10 @@ export const root = defineCommand({
   meta: { name: 'mdpm', version, description: 'Markdown-based project management: projects, tasks, and docs as files' },
   subCommands: {
     ping: () => import('./commands/ping').then(m => m.default),
+    start: () => import('./commands/start').then(m => m.default),
+    stop: () => import('./commands/stop').then(m => m.default),
+    restart: () => import('./commands/restart').then(m => m.default),
+    status: () => import('./commands/status').then(m => m.default),
   },
 })
 
