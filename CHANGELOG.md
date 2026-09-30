@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.2.1...mdpm-v0.3.0) (2026-09-30)
+
+
+### Features
+
+* **cli:** add --auto-start for write commands ([fababae](https://github.com/cwilsonn/mdpm/commit/fababaeb732a85d623a25dc703ad36bf49e43c70))
+* **cli:** add pickup command ([1618111](https://github.com/cwilsonn/mdpm/commit/16181117b93be610b36d339c052e0a8d4a7f4e77))
+* **cli:** add project and doc commands ([0432f06](https://github.com/cwilsonn/mdpm/commit/0432f063d0086adc9235a40c4bcd0075de6c7bcc))
+* **cli:** add start/stop/restart/status lifecycle commands ([1a25ea4](https://github.com/cwilsonn/mdpm/commit/1a25ea4fe09e20ab8af270231ae3778bff84e8c3))
+* **cli:** add task list/show/add/set/done/note/archive/delete commands ([9a6e080](https://github.com/cwilsonn/mdpm/commit/9a6e080e834526060bea3dba9a33d43cea4528f4))
+* **cli:** resolve config from flags, env, and ~/.config/mdpm ([5ef344d](https://github.com/cwilsonn/mdpm/commit/5ef344d4360c690c387adb4814ec3117bebfa8e3))
+
+
+### Bug Fixes
+
+* **core:** normalize unquoted YAML dates from hand-edited files ([f2dc530](https://github.com/cwilsonn/mdpm/commit/f2dc530d93be8082798b2169dd7a18dc58a8a7e3))
+
+
+### Refactoring
+
+* **skills:** run /pickup through mdpm pickup ([de78961](https://github.com/cwilsonn/mdpm/commit/de78961f9a26bae6d6a8ab514649a972e8261467))
+* **skills:** run start/stop/sync/handoff through the mdpm CLI ([79747fd](https://github.com/cwilsonn/mdpm/commit/79747fd8aeaebd0ff2868d6e4d392a0f36bf211c))
+
 ## [0.2.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.2.0...mdpm-v0.2.1) (2026-09-30)
 
 
