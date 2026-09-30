@@ -105,6 +105,16 @@ Optional local hook (rejects bad messages at commit time):
 printf '#!/bin/sh\nnode scripts/check-commits.mjs --file "$1"\n' > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
 
+## Releases
+
+Versioning is automated from commit types by [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release.yml`, config in `release-please-config.json`, current version in `.release-please-manifest.json`). **Never edit `version` in `package.json` or `CHANGELOG.md` by hand.**
+
+- Every push to `main` opens/updates a release PR (`chore(main): release x.y.z`). Merging it bumps `package.json`, writes `CHANGELOG.md`, tags `vx.y.z`, and creates a GitHub Release. Railway deploys from `main` as before; releases don't gate deploys.
+- Bump rules (pre-1.0, so breaking → minor): `feat` → minor, `fix` → patch, `!` or a `BREAKING CHANGE:` footer → minor now, major after 1.0. `perf`/`refactor`/`revert` appear in the changelog; `docs`/`build`/`ci`/`chore`/`style`/`test` are hidden from it. Only `feat`, `fix`, and breaking changes are relied on to drive a release.
+- So commit types are load-bearing: pick `feat` vs `fix` deliberately; use `chore`/`ci`/`build`/`docs` for changes that shouldn't show up in release notes.
+- GitHub setting required: Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+- Release PRs are opened with `GITHUB_TOKEN`, so other workflows (incl. the commit gate) don't run on them; their titles already conform.
+
 ## UI Conventions
 
 Project pages use route-linked tabs via `AppPageBase`:

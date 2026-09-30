@@ -1,0 +1,17 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Opens/updates a release PR from conventional commits on main; merging it
+      # bumps package.json, updates CHANGELOG.md, tags, and creates a GitHub Release.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
