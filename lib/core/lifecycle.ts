@@ -206,7 +206,9 @@ export function createLifecycle(config: CoreConfig) {
     mkdirSync(stateDir(), { recursive: true })
     const log = opts.foreground ? undefined : openSync(logFile(port), 'a')
     // detached => own process group, so stop() can signal pnpm, nuxt, and its worker in one go.
-    const child = spawn('pnpm', ['dev', '--port', String(port)], {
+    // Test seam: MDPM_SERVER_COMMAND replaces `pnpm dev` (the port is still appended as `--port N`).
+    const [command, ...commandArgs] = process.env.MDPM_SERVER_COMMAND?.split(/\s+/).filter(Boolean) ?? ['pnpm', 'dev']
+    const child = spawn(command!, [...commandArgs, '--port', String(port)], {
       cwd: REPO_ROOT,
       detached: true,
       stdio: opts.foreground ? 'inherit' : ['ignore', log!, log!],
@@ -220,7 +222,7 @@ export function createLifecycle(config: CoreConfig) {
     // Let spawn settle so ENOENT (pnpm missing) surfaces before we record a pid.
     await sleep(50)
     if (spawnError || !child.pid) {
-      throw new LifecycleError(`could not launch \`pnpm dev\`: ${spawnError?.message ?? 'no pid'}`)
+      throw new LifecycleError(`could not launch the server command: ${spawnError?.message ?? 'no pid'}`)
     }
 
     writeFileSync(pidFile(port), JSON.stringify({ pid: child.pid, port, startedAt: new Date().toISOString() } satisfies PidRecord))

@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["cli/**/*", "lib/**/*", "mcp/**/*"]
+  "include": ["cli/**/*", "lib/**/*", "mcp/**/*", "tests/**/*"]
 }

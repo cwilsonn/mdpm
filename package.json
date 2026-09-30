@@ -11,6 +11,7 @@
     "build": "pnpm rebuild better-sqlite3 && nuxt build",
     "start": "node .output/server/index.mjs",
     "typecheck:cli": "tsc -p tsconfig.cli.json",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
