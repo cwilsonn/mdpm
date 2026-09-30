@@ -195,6 +195,13 @@ export function createLifecycle(config: CoreConfig) {
     const port = resolvePort(opts.port)
     const before = await status(port)
     if (before.running) return { action: 'already-running', ...before }
+    if (before.state === 'starting' && before.pid && !opts.foreground) {
+      // Someone else's start is in flight (live pid, port not open yet): wait for it, don't spawn a second.
+      const pid = before.pid
+      const outcome = await waitReady(port, Date.now() + (opts.timeoutMs ?? 60_000), () => !pidAlive(pid))
+      if (outcome !== 'ready') throw new LifecycleError(`server start in progress (pid ${pid}) did not become ready; see ${logFile(port)}`)
+      return { action: 'already-running', ...await status(port) }
+    }
 
     mkdirSync(stateDir(), { recursive: true })
     const log = opts.foreground ? undefined : openSync(logFile(port), 'a')

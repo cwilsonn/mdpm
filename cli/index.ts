@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, renderUsage, runCommand, type CommandDef } from 'citty'
 import { REPO_ROOT } from '../lib/core'
+import { runCleanups } from './context'
 import { colorEnabled, createStyle, ExitCode, exitCodeFor, reportError } from './output'
 
 // Read from package.json so release-please stays the single source of truth.
@@ -58,6 +59,9 @@ export async function main(rawArgs = process.argv.slice(2)) {
       console.error(`\n${await renderUsage(...await resolveUsageTarget(root, rawArgs))}`)
     }
     process.exitCode = code
+  }
+  finally {
+    await runCleanups().catch(err => console.error(`${stderrStyle.yellow('warning:')} cleanup failed: ${err instanceof Error ? err.message : err}`))
   }
 }
 

@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { TASK_PRIORITIES } from '../../../lib/core'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, oneOf } from '../../io'
 import { emit } from '../../output'
 
@@ -8,6 +8,7 @@ export default defineCommand({
   meta: { name: 'create', description: 'Create a project (writes via the server)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     title: { type: 'positional', description: 'Project title', required: true },
     description: { type: 'string' },
     icon: { type: 'string', description: 'Icon name, e.g. i-lucide-folder' },

@@ -3,21 +3,39 @@ import { ServerUnreachableError } from './errors'
 
 export type ApiClient = ReturnType<typeof createApi>
 
-export function createApi(config: CoreConfig) {
+export interface ApiHooks {
+  // Called when a write finds the server down. Resolve to have the request retried once
+  // (e.g. after starting the server); reject to fail the write.
+  onUnreachable?: () => Promise<void>
+}
+
+export function createApi(config: CoreConfig, hooks: ApiHooks = {}) {
+  function send(method: string, path: string, body?: unknown) {
+    return fetch(`${config.baseUrl}${path}`, {
+      method,
+      ...(body !== undefined && {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    })
+  }
+
   async function request(method: string, path: string, body?: unknown) {
     let res: Response
     try {
-      res = await fetch(`${config.baseUrl}${path}`, {
-        method,
-        ...(body !== undefined && {
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }),
-      })
+      res = await send(method, path, body)
     }
     catch {
       // fetch only rejects on network failure (refused, DNS, bad URL), never on HTTP status.
-      throw new ServerUnreachableError(`mdpm server unreachable at ${config.baseUrl}`)
+      const unreachable = new ServerUnreachableError(`mdpm server unreachable at ${config.baseUrl}`)
+      if (!hooks.onUnreachable) throw unreachable
+      await hooks.onUnreachable()
+      try {
+        res = await send(method, path, body)
+      }
+      catch {
+        throw unreachable
+      }
     }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: res.statusText }))

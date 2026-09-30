@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, refArg, resolveRef } from './shared'
@@ -9,6 +9,7 @@ export default defineCommand({
   meta: { name: 'set', description: 'Update fields on a task (writes via the server)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...refArg,

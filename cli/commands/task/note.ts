@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, refArg, resolveRef } from './shared'
@@ -8,6 +8,7 @@ export default defineCommand({
   meta: { name: 'note', description: 'Append a timestamped note to a task (text argument, or - for stdin)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...refArg,

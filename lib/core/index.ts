@@ -1,11 +1,11 @@
-import { createApi } from './api'
+import { createApi, type ApiHooks } from './api'
 import { resolveConfig, type CoreConfig } from './config'
 import { createOps } from './ops'
 import { createReader } from './read'
 
-export function createCore(config: CoreConfig = resolveConfig()) {
+export function createCore(config: CoreConfig = resolveConfig(), hooks: ApiHooks = {}) {
   const reader = createReader(config)
-  const api = createApi(config)
+  const api = createApi(config, hooks)
   return createOps(config, reader, api)
 }
 

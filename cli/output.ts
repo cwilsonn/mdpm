@@ -53,7 +53,7 @@ export function reportError(err: unknown, json: boolean, style: Style) {
   if (json) console.error(JSON.stringify({ error: { code: exitCode, name: (err as Error)?.name ?? 'Error', message } }))
   else {
     console.error(`${style.red('error:')} ${message}`)
-    if (exitCode === ExitCode.unreachable) console.error(`${style.dim('hint:')} start it with \`mdpm start\``)
+    if (exitCode === ExitCode.unreachable) console.error(`${style.dim('hint:')} start it with \`mdpm start\`, or pass --auto-start`)
   }
   return exitCode
 }

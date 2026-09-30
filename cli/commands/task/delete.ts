@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { confirm } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, refArg, resolveRef } from './shared'
@@ -8,6 +8,7 @@ export default defineCommand({
   meta: { name: 'delete', description: 'Permanently delete a task (asks for confirmation unless --yes)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     yes: { type: 'boolean', alias: 'y', description: 'Skip the confirmation prompt', default: false },

@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { emit } from '../../output'
 import { projectArgs, refArg, resolveRef } from './shared'
 
@@ -7,6 +7,7 @@ export default defineCommand({
   meta: { name: 'archive', description: 'Archive a task (hidden from lists unless --include-archived)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...refArg,

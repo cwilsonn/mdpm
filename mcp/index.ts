@@ -4,9 +4,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore } from '../lib/core'
+import { createCore, createLifecycle, loadConfig } from '../lib/core'
 
-const core = createCore()
+const loaded = loadConfig()
+// Opt-in (MDPM_AUTO_START=1 or `autoStart` in the config file): a write that finds the server down
+// starts it and retries. Unlike the CLI, this long-lived process never stops it again.
+const lifecycle = createLifecycle(loaded.config)
+const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable: async () => { await lifecycle.start() } } : {})
 
 // ─── Server ──────────────────────────────────────────────────────────────────
 

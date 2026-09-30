@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
-import { createContext, globalArgs } from '../../context'
+import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { emit } from '../../output'
 import { projectArgs, requireProject } from './shared'
@@ -9,6 +9,7 @@ export default defineCommand({
   meta: { name: 'add', description: 'Create a task (writes via the server)' },
   args: {
     ...globalArgs,
+    ...writeArgs,
     ...projectArgs,
     title: { type: 'positional', description: 'Task title', required: true },
     status: { type: 'string', description: TASK_STATUSES.join(' | ') },

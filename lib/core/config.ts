@@ -19,13 +19,14 @@ export interface CoreConfig {
 export type ConfigSource = 'flag' | 'env' | 'file' | 'default'
 
 export interface ConfigOptions {
-  flags?: Partial<CoreConfig>
+  flags?: Partial<CoreConfig> & { autoStart?: boolean }
   env?: NodeJS.ProcessEnv
 }
 
 export interface LoadedConfig {
   config: CoreConfig
   sources: Record<keyof CoreConfig, ConfigSource>
+  autoStart: { value: boolean; source: ConfigSource }
   configFile: string
   configFileFound: boolean
 }
@@ -40,7 +41,7 @@ function expandHome(p: string) {
   return p === '~' || p.startsWith('~/') ? join(homedir(), p.slice(1)) : p
 }
 
-function readConfigFile(path: string): Partial<CoreConfig> {
+function readConfigFile(path: string): Partial<CoreConfig> & { autoStart?: boolean } {
   if (!existsSync(path)) return {}
   let raw: unknown
   try {
@@ -50,7 +51,12 @@ function readConfigFile(path: string): Partial<CoreConfig> {
     throw new ConfigError(`invalid JSON in ${path}: ${(err as Error).message}`)
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new ConfigError(`${path} must contain a JSON object`)
-  const file: Partial<CoreConfig> = {}
+  const file: Partial<CoreConfig> & { autoStart?: boolean } = {}
+  const autoStart = (raw as Record<string, unknown>).autoStart
+  if (autoStart !== undefined) {
+    if (typeof autoStart !== 'boolean') throw new ConfigError(`${path}: "autoStart" must be true or false`)
+    file.autoStart = autoStart
+  }
   for (const key of KEYS) {
     const value = (raw as Record<string, unknown>)[key]
     if (value === undefined) continue
@@ -91,7 +97,21 @@ export function loadConfig({ flags = {}, env = process.env }: ConfigOptions = {}
     config[key] = hit ? normalize(key, hit[2][key]!, hit[1]) : defaults[key]
     sources[key] = hit ? hit[0] : 'default'
   }
-  return { config, sources, configFile, configFileFound: existsSync(configFile) }
+
+  const envAuto = env.MDPM_AUTO_START?.trim().toLowerCase()
+  const autoStartLayers: [ConfigSource, boolean | undefined][] = [
+    ['flag', flags.autoStart],
+    ['env', envAuto ? !['0', 'false', 'no', 'off'].includes(envAuto) : undefined],
+    ['file', file.autoStart],
+  ]
+  const autoHit = autoStartLayers.find(([, v]) => v !== undefined)
+  return {
+    config,
+    sources,
+    autoStart: { value: autoHit?.[1] ?? false, source: autoHit?.[0] ?? 'default' },
+    configFile,
+    configFileFound: existsSync(configFile),
+  }
 }
 
 export function resolveConfig(opts: ConfigOptions = {}): CoreConfig {
