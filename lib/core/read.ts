@@ -2,6 +2,17 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import matter from 'gray-matter'
 import { contentPathOf, type CoreConfig } from './config'
 
+// YAML parses an unquoted `2026-07-01` into a Date. The API writes quoted strings, but hand-edited
+// files won't, so normalize: date-only values become YYYY-MM-DD, anything with a time stays ISO.
+function dateString(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null
+  if (value instanceof Date) {
+    const iso = value.toISOString()
+    return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso
+  }
+  return String(value)
+}
+
 export type Reader = ReturnType<typeof createReader>
 export type Doc = ReturnType<Reader['getDocs']>[number]
 
@@ -42,8 +53,8 @@ export function createReader(config: CoreConfig) {
         tags: (file?.data?.tags as string[]) ?? [],
         description: (file?.data?.description as string) ?? null,
         githubRepo: (file?.data?.githubRepo as string) ?? null,
-        createdAt: (file?.data?.createdAt as string) ?? '',
-        archivedAt: (file?.data?.archivedAt as string) ?? null,
+        createdAt: dateString(file?.data?.createdAt) ?? '',
+        archivedAt: dateString(file?.data?.archivedAt),
         taskCount,
         docCount,
       }
@@ -72,14 +83,14 @@ export function createReader(config: CoreConfig) {
         priority: (file.data.priority as string) ?? 'medium',
         tags: (file.data.tags as string[]) ?? [],
         assignees: (file.data.assignees as string[]) ?? [],
-        due: (file.data.due as string) ?? null,
+        due: dateString(file.data.due),
         dependencies: (file.data.dependencies as string[]) ?? [],
         githubIssues,
         githubPRs,
         githubRepo,
-        createdAt: (file.data.createdAt as string) ?? '',
-        updatedAt: (file.data.updatedAt as string) ?? null,
-        archivedAt: (file.data.archivedAt as string) ?? null,
+        createdAt: dateString(file.data.createdAt) ?? '',
+        updatedAt: dateString(file.data.updatedAt),
+        archivedAt: dateString(file.data.archivedAt),
         order: (file.data.order as number) ?? 0,
         body: file.content.trim(),
       }]
@@ -114,9 +125,9 @@ export function createReader(config: CoreConfig) {
             title: (file.data.title as string) ?? slug,
             tags: (file.data.tags as string[]) ?? [],
             parent: (file.data.parent as string | undefined) ?? null,
-            createdAt: (file.data.createdAt as string) ?? '',
-            updatedAt: (file.data.updatedAt as string) ?? null,
-            archivedAt: (file.data.archivedAt as string) ?? null,
+            createdAt: dateString(file.data.createdAt) ?? '',
+            updatedAt: dateString(file.data.updatedAt),
+            archivedAt: dateString(file.data.archivedAt),
             excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
             body: file.content.trim(),
           })
@@ -136,9 +147,9 @@ export function createReader(config: CoreConfig) {
           title: (file.data.title as string) ?? slug,
           tags: (file.data.tags as string[]) ?? [],
           parent: (file.data.parent as string | undefined) ?? null,
-          createdAt: (file.data.createdAt as string) ?? '',
-          updatedAt: (file.data.updatedAt as string) ?? null,
-          archivedAt: (file.data.archivedAt as string) ?? null,
+          createdAt: dateString(file.data.createdAt) ?? '',
+          updatedAt: dateString(file.data.updatedAt),
+          archivedAt: dateString(file.data.archivedAt),
           excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
           body: file.content.trim(),
         })
