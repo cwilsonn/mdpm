@@ -14,6 +14,7 @@ export default defineCommand({
     marker: { type: 'boolean', description: 'Force a .mdpm marker (default: only when the project would not be found without it; --no-marker to skip)' },
     'claude-md': { type: 'boolean', description: 'Install the work-logging block (--no-claude-md to skip)', default: true },
     local: { type: 'boolean', description: 'Write CLAUDE.local.md (kept out of git via .git/info/exclude) instead of CLAUDE.md', default: false },
+    hooks: { type: 'boolean', description: 'Also install the warn-only audit-trail hooks into .claude/settings.local.json (local, not committed)', default: false },
     'dry-run': { type: 'boolean', description: 'Show what would change without writing anything', default: false },
   },
   async run({ args }) {
@@ -26,6 +27,7 @@ export default defineCommand({
       marker: args.marker,
       claudeMd: args['claude-md'],
       local: args.local,
+      hooks: args.hooks,
       dryRun: args['dry-run'],
     })
     emit(ctx.json, result, () => [

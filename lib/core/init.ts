@@ -1,9 +1,10 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
 import { REPO_ROOT } from './config'
 import { NotFoundError } from './errors'
 import type { Ops } from './ops'
-import { git, gitOriginUrl, gitToplevel, inferProject, MARKER_FILE, normalizeRepoRef, readMarker } from './project'
+import { installHooks } from './hooks'
+import { excludeLocally, gitOriginUrl, gitToplevel, inferProject, MARKER_FILE, normalizeRepoRef, readMarker } from './project'
 
 const BLOCK_START = '<!-- mdpm:work-logging:start -->'
 const BLOCK_END = '<!-- mdpm:work-logging:end -->'
@@ -31,18 +32,6 @@ export function upsertWorkLoggingBlock(existing: string | undefined, block: stri
   return { content: `${existing}${separator}${body}\n`, action: 'appended' }
 }
 
-// Add a pattern to the repo's local `.git/info/exclude` so a generated file is never committed.
-export function excludeLocally(root: string, pattern: string): boolean {
-  const rel = git(root, 'rev-parse', '--git-path', 'info/exclude')
-  if (!rel) return false
-  const file = resolve(root, rel)
-  const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
-  if (current.split('\n').some(line => line.trim() === pattern)) return false
-  mkdirSync(dirname(file), { recursive: true })
-  appendFileSync(file, `${current === '' || current.endsWith('\n') ? '' : '\n'}${pattern}\n`)
-  return true
-}
-
 const onGithub = (remote?: string) => !!remote && /(^|[@/])github\.com[:/]/i.test(remote)
 
 export interface InitOptions {
@@ -57,11 +46,13 @@ export interface InitOptions {
   claudeMd?: boolean
   /** Use CLAUDE.local.md (kept out of git) instead of CLAUDE.md. */
   local?: boolean
+  /** Also install the audit-trail hooks into the repo's .claude/settings.local.json. */
+  hooks?: boolean
   dryRun?: boolean
 }
 
 export interface InitStep {
-  step: 'project' | 'marker' | 'claude-md' | 'exclude'
+  step: 'project' | 'marker' | 'claude-md' | 'hooks' | 'exclude'
   action: string
   target: string
   detail?: string
@@ -145,6 +136,15 @@ export async function initRepo(ops: Ops, opts: InitOptions): Promise<InitResult>
   }
   else {
     steps.push({ step: 'claude-md', action: 'skipped', target: join(root, 'CLAUDE.md'), detail: 'disabled' })
+  }
+
+  // 4. Hooks (opt-in): warn-only audit-trail reminders for Claude Code, kept local to this repo.
+  if (opts.hooks) {
+    if (dry) steps.push({ step: 'hooks', action: 'would-install', target: '.claude/settings.local.json' })
+    else {
+      const result = installHooks(root)
+      steps.push({ step: 'hooks', action: result.action, target: result.file })
+    }
   }
 
   if (!slug && !dry) throw new NotFoundError('could not determine a project for this repository')
