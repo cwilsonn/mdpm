@@ -99,6 +99,34 @@ describe('project writes hit the API', () => {
   })
 })
 
+describe('project set and delete', () => {
+  it('set patches only the given fields, with "none" clearing optional ones', async () => {
+    const r = await cli(['project', 'set', 'alp', '--title', 'Alpha 2', '--tags', 'a,b', '--github-repo', 'none', '--default-priority', 'high', '--json'])
+    assert.equal(r.code, 0, r.stderr)
+    assert.deepEqual([last().method, last().path], ['PATCH', '/api/projects/alpha'])
+    assert.deepEqual(last().body, { title: 'Alpha 2', tags: ['a', 'b'], githubRepo: null, defaultPriority: 'high' })
+    assert.deepEqual(r.json.updated.sort(), ['defaultPriority', 'githubRepo', 'tags', 'title'])
+  })
+
+  it('set with no fields is a usage error and sends nothing', async () => {
+    const r = await cli(['project', 'set', 'alpha'])
+    assert.equal(r.code, 2)
+    assert.equal(api.requests.length, 0)
+  })
+
+  it('set rejects an invalid default priority', async () => {
+    assert.equal((await cli(['project', 'set', 'alpha', '--default-priority', 'nope'])).code, 2)
+  })
+
+  it('delete needs --yes without a terminal, then deletes', async () => {
+    const refused = await cli(['project', 'delete', 'beta'])
+    assert.equal(refused.code, 2)
+    assert.equal(api.requests.length, 0)
+    assert.equal((await cli(['project', 'delete', 'beta', '--yes'])).code, 0)
+    assert.deepEqual([last().method, last().path], ['DELETE', '/api/projects/beta'])
+  })
+})
+
 describe('failures', () => {
   it('exits 3 with a hint when the server is unreachable', async () => {
     const r = await runCli(['task', 'done', 'parser', '--project', 'alpha'], { scratch: scratch.dir })
