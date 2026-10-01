@@ -104,8 +104,10 @@ describe('MCP server through core', () => {
     assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['PATCH', '/api/tasks/alpha/write-parser'])
   })
 
-  it('append_task_note keeps the existing body', async () => {
+  it('append_task_note keeps the existing body and credits the author', async () => {
     await tool('append_task_note', { project: 'alpha', slug: 'write-parser', note: 'mcp note' })
-    assert.match(api.requests.at(-1)!.body.description, /Implement the parser[\s\S]*mcp note$/)
+    assert.match(api.requests.at(-1)!.body.description, /Implement the parser[\s\S]*_ by claude\n\nmcp note$/)
+    await tool('append_task_note', { project: 'alpha', slug: 'write-parser', note: 'second', author: 'Sam' })
+    assert.match(api.requests.at(-1)!.body.description, /_ by Sam\n\nsecond$/)
   })
 })

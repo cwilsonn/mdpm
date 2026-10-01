@@ -227,6 +227,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           project: { type: 'string' },
           slug: { type: 'string' },
           note: { type: 'string', description: 'Markdown note to append' },
+          author: { type: 'string', description: 'Who is writing the note. Defaults to $MDPM_AUTHOR, else "claude".' },
         },
         required: ['project', 'slug', 'note'],
       },
@@ -312,8 +313,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'append_task_note': {
-        const { project, slug, note } = args as { project: string; slug: string; note: string }
-        return json(await core.appendTaskNote(project, slug, note))
+        const { project, slug, note, author } = args as { project: string; slug: string; note: string; author?: string }
+        return json(await core.appendTaskNote(project, slug, note, author?.trim() || process.env.MDPM_AUTHOR || 'claude'))
       }
 
       case 'list_docs':
