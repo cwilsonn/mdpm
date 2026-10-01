@@ -55,8 +55,9 @@ describe('task writes hit the API', () => {
   })
 
   it('note appends a timestamped note to the existing body', async () => {
-    await cli(['task', 'note', 'write-parser', 'hello note', '--project', 'alpha'])
-    assert.match(last().body.description, /^Implement the parser[\s\S]*\n\n---\n\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_\n\nhello note$/)
+    await cli(['task', 'note', 'write-parser', 'hello note', '--project', 'alpha', '--author', 'Sam'])
+    assert.match(last().body.description, /_ by Sam\n\nhello note$/)
+    assert.match(last().body.description, /^Implement the parser[\s\S]*\n\n---\n\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_ by .+\n\nhello note$/)
   })
 
   it('archive and unarchive toggle archivedAt', async () => {

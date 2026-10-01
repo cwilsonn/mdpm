@@ -19,6 +19,7 @@ export const root = defineCommand({
     skills: () => import('./commands/skills').then(m => m.default),
     hooks: () => import('./commands/hooks').then(m => m.default),
     init: () => import('./commands/init').then(m => m.default),
+    log: () => import('./commands/log').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),

@@ -105,14 +105,14 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return api.delete(`/api/tasks/${project}/${slug}`)
   }
 
-  function appendTaskNote(project: string, slug: string, note: string) {
+  function appendTaskNote(project: string, slug: string, note: string, author?: string) {
     const task = getTask(project, slug)
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
     // A body starting with `---` would be parsed as frontmatter, so only emit
     // the separator when there is existing content above it.
     const existing = task.body.trim()
     const prefix = existing ? `${existing}\n\n---\n` : ''
-    const description = `${prefix}**Note** _(${timestamp})_\n\n${note.trim()}`
+    const description = `${prefix}**Note** _(${timestamp})_${author ? ` by ${author.trim()}` : ''}\n\n${note.trim()}`
     return api.patch(`/api/tasks/${project}/${slug}`, { description })
   }
 
