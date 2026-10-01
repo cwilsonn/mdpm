@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.3.0...mdpm-v0.3.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **core:** share one content root between the web app and the CLI ([4777c5f](https://github.com/cwilsonn/mdpm/commit/4777c5f6a424558502be93640c202149677fa621))
+
 ## [0.3.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.2.1...mdpm-v0.3.0) (2026-09-30)
 
 
