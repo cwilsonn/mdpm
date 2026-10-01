@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { CliError, ExitCode } from './output'
 
@@ -39,5 +43,23 @@ export async function confirm(question: string) {
   }
   finally {
     rl.close()
+  }
+}
+
+// Open `initial` in $VISUAL / $EDITOR (default vi, only on a terminal) and return what was saved.
+// The editor runs through the shell so `EDITOR="code --wait"` works; a non-zero exit saves nothing.
+export function editText(initial: string, name = 'mdpm-edit'): string {
+  const editor = process.env.VISUAL || process.env.EDITOR || (process.stdin.isTTY ? 'vi' : '')
+  if (!editor) throw new CliError('no editor: set $EDITOR (or $VISUAL), or pass the text with --body', ExitCode.usage)
+  const dir = mkdtempSync(join(tmpdir(), 'mdpm-'))
+  const file = join(dir, `${name}.md`)
+  try {
+    writeFileSync(file, initial)
+    const result = spawnSync(`${editor} "${file}"`, { shell: true, stdio: 'inherit' })
+    if (result.status !== 0) throw new CliError(`editor exited with ${result.status ?? result.signal}; nothing was saved`)
+    return readFileSync(file, 'utf8')
+  }
+  finally {
+    rmSync(dir, { recursive: true, force: true })
   }
 }

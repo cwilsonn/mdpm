@@ -158,7 +158,8 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm start \| stop \| restart \| status` | Dev server lifecycle (`--port`, `--foreground`); `status` exits 3 when down |
 | `mdpm project list \| show \| create \| archive \| unarchive` | Projects |
 | `mdpm task list \| search \| show \| add \| set \| done \| note \| archive \| unarchive \| delete` | Tasks; refs can be a slug, unique prefix, substring, or title fragment |
-| `mdpm doc list \| show \| search` | Read-only docs; `doc show` prints only the body, so it pipes cleanly |
+| `mdpm doc list \| show \| search` | Read docs; `doc show` prints only the body, so it pipes cleanly |
+| `mdpm doc create \| edit \| archive \| unarchive \| delete` | Write docs. `create` takes `--body` (`-` for stdin), `--tags`, `--parent`, or `--edit` to compose in `$EDITOR`; `edit <ref>` opens the body in `$VISUAL`/`$EDITOR` and only sends a change if you saved one (or set fields with `--title`, `--tags`, `--parent`, `--body`); scope is `--project`, `--standalone`, or the current repo's project |
 | `mdpm skills install \| uninstall \| status` | Link the Claude Code skills from this checkout into `~/.claude/commands` |
 | `mdpm hooks install \| uninstall \| status` | Warn-only audit-trail hooks for Claude Code, installed per repo (see below) |
 | `mdpm init` | Register the current repo: link or create its project, pin it with a `.mdpm` marker when needed, install the work-logging block into `CLAUDE.md` |
