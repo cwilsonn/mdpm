@@ -108,6 +108,15 @@ Optional local hook (rejects bad messages at commit time):
 printf '#!/bin/sh\nnode scripts/check-commits.mjs --file "$1"\n' > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
 
+## Branch Protection
+
+`main` is protected by the "Protect main" ruleset: changes land through a pull request, the `test` (CI) and `check` (commit gate) checks must pass, and force-push and branch deletion are blocked. Required approvals are 0 (solo repo; you can't approve your own PR). Repo admins can bypass **only through a PR**, never by direct push.
+
+- **Never push to `main` directly.** Work on a branch (`<type>/<short-description>`), push it, and open a PR; CI runs on the PR.
+- The PR title must be a valid Conventional Commit: the gate checks it, and squash merges use it as the commit subject.
+- Release-please PRs are opened with `GITHUB_TOKEN`, so the required checks don't run on them and they stay blocked for non-admins. Merge them as admin (the bypass applies to the PR merge).
+- Don't merge a PR without being asked; open it and report the link.
+
 ## Releases
 
 Versioning is automated from commit types by [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release.yml`, config in `release-please-config.json`, current version in `.release-please-manifest.json`). **Never edit `version` in `package.json` or `CHANGELOG.md` by hand.**
