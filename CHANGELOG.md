@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.6.0...mdpm-v0.7.0) (2026-10-01)
+
+
+### Features
+
+* **cli:** add mdpm watch to follow content changes live ([c9cc7c0](https://github.com/cwilsonn/mdpm/commit/c9cc7c00de60d1da89b8c8c8ec898009dcffc6e8))
+
 ## [0.6.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.5.0...mdpm-v0.6.0) (2026-10-01)
 
 
