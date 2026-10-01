@@ -38,3 +38,5 @@ export { buildExport, CSV_COLUMNS, EXPORT_FORMAT, toCsv, toMarkdown } from './ex
 export type { ExportDocument, ExportedDoc, ExportedProject, ExportedTask, ExportOptions } from './export'
 export { detectFormat, ImportError, parseCsv, parseImport, runImport } from './import'
 export type { ImportData, ImportFormat, ImportOptions, ImportProject, ImportStep, OnExists } from './import'
+export { diffSnapshots, emptySnapshot, readProjectSnapshot, readStandaloneSnapshot, scopeOfPath, watchContent } from './watch'
+export type { Snapshot, WatchEvent, WatchOptions } from './watch'

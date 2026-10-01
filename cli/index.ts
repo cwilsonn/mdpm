@@ -23,6 +23,7 @@ export const root = defineCommand({
     completions: () => import('./commands/completions').then(m => m.default),
     export: () => import('./commands/export').then(m => m.default),
     import: () => import('./commands/import').then(m => m.default),
+    watch: () => import('./commands/watch').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
