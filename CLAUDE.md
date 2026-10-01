@@ -152,6 +152,12 @@ Versioning is automated from commit types by [release-please](https://github.com
 - Release PRs: by default they are opened with `GITHUB_TOKEN`, so other workflows (incl. CI and the commit gate) don't run on them and they need an admin merge. To make them run the required checks, add a `RELEASE_PLEASE_TOKEN` repo secret: a fine-grained PAT for this repo with **Contents: read/write** and **Pull requests: read/write**. `release.yml` uses it when present and falls back to `GITHUB_TOKEN` otherwise. Their titles already conform.
 - Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions weekly with `ci(deps): …` titles (hidden from the changelog, no release). The npm ecosystem is deliberately not enabled yet.
 
+### Versioning
+
+mdpm is **pre-1.0 and stays 0.x**. 1.0.0 is a deliberate milestone, not a roadmap bucket: it means the project is ready to be **published publicly on npm**. That is a goal, but not the primary one. Features, quality, and a stable CLI/MCP surface come first, and 1.0.0 is not triggered by the feature list "feeling complete". Until then breaking changes bump the minor (`bump-minor-pre-major`); cutting 1.0.0 is a conscious act (a `Release-As: 1.0.0` footer or config change), never an accident of commit types.
+
+Internal task tracking uses milestone tags `core` (the first CLI milestone, shipped across 0.2 to 0.5), `next`, and `later`. They are roadmap buckets, not release numbers: don't introduce version-shaped labels (`v1`, `v1.1`, `v2`) for roadmap items. The MCP server and the CLI both report the `package.json` version.
+
 ## UI Conventions
 
 Project pages use route-linked tabs via `AppPageBase`:
