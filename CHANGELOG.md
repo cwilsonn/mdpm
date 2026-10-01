@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.3.1...mdpm-v0.4.0) (2026-10-01)
+
+
+### Features
+
+* **cli:** add mdpm init to register a repo with mdpm ([849bd0e](https://github.com/cwilsonn/mdpm/commit/849bd0ed5de6a0af441a1cca49711b6e444e4c1a))
+* **cli:** add skills install, uninstall, and status commands ([bc4fc9e](https://github.com/cwilsonn/mdpm/commit/bc4fc9e36db34c8aeed400f66a5f5375f6e5c4df))
+* **cli:** add warn-only audit-trail hooks for Claude Code ([99e8119](https://github.com/cwilsonn/mdpm/commit/99e8119d7743d7afea2ab29a1d25cb32ade3ce68))
+
+
+### Bug Fixes
+
+* **core:** infer projects from non-GitHub git remotes ([969ad85](https://github.com/cwilsonn/mdpm/commit/969ad85a77bbae0e44bdf3f8da5d5a8eeaf1beb4))
+
 ## [0.3.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.3.0...mdpm-v0.3.1) (2026-10-01)
 
 
