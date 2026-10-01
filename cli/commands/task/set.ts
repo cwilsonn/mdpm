@@ -3,7 +3,7 @@ import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
 import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
-import { projectArgs, refArg, resolveDependencies, resolveRef } from './shared'
+import { bulkArgs, optionalRefArg, projectArgs, resolveDependencies, runBulk, selectTargets } from './shared'
 
 export default defineCommand({
   meta: { name: 'set', description: 'Update fields on a task (writes via the server)' },
@@ -12,7 +12,8 @@ export default defineCommand({
     ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
-    ...refArg,
+    ...optionalRefArg,
+    ...bulkArgs,
     title: { type: 'string' },
     status: { type: 'string', description: TASK_STATUSES.join(' | ') },
     priority: { type: 'string', description: TASK_PRIORITIES.join(' | ') },
@@ -26,8 +27,13 @@ export default defineCommand({
   },
   async run({ args }) {
     const ctx = createContext(args)
-    const task = resolveRef(ctx, args.ref, args)
-    const fields: Record<string, unknown> = {
+    const { tasks, bulk } = selectTargets(ctx, args)
+    if (bulk && (args.title !== undefined || args.description !== undefined)) {
+      throw new CliError('refusing to set --title or --description on several tasks at once; name one task for those', ExitCode.usage)
+    }
+    // Everything except dependencies is the same for every task; dependencies resolve per task (same-project
+    // slugs, cycle check), so they are computed inside changesFor.
+    const common: Record<string, unknown> = {
       title: args.title,
       status: oneOf(args.status, TASK_STATUSES, '--status'),
       priority: oneOf(args.priority, TASK_PRIORITIES, '--priority'),
@@ -35,13 +41,22 @@ export default defineCommand({
       assignees: csv(args.assignees),
       // The API treats null as "remove the field".
       due: args.due === 'none' ? null : args.due,
-      dependencies: args.dependencies === undefined ? undefined : resolveDependencies(ctx, task, task.project, csv(args.dependencies) ?? []),
       githubIssues: csvNumbers(args['github-issues'], '--github-issues'),
       githubPRs: csvNumbers(args['github-prs'], '--github-prs'),
       description: args.description === undefined ? undefined : await textOrStdin(args.description),
     }
-    const changed = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
-    if (!Object.keys(changed).length) throw new CliError('nothing to set: pass at least one field flag (see --help)', ExitCode.usage)
+    const changesFor = (task: { project: string; slug: string }) => Object.fromEntries(Object.entries({
+      ...common,
+      dependencies: args.dependencies === undefined ? undefined : resolveDependencies(ctx, task, task.project, csv(args.dependencies) ?? []),
+    }).filter(([, v]) => v !== undefined))
+    if (args.dependencies === undefined && !Object.values(common).some(v => v !== undefined)) {
+      throw new CliError('nothing to set: pass at least one field flag (see --help)', ExitCode.usage)
+    }
+
+    if (bulk) return runBulk(ctx, args, tasks, 'updated', t => ctx.core.updateTask(t.project, t.slug, changesFor(t)))
+
+    const task = tasks[0]!
+    const changed = changesFor(task)
     await ctx.core.updateTask(task.project, task.slug, changed)
     emit(ctx.json, { project: task.project, slug: task.slug, updated: Object.keys(changed) }, () =>
       `${ctx.style.green('✓')} updated ${task.project}/${task.slug} (${Object.keys(changed).join(', ')})`)
