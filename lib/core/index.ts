@@ -34,3 +34,7 @@ export { blockedTasks, blockersOf, buildGraph, isResolved, readyTasks, taskId, t
 export type { Blocker, DepTask, Graph, TreeNode } from './deps'
 export { matches, parseWhere, WHERE_FIELDS, WhereError } from './where'
 export type { Clause } from './where'
+export { buildExport, CSV_COLUMNS, EXPORT_FORMAT, toCsv, toMarkdown } from './export'
+export type { ExportDocument, ExportedDoc, ExportedProject, ExportedTask, ExportOptions } from './export'
+export { detectFormat, ImportError, parseCsv, parseImport, runImport } from './import'
+export type { ImportData, ImportFormat, ImportOptions, ImportProject, ImportStep, OnExists } from './import'

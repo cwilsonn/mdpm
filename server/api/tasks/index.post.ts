@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{
     project: string
     title: string
+    slug?: string
     status?: string
     priority?: string
     tags?: string[]
@@ -38,7 +39,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${TASK_LIMIT_PER_PROJECT} tasks per project.` })
   }
 
-  const base = slugify(body.title)
+  // An explicit slug (used by import to keep slugs stable) still goes through uniqueSlug, so it can't overwrite a task.
+  if (body.slug) assertSafeSlug(body.slug)
+  const base = body.slug || slugify(body.title)
   if (!base) throw createError({ statusCode: 400, message: 'Title produces an empty slug' })
 
   const slug = uniqueSlug(
