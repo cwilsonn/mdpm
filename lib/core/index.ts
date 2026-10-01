@@ -30,3 +30,5 @@ export { buildSessionContext, checkWork, hookCommand, hooksStatus, installHooks,
 export type { WorkCheck } from './hooks'
 export { buildLog, parseNotes, parseSince, resolveAuthor } from './log'
 export type { LogEntry, LogOptions, ParsedNote } from './log'
+export { blockedTasks, blockersOf, buildGraph, isResolved, readyTasks, taskId, tree, wouldCreateCycle } from './deps'
+export type { Blocker, DepTask, Graph, TreeNode } from './deps'

@@ -3,7 +3,7 @@ import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
 import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { emit } from '../../output'
-import { projectArgs, requireProject } from './shared'
+import { projectArgs, requireProject, resolveDependencies } from './shared'
 
 export default defineCommand({
   meta: { name: 'add', description: 'Create a task (writes via the server)' },
@@ -17,6 +17,7 @@ export default defineCommand({
     tags: { type: 'string', description: 'Comma-separated' },
     assignees: { type: 'string', description: 'Comma-separated' },
     due: { type: 'string', description: 'YYYY-MM-DD' },
+    dependencies: { type: 'string', description: 'Comma-separated tasks this one waits on (slug, fragment, or project/slug)' },
     'github-issues': { type: 'string', description: 'Comma-separated issue numbers' },
     'github-prs': { type: 'string', description: 'Comma-separated PR numbers' },
     description: { type: 'string', description: 'Markdown body; use - to read it from stdin' },
@@ -31,6 +32,7 @@ export default defineCommand({
       tags: csv(args.tags),
       assignees: csv(args.assignees),
       due: args.due,
+      dependencies: args.dependencies === undefined ? undefined : resolveDependencies(ctx, undefined, project, csv(args.dependencies) ?? []),
       githubIssues: csvNumbers(args['github-issues'], '--github-issues'),
       githubPRs: csvNumbers(args['github-prs'], '--github-prs'),
       description: args.description === undefined ? undefined : await textOrStdin(args.description),

@@ -33,7 +33,8 @@ describe('completion engine', () => {
 
   it('offers subcommands with descriptions', async () => {
     const result = await complete(root, ['task', '']) as Candidate[]
-    assert.deepEqual(result.map(c => c.value).slice(0, 3), ['list', 'search', 'show'])
+    const names = result.map(c => c.value)
+    for (const name of ['list', 'search', 'show', 'add', 'done']) assert.ok(names.includes(name), name)
     assert.match(result.find(c => c.value === 'show')!.description!, /Show one task/)
   })
 

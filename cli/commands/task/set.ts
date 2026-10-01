@@ -3,7 +3,7 @@ import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
 import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
-import { projectArgs, refArg, resolveRef } from './shared'
+import { projectArgs, refArg, resolveDependencies, resolveRef } from './shared'
 
 export default defineCommand({
   meta: { name: 'set', description: 'Update fields on a task (writes via the server)' },
@@ -19,7 +19,7 @@ export default defineCommand({
     tags: { type: 'string', description: 'Comma-separated; replaces the existing tags' },
     assignees: { type: 'string', description: 'Comma-separated; replaces the existing assignees' },
     due: { type: 'string', description: 'YYYY-MM-DD, or "none" to clear' },
-    dependencies: { type: 'string', description: 'Comma-separated task slugs; replaces the existing list' },
+    dependencies: { type: 'string', description: 'Comma-separated tasks this one waits on (slug, fragment, or project/slug); replaces the list; "none" clears it' },
     'github-issues': { type: 'string', description: 'Comma-separated issue numbers; replaces the existing list' },
     'github-prs': { type: 'string', description: 'Comma-separated PR numbers; replaces the existing list' },
     description: { type: 'string', description: 'Replace the markdown body; use - to read it from stdin' },
@@ -35,7 +35,7 @@ export default defineCommand({
       assignees: csv(args.assignees),
       // The API treats null as "remove the field".
       due: args.due === 'none' ? null : args.due,
-      dependencies: csv(args.dependencies),
+      dependencies: args.dependencies === undefined ? undefined : resolveDependencies(ctx, task, task.project, csv(args.dependencies) ?? []),
       githubIssues: csvNumbers(args['github-issues'], '--github-issues'),
       githubPRs: csvNumbers(args['github-prs'], '--github-prs'),
       description: args.description === undefined ? undefined : await textOrStdin(args.description),

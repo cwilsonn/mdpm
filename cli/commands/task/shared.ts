@@ -1,3 +1,4 @@
+import { buildGraph, taskId, wouldCreateCycle } from '../../../lib/core'
 import { CliError, ExitCode } from '../../output'
 import type { Context } from '../../context'
 
@@ -35,4 +36,25 @@ export function shortRef(slug: string, siblings: string[], min = 10) {
     if (siblings.filter(s => s.startsWith(prefix)).length === 1) return prefix
   }
   return slug
+}
+
+
+// Dependencies are computed over every project (they can be written as `project/slug`), archived tasks included.
+export const loadGraph = (ctx: Context) => buildGraph(ctx.core.listTasks({ includeArchived: true }))
+
+// Turn user-typed dependency refs into the strings stored in frontmatter: bare slugs for the same project,
+// `project/slug` across projects. Refuses self-dependencies and anything that would create a cycle.
+// `none` clears the list.
+export function resolveDependencies(ctx: Context, owner: { project: string; slug: string } | undefined, project: string, refs: string[]): string[] {
+  if (refs.length === 1 && refs[0] === 'none') return []
+  const resolved = refs.map((ref) => {
+    const dep = ctx.core.resolveTask(ref, ref.includes('/') ? undefined : project)
+    return { id: taskId(dep), stored: dep.project === project ? dep.slug : taskId(dep) }
+  })
+  if (owner) {
+    const graph = loadGraph(ctx)
+    const cycle = wouldCreateCycle(graph, taskId(owner), resolved.map(d => d.id))
+    if (cycle) throw new CliError(`that would create a dependency cycle: ${cycle.join(' → ')}`, ExitCode.usage)
+  }
+  return [...new Set(resolved.map(d => d.stored))]
 }
