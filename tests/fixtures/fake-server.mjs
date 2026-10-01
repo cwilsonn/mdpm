@@ -9,7 +9,7 @@ const server = createServer((req, res) => {
   const status = Number(process.env.FAKE_SERVER_STATUS ?? 200)
   if (req.url === '/api/health' && status < 400) {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    return res.end(JSON.stringify({ ok: true, contentRoot: process.env.MDPM_CONTENT_PATH }))
+    return res.end(JSON.stringify({ ok: true, contentRoot: process.env.MDPM_CONTENT_PATH, host: process.env.MDPM_HOST }))
   }
   res.writeHead(status, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify(status >= 400 ? { message: 'forced failure' } : req.method === 'POST' ? { slug: 'fake-slug' } : { ok: true }))

@@ -127,6 +127,36 @@ describe('content root handoff', () => {
   })
 })
 
+describe('host handoff', () => {
+  const healthOf = async (port: number) => (await fetch(`http://127.0.0.1:${port}/api/health`)).json() as Promise<{ host?: string }>
+
+  it('start binds the hostname from the base URL (localhost needs no hosts entry)', async () => {
+    const { port, cli } = await setup()
+    cleanupStop = () => cli(['stop'], { MDPM_BASE_URL: `http://localhost:${port}` })
+    const r = await cli(['start', '--json'], { MDPM_BASE_URL: `http://localhost:${port}` })
+    assert.equal(r.code, 0, r.stderr)
+    assert.equal((await healthOf(port)).host, 'localhost')
+  })
+
+  it('passes whatever hostname the base URL names, including the mdpm.local default', async () => {
+    const { port, cli } = await setup()
+    cleanupStop = () => cli(['stop'])
+    await cli(['start'])
+    assert.equal((await healthOf(port)).host, '127.0.0.1')
+  })
+
+  it('fails fast with a fix when the hostname does not resolve, without starting anything', async () => {
+    const { port, cli } = await setup()
+    const env = { MDPM_BASE_URL: `http://no-such-host.invalid:${port}` }
+    const r = await cli(['start'], env)
+    assert.equal(r.code, 1)
+    assert.match(r.stderr, /cannot resolve "no-such-host\.invalid"/)
+    assert.match(r.stderr, /hosts file/)
+    assert.match(r.stderr, /http:\/\/localhost:3333/)
+    assert.equal((await cli(['status'], env)).code, 3, 'nothing was started')
+  })
+})
+
 describe('auto-start', () => {
   const writeArgs = ['task', 'done', 'parser', '--project', 'alpha']
 

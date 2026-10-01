@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { lookup } from 'node:dns/promises'
 import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -203,6 +204,16 @@ export function createLifecycle(config: CoreConfig) {
       return { action: 'already-running', ...await status(port) }
     }
 
+    // The dev server binds the base URL's hostname. If it doesn't resolve, Nuxt dies with an opaque error,
+    // so check up front and say how to fix it.
+    const host = new URL(config.baseUrl).hostname
+    await lookup(host).catch(() => {
+      throw new LifecycleError(
+        `cannot resolve "${host}", so the server can't bind it. Either add "127.0.0.1 ${host}" (and "::1 ${host}") to your hosts file, `
+        + 'or use localhost, which needs no admin rights: set MDPM_BASE_URL=http://localhost:3333 or "baseUrl" in ~/.config/mdpm/config.json',
+      )
+    })
+
     mkdirSync(stateDir(), { recursive: true })
     const log = opts.foreground ? undefined : openSync(logFile(port), 'a')
     // detached => own process group, so stop() can signal pnpm, nuxt, and its worker in one go.
@@ -210,8 +221,9 @@ export function createLifecycle(config: CoreConfig) {
     const [command, ...commandArgs] = process.env.MDPM_SERVER_COMMAND?.split(/\s+/).filter(Boolean) ?? ['pnpm', 'dev']
     const child = spawn(command!, [...commandArgs, '--port', String(port)], {
       cwd: REPO_ROOT,
-      // The server must read/write the same content directory the CLI resolved (flag, env, or config).
-      env: { ...process.env, MDPM_CONTENT_PATH: config.contentPath },
+      // The server must read/write the same content directory and bind the same host the CLI resolved
+      // (flag, env, or config), so the CLI and the server never disagree about where things are.
+      env: { ...process.env, MDPM_CONTENT_PATH: config.contentPath, MDPM_HOST: host },
       detached: true,
       stdio: opts.foreground ? 'inherit' : ['ignore', log!, log!],
     })
