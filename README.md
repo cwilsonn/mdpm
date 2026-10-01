@@ -102,14 +102,13 @@ claude mcp add mdpm --scope user -- ~/mdpm/node_modules/.bin/tsx ~/mdpm/mcp/inde
 claude mcp list                    # mdpm ... Connected
 ```
 
-Skills, symlinked so they update with `git pull`:
+Skills, symlinked into `~/.claude/commands/` (or `$CLAUDE_CONFIG_DIR/commands`) so they update with `git pull`:
 
 ```bash
-mkdir -p ~/.claude/commands
-for f in ~/mdpm/skills/*.md; do ln -s "$f" ~/.claude/commands/"$(basename "$f")"; done
+mdpm skills install      # idempotent; `mdpm skills status` shows linked / missing / conflict
 ```
 
-`ln` won't overwrite an existing file of the same name. Start a new Claude Code session and run `/pickup my-project`. The skills call the `mdpm` CLI, so it must be on `PATH` in the shell Claude Code uses.
+It never overwrites anything: a regular file or a symlink pointing elsewhere is reported and skipped, and `--force` replaces a foreign symlink or moves a real file aside as `<name>.bak`. `mdpm skills uninstall` removes only the links this checkout created; `--target <dir>` overrides the commands directory. Start a new Claude Code session and run `/pickup my-project`. The skills call the `mdpm` CLI, so it must be on `PATH` in the shell Claude Code uses.
 
 ### Updating and removing
 
@@ -117,7 +116,7 @@ for f in ~/mdpm/skills/*.md; do ln -s "$f" ~/.claude/commands/"$(basename "$f")"
 cd ~/mdpm && git pull --ff-only && pnpm install && mdpm restart
 ```
 
-To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, delete the skill symlinks in `~/.claude/commands/`, remove the `mdpm.local` hosts lines, and delete the checkout and `~/.local/state/mdpm`.
+To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, `mdpm skills uninstall`, remove the `mdpm.local` hosts lines, and delete the checkout and `~/.local/state/mdpm`.
 
 ### Troubleshooting
 
@@ -144,6 +143,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm project list \| show \| create \| archive \| unarchive` | Projects |
 | `mdpm task list \| search \| show \| add \| set \| done \| note \| archive \| unarchive \| delete` | Tasks; refs can be a slug, unique prefix, substring, or title fragment |
 | `mdpm doc list \| show \| search` | Read-only docs; `doc show` prints only the body, so it pipes cleanly |
+| `mdpm skills install \| uninstall \| status` | Link the Claude Code skills from this checkout into `~/.claude/commands` |
 | `mdpm pickup [project]` | Session briefing: open tasks, docs, latest session notes, suggested focus |
 | `mdpm config show` | Resolved settings and where each came from |
 | `mdpm ping` | Config, content, and server check |

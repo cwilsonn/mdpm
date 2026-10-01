@@ -74,7 +74,7 @@ Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create
 
 ## Claude Code Skills
 
-Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<name>.md` are symlinks into it (edit in the repo, never the symlink target dir). They stay global because `/pickup <project>` runs in every registered project:
+Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<name>.md` are symlinks into it, managed by `mdpm skills install|uninstall|status` (edit in the repo, never the symlink target dir). They stay global because `/pickup <project>` runs in every registered project:
 
 | Skill | When to use |
 |-------|-------------|
