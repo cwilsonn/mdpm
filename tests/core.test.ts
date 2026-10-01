@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, after } from 'node:test'
-import { AmbiguousError, buildPickup, createCore, inferProject, loadConfig, NotFoundError, normalizeGithubRepo, samePath } from '../lib/core'
+import { AmbiguousError, buildPickup, createCore, inferProject, loadConfig, NotFoundError, normalizeRepoRef, samePath } from '../lib/core'
 import { sessionNotesOrder, summarize } from '../lib/core/pickup'
 import { FIXTURE_CONTENT, scratchDir } from './helpers'
 
@@ -171,9 +171,30 @@ describe('project inference', () => {
   const projects = [{ slug: 'alpha', githubRepo: 'Test/Alpha' }, { slug: 'beta', githubRepo: null }]
 
   it('normalizes ssh, https and plain repo references', () => {
-    for (const ref of ['git@github.com:test/alpha.git', 'https://github.com/test/alpha', 'https://github.com/test/alpha.git/', 'test/alpha']) {
-      assert.equal(normalizeGithubRepo(ref), 'test/alpha')
+    for (const ref of ['git@github.com:test/alpha.git', 'https://github.com/test/alpha', 'https://github.com/test/alpha.git/', 'test/alpha', '  Test/Alpha  ']) {
+      assert.equal(normalizeRepoRef(ref), 'test/alpha', ref)
     }
+  })
+
+  it('normalizes remotes on other hosts to the same key', () => {
+    const cases: Record<string, string> = {
+      'git@gitlab.corp.com:test/alpha.git': 'test/alpha',
+      'git@github.acme.com:test/alpha.git': 'test/alpha',
+      'https://gitlab.com/test/alpha.git': 'test/alpha',
+      'https://user:token@git.corp.com:8443/test/alpha': 'test/alpha',
+      'ssh://git@git.corp.com:2222/test/alpha.git': 'test/alpha',
+      'https://bitbucket.org/test/alpha': 'test/alpha',
+      'https://gitlab.com/group/sub/alpha.git': 'sub/alpha',
+      'https://dev.azure.com/org/proj/_git/alpha': 'proj/alpha',
+      'https://org@dev.azure.com/org/proj/_git/alpha': 'proj/alpha',
+      'git@ssh.dev.azure.com:v3/org/proj/alpha': 'proj/alpha',
+    }
+    for (const [remote, expected] of Object.entries(cases)) assert.equal(normalizeRepoRef(remote), expected, remote)
+  })
+
+  it('keeps a bare name and ignores query strings', () => {
+    assert.equal(normalizeRepoRef('alpha'), 'alpha')
+    assert.equal(normalizeRepoRef('https://git.corp.com/test/alpha?ref=main'), 'test/alpha')
   })
 
   it('matches by directory name when there is no remote', () => {

@@ -149,7 +149,16 @@ describe('config and project inference', () => {
 
     it('infers the project from the git remote', async () => {
       const { json } = await cli(['config', 'show', '--json'], { cwd: repo })
-      assert.deepEqual([json.project.slug, json.project.via], ['alpha', 'github-remote'])
+      assert.deepEqual([json.project.slug, json.project.via], ['alpha', 'git-remote'])
+    })
+
+    it('infers the project from a non-GitHub remote too', async () => {
+      const other = join(scratch.dir, 'gitlab-checkout')
+      mkdirSync(other)
+      execFileSync('git', ['init', '-q'], { cwd: other })
+      execFileSync('git', ['remote', 'add', 'origin', 'git@gitlab.corp.example:test/alpha.git'], { cwd: other })
+      const { json } = await cli(['config', 'show', '--json'], { cwd: other })
+      assert.deepEqual([json.project.slug, json.project.via, json.project.detail], ['alpha', 'git-remote', 'test/alpha'])
     })
 
     it('scopes task list to the inferred project', async () => {
