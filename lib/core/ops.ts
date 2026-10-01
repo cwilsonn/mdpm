@@ -150,8 +150,24 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return doc
   }
 
-  function deleteDoc(project: string, slug: string) {
-    return api.delete(`/api/docs/${project}/${slug}`)
+  // Project docs live under /api/docs/<project>, standalone docs under /api/standalone-docs.
+  const docBase = (project?: string | null) => project ? `/api/docs/${project}` : '/api/standalone-docs'
+
+  function deleteDoc(project: string | null | undefined, slug: string) {
+    return api.delete(`${docBase(project)}/${slug}`)
+  }
+
+  function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; parent?: string; slug?: string }) {
+    const { project, ...fields } = input
+    return api.post(docBase(project), fields)
+  }
+
+  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null }) {
+    return api.patch(`${docBase(doc.project)}/${doc.slug}`, fields)
+  }
+
+  function archiveDoc(doc: { project?: string | null; slug: string }, archived = true) {
+    return updateDoc(doc, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
   async function upsertDoc(input: { project?: string; slug?: string; title: string; body: string; tags?: string[]; parent?: string }) {
@@ -187,6 +203,9 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     listDocsWithBody,
     getDoc,
     deleteDoc,
+    createDoc,
+    updateDoc,
+    archiveDoc,
     upsertDoc,
     searchTasks: reader.searchTasks,
     searchDocs: reader.searchDocs,
