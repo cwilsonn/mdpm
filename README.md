@@ -156,7 +156,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | Command | What it does |
 |---|---|
 | `mdpm start \| stop \| restart \| status` | Dev server lifecycle (`--port`, `--foreground`); `status` exits 3 when down |
-| `mdpm project list \| show \| create \| archive \| unarchive` | Projects |
+| `mdpm project list \| show \| create \| set \| archive \| unarchive \| delete` | Projects (`set` updates fields, `none` clears optional ones; `delete` is permanent, prefer `archive`) |
 | `mdpm task list \| search \| show \| add \| set \| done \| note \| archive \| unarchive \| delete` | Tasks; refs can be a slug, unique prefix, substring, or title fragment |
 | `mdpm doc list \| show \| search` | Read docs; `doc show` prints only the body, so it pipes cleanly |
 | `mdpm doc create \| edit \| archive \| unarchive \| delete` | Write docs. `create` takes `--body` (`-` for stdin), `--tags`, `--parent`, or `--edit` to compose in `$EDITOR`; `edit <ref>` opens the body in `$VISUAL`/`$EDITOR` and only sends a change if you saved one (or set fields with `--title`, `--tags`, `--parent`, `--body`); scope is `--project`, `--standalone`, or the current repo's project |
@@ -184,7 +184,7 @@ Lets Claude Code read and write mdpm data from any project you're working on. Re
 
 Read tools query the markdown files directly and work without the dev server. Write tools go through the server, which must be running unless auto-start is on.
 
-**Tools:** `ping` · `list_projects` · `get_project` · `create_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `delete_task` · `append_task_note` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `delete_doc`
+**Tools (24):** `ping` · `list_projects` · `get_project` · `create_project` · `update_project` · `archive_project` · `unarchive_project` · `delete_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `append_task_note` · `archive_task` · `unarchive_task` · `delete_task` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `archive_doc` · `unarchive_doc` · `delete_doc`
 
 CLI vs MCP: the CLI is the first-class interface and works the same for you and for agents (`--json`); the MCP server is the native tool surface inside Claude Code. Both go through the same core library.
 

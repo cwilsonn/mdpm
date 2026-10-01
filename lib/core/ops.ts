@@ -70,6 +70,14 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return matchRef(ref, listProjects({ includeArchived: true }), 'project', p => p.slug)
   }
 
+  function updateProject(slug: string, fields: Record<string, unknown>) {
+    return api.patch(`/api/projects/${slug}`, fields)
+  }
+
+  function deleteProject(slug: string) {
+    return api.delete(`/api/projects/${slug}`)
+  }
+
   function archiveProject(slug: string, archived = true) {
     return api.patch(`/api/projects/${slug}`, { archivedAt: archived ? new Date().toISOString() : null })
   }
@@ -192,6 +200,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     resolveTask,
     resolveProject,
     archiveProject,
+    updateProject,
+    deleteProject,
     resolveDoc,
     archiveTask,
     createTask,

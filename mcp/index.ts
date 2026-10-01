@@ -178,6 +178,102 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'update_project',
+      description: 'Update fields on an existing project. Pass null for icon, githubRepo, defaultStatus, defaultPriority, or defaultAssignee to clear them.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          slug: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          icon: { type: ['string', 'null'] },
+          status: { type: 'string', description: 'Project status, e.g. "active" or "on-hold".' },
+          tags: { type: 'array', items: { type: 'string' } },
+          githubRepo: { type: ['string', 'null'], description: 'GitHub repo, e.g. "owner/name".' },
+          availableStatuses: { type: 'array', items: { type: 'string' } },
+          defaultStatus: { type: ['string', 'null'] },
+          defaultPriority: { type: ['string', 'null'], enum: ['low', 'medium', 'high', 'urgent', null] },
+          defaultAssignee: { type: ['string', 'null'] },
+        },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'archive_project',
+      description: 'Archive a project (hidden from list_projects unless includeArchived is set). Reversible with unarchive_project.',
+      inputSchema: {
+        type: 'object',
+        properties: { slug: { type: 'string' } },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'unarchive_project',
+      description: 'Restore an archived project.',
+      inputSchema: {
+        type: 'object',
+        properties: { slug: { type: 'string' } },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'delete_project',
+      description: 'Permanently delete a project and ALL of its tasks and docs. Irreversible; prefer archive_project unless the user explicitly asked to delete.',
+      inputSchema: {
+        type: 'object',
+        properties: { slug: { type: 'string' } },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'archive_task',
+      description: 'Archive a task (hidden from list_tasks unless includeArchived is set). Reversible with unarchive_task.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          slug: { type: 'string' },
+        },
+        required: ['project', 'slug'],
+      },
+    },
+    {
+      name: 'unarchive_task',
+      description: 'Restore an archived task.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          slug: { type: 'string' },
+        },
+        required: ['project', 'slug'],
+      },
+    },
+    {
+      name: 'archive_doc',
+      description: 'Archive a doc (hidden from list_docs unless includeArchived is set). Reversible with unarchive_doc.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Project slug. Omit for a standalone doc.' },
+          slug: { type: 'string' },
+        },
+        required: ['slug'],
+      },
+    },
+    {
+      name: 'unarchive_doc',
+      description: 'Restore an archived doc.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Project slug. Omit for a standalone doc.' },
+          slug: { type: 'string' },
+        },
+        required: ['slug'],
+      },
+    },
+    {
       name: 'delete_task',
       description: 'Permanently delete a task.',
       inputSchema: {
@@ -296,6 +392,34 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case 'create_project':
         return json(await core.createProject(args))
+
+      case 'update_project': {
+        const { slug, ...fields } = args as { slug: string } & Record<string, unknown>
+        return json(await core.updateProject(slug, fields))
+      }
+
+      case 'archive_project':
+      case 'unarchive_project': {
+        const { slug } = args as { slug: string }
+        return json(await core.archiveProject(slug, name === 'archive_project'))
+      }
+
+      case 'delete_project': {
+        const { slug } = args as { slug: string }
+        return json(await core.deleteProject(slug))
+      }
+
+      case 'archive_task':
+      case 'unarchive_task': {
+        const { project, slug } = args as { project: string; slug: string }
+        return json(await core.archiveTask(project, slug, name === 'archive_task'))
+      }
+
+      case 'archive_doc':
+      case 'unarchive_doc': {
+        const { project, slug } = args as { project?: string; slug: string }
+        return json(await core.archiveDoc({ project, slug }, name === 'archive_doc'))
+      }
 
       case 'delete_task': {
         const { project, slug } = args as { project: string; slug: string }

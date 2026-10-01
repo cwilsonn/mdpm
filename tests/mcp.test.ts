@@ -110,4 +110,41 @@ describe('MCP server through core', () => {
     await tool('append_task_note', { project: 'alpha', slug: 'write-parser', note: 'second', author: 'Sam' })
     assert.match(api.requests.at(-1)!.body.description, /_ by Sam\n\nsecond$/)
   })
+
+  it('lists the archive, update, and delete tools added for CLI parity', async () => {
+    const names = (await rpc('tools/list')).result.tools.map((t: any) => t.name)
+    for (const name of ['update_project', 'archive_project', 'unarchive_project', 'delete_project', 'archive_task', 'unarchive_task', 'archive_doc', 'unarchive_doc']) {
+      assert.ok(names.includes(name), name)
+    }
+  })
+
+  it('update_project patches fields, including null to clear', async () => {
+    await tool('update_project', { slug: 'alpha', title: 'Alpha 2', githubRepo: null, tags: ['x'] })
+    const w = api.requests.at(-1)!
+    assert.deepEqual([w.method, w.path, w.body], ['PATCH', '/api/projects/alpha', { title: 'Alpha 2', githubRepo: null, tags: ['x'] }])
+  })
+
+  it('archives and restores projects, tasks, and docs', async () => {
+    await tool('archive_project', { slug: 'beta' })
+    assert.deepEqual([api.requests.at(-1)!.path, typeof api.requests.at(-1)!.body.archivedAt], ['/api/projects/beta', 'string'])
+    await tool('unarchive_project', { slug: 'beta' })
+    assert.deepEqual(api.requests.at(-1)!.body, { archivedAt: null })
+
+    await tool('archive_task', { project: 'alpha', slug: 'write-parser' })
+    assert.deepEqual([api.requests.at(-1)!.path, typeof api.requests.at(-1)!.body.archivedAt], ['/api/tasks/alpha/write-parser', 'string'])
+    await tool('unarchive_task', { project: 'alpha', slug: 'old-idea' })
+    assert.deepEqual(api.requests.at(-1)!.body, { archivedAt: null })
+
+    await tool('archive_doc', { project: 'alpha', slug: 'architecture' })
+    assert.equal(api.requests.at(-1)!.path, '/api/docs/alpha/architecture')
+    await tool('unarchive_doc', { slug: 'standalone-guide' })
+    assert.deepEqual([api.requests.at(-1)!.path, api.requests.at(-1)!.body], ['/api/standalone-docs/standalone-guide', { archivedAt: null }])
+  })
+
+  it('delete_project and standalone delete_doc hit the right routes', async () => {
+    await tool('delete_project', { slug: 'gamma' })
+    assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['DELETE', '/api/projects/gamma'])
+    await tool('delete_doc', { slug: 'standalone-guide' })
+    assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['DELETE', '/api/standalone-docs/standalone-guide'])
+  })
 })
