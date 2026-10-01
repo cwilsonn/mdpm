@@ -110,11 +110,20 @@ printf '#!/bin/sh\nnode scripts/check-commits.mjs --file "$1"\n' > .git/hooks/co
 
 ## Branch Protection
 
-`main` is protected by the "Protect main" ruleset: changes land through a pull request, the `test` (CI) and `check` (commit gate) checks must pass, and force-push and branch deletion are blocked. Required approvals are 0 (solo repo; you can't approve your own PR). Repo admins can bypass **only through a PR**, never by direct push.
+`main` is protected by the "Protect main" ruleset:
+
+- Changes land through a **pull request**, merged by **rebase only** (squash and merge-commit are disabled), and history on `main` stays **linear** (merge commits are rejected).
+- The `test` (CI) and `check` (commit gate) checks must pass, and the PR branch must be **up to date with `main`** before it can merge.
+- Force-push to and deletion of `main` are blocked. Required approvals are 0 (solo repo; you can't approve your own PR).
+- Repo admins can bypass **only through a PR**, never by direct push.
+
+Workflow:
 
 - **Never push to `main` directly.** Work on a branch (`<type>/<short-description>`), push it, and open a PR; CI runs on the PR.
-- The PR title must be a valid Conventional Commit: the gate checks it, and squash merges use it as the commit subject.
-- Release-please PRs are opened with `GITHUB_TOKEN`, so the required checks don't run on them and they stay blocked for non-admins. Merge them as admin (the bypass applies to the PR merge).
+- Keep the branch current with `git fetch && git rebase origin/main`, then `git push --force-with-lease` (force-push is only blocked on `main`). If a merge is blocked as "out of date", that is why.
+- A rebase merge lands every commit on the branch individually: each must be a valid Conventional Commit (the gate checks them all) and each shows up in the changelog, so tidy the branch (squash fixups locally) before opening the PR. The PR title is still checked.
+- Rebase merging rewrites commit SHAs. After merge, refer to the commits as they appear on `main`, not to the branch's old SHAs.
+- Release-please PRs are opened with `GITHUB_TOKEN`, so the required checks don't run on them and they stay blocked for non-admins. Merge them as admin (the bypass applies to the PR merge), using rebase.
 - Don't merge a PR without being asked; open it and report the link.
 
 ## Releases
