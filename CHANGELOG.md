@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.4.0...mdpm-v0.5.0) (2026-10-01)
+
+
+### Features
+
+* **cli:** bind the dev server to the base URL's host so localhost works without admin rights ([2eb666d](https://github.com/cwilsonn/mdpm/commit/2eb666d107babaaedcb845aa12fa4eb039bc2a2d))
+
+
+### Bug Fixes
+
+* **mcp:** report the package version instead of a hardcoded 1.0.0 ([9db4d80](https://github.com/cwilsonn/mdpm/commit/9db4d8011e8040d78950f3a7a3e53273f9bfa59f))
+
 ## [0.4.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.3.1...mdpm-v0.4.0) (2026-10-01)
 
 
