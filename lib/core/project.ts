@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 
 export interface InferredProject {
   slug: string
@@ -44,6 +44,18 @@ export function git(cwd: string, ...args: string[]) {
 
 export const gitToplevel = (cwd: string) => git(cwd, 'rev-parse', '--show-toplevel')
 export const gitOriginUrl = (cwd: string) => git(cwd, 'remote', 'get-url', 'origin')
+
+// Add a pattern to the repo's local `.git/info/exclude` so a generated file is never committed.
+export function excludeLocally(root: string, pattern: string): boolean {
+  const rel = git(root, 'rev-parse', '--git-path', 'info/exclude')
+  if (!rel) return false
+  const file = resolve(root, rel)
+  const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  if (current.split('\n').some(line => line.trim() === pattern)) return false
+  mkdirSync(dirname(file), { recursive: true })
+  appendFileSync(file, `${current === '' || current.endsWith('\n') ? '' : '\n'}${pattern}\n`)
+  return true
+}
 
 // `.mdpm` holds `project: <slug>` (or just the slug); `#` starts a comment.
 export function parseMarker(text: string) {

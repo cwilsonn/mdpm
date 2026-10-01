@@ -110,6 +110,21 @@ mdpm skills install      # idempotent; `mdpm skills status` shows linked / missi
 
 It never overwrites anything: a regular file or a symlink pointing elsewhere is reported and skipped, and `--force` replaces a foreign symlink or moves a real file aside as `<name>.bak`. `mdpm skills uninstall` removes only the links this checkout created; `--target <dir>` overrides the commands directory. Start a new Claude Code session and run `/pickup my-project`. The skills call the `mdpm` CLI, so it must be on `PATH` in the shell Claude Code uses.
 
+#### Audit-trail hooks (optional, per repo)
+
+Instructions alone are easy to forget, so two Claude Code hooks reinforce the work-logging convention. They are **warn-only** and only act in repos registered in mdpm:
+
+- **SessionStart** injects the work-logging reminder plus the project's open tasks into Claude's context (reads files only, ~0.1s, no server needed).
+- **Stop** checks, after a turn, whether the session changed files or made commits while no task file was created or edited since the session began. If so, it shows *you* a one-line reminder, at most once per 30 minutes per session. It never blocks: a Stop hook can't add context for Claude without blocking, so the Stop warning is for you, and the SessionStart text is what reaches Claude.
+
+```bash
+mdpm init --hooks         # or, in an already registered repo: mdpm hooks install
+mdpm hooks status         # SessionStart / Stop: installed or missing
+mdpm hooks uninstall
+```
+
+They are written to the repo's `.claude/settings.local.json` (kept out of git through `.git/info/exclude`), merged with any hooks and settings already there, and use absolute paths to `node` and this checkout's `bin/mdpm.mjs`, since hook shells don't reliably have your `PATH`. If you move the checkout, run `mdpm hooks install` again. Restart the Claude Code session for new hooks to take effect.
+
 ### Updating and removing
 
 ```bash
@@ -144,6 +159,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm task list \| search \| show \| add \| set \| done \| note \| archive \| unarchive \| delete` | Tasks; refs can be a slug, unique prefix, substring, or title fragment |
 | `mdpm doc list \| show \| search` | Read-only docs; `doc show` prints only the body, so it pipes cleanly |
 | `mdpm skills install \| uninstall \| status` | Link the Claude Code skills from this checkout into `~/.claude/commands` |
+| `mdpm hooks install \| uninstall \| status` | Warn-only audit-trail hooks for Claude Code, installed per repo (see below) |
 | `mdpm init` | Register the current repo: link or create its project, pin it with a `.mdpm` marker when needed, install the work-logging block into `CLAUDE.md` |
 | `mdpm pickup [project]` | Session briefing: open tasks, docs, latest session notes, suggested focus |
 | `mdpm config show` | Resolved settings and where each came from |
