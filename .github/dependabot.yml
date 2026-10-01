@@ -1,0 +1,13 @@
+# Keeps the SHA-pinned GitHub Actions up to date. Titles must pass the Conventional Commits gate:
+# `ci(deps): ...` is hidden from the changelog and never cuts a release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    labels:
+      - dependencies

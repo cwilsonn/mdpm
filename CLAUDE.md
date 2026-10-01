@@ -138,7 +138,7 @@ Workflow:
 - Keep the branch current with `git fetch && git rebase origin/main`, then `git push --force-with-lease` (force-push is only blocked on `main`). If a merge is blocked as "out of date", that is why.
 - A rebase merge lands every commit on the branch individually: each must be a valid Conventional Commit (the gate checks them all) and each shows up in the changelog, so tidy the branch (squash fixups locally) before opening the PR. The PR title is still checked.
 - Rebase merging rewrites commit SHAs. After merge, refer to the commits as they appear on `main`, not to the branch's old SHAs.
-- Release-please PRs are opened with `GITHUB_TOKEN`, so the required checks don't run on them and they stay blocked for non-admins. Merge them as admin (the bypass applies to the PR merge), using rebase.
+- Release-please PRs: unless the `RELEASE_PLEASE_TOKEN` secret is configured (see Releases), they are opened with `GITHUB_TOKEN`, the required checks don't run on them, and they stay blocked for non-admins. Merge them as admin (the bypass applies to the PR merge), using rebase.
 - Don't merge a PR without being asked; open it and report the link.
 
 ## Releases
@@ -149,7 +149,8 @@ Versioning is automated from commit types by [release-please](https://github.com
 - Bump rules (pre-1.0, so breaking → minor): `feat` → minor, `fix` → patch, `!` or a `BREAKING CHANGE:` footer → minor now, major after 1.0. `perf`/`refactor`/`revert` appear in the changelog; `docs`/`build`/`ci`/`chore`/`style`/`test` are hidden from it. Only `feat`, `fix`, and breaking changes are relied on to drive a release.
 - So commit types are load-bearing: pick `feat` vs `fix` deliberately; use `chore`/`ci`/`build`/`docs` for changes that shouldn't show up in release notes.
 - GitHub setting required: Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
-- Release PRs are opened with `GITHUB_TOKEN`, so other workflows (incl. the commit gate) don't run on them; their titles already conform.
+- Release PRs: by default they are opened with `GITHUB_TOKEN`, so other workflows (incl. CI and the commit gate) don't run on them and they need an admin merge. To make them run the required checks, add a `RELEASE_PLEASE_TOKEN` repo secret: a fine-grained PAT for this repo with **Contents: read/write** and **Pull requests: read/write**. `release.yml` uses it when present and falls back to `GITHUB_TOKEN` otherwise. Their titles already conform.
+- Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions weekly with `ci(deps): …` titles (hidden from the changelog, no release). The npm ecosystem is deliberately not enabled yet.
 
 ## UI Conventions
 
