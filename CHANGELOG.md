@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.5.0...mdpm-v0.6.0) (2026-10-01)
+
+
+### Features
+
+* **cli:** add --where bulk selection to task set, done, archive, unarchive, and delete ([ad03b95](https://github.com/cwilsonn/mdpm/commit/ad03b95a903084c2d702b09aed4ce9534894ec6e))
+* **cli:** add doc create, edit, archive, unarchive, and delete commands ([b6dcacb](https://github.com/cwilsonn/mdpm/commit/b6dcacbb9f4637f1b22188b0d176b7e9f492dd62))
+* **cli:** add export and import for JSON, CSV, and markdown ([c10784a](https://github.com/cwilsonn/mdpm/commit/c10784a77f77019813dd835bc019cb9ab3f6bbd5))
+* **cli:** add mdpm log and author-stamped task notes ([c023a95](https://github.com/cwilsonn/mdpm/commit/c023a955c09e712a193d75f27dbc258460ddf4b2))
+* **cli:** add shell completions for zsh, bash, and fish ([959bef6](https://github.com/cwilsonn/mdpm/commit/959bef6f6c5a12d5b0249c818bcc44d40be8b26d))
+* **cli:** add task ready and graph for dependency views ([efd7264](https://github.com/cwilsonn/mdpm/commit/efd7264a694df9d73d727914c4abb44fd2cc92cd))
+* **mcp:** add project update/archive/delete and task/doc archive tools ([0b08df8](https://github.com/cwilsonn/mdpm/commit/0b08df8ed891c71dc9b84a54c1a64a468182bef5))
+
 ## [0.5.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.4.0...mdpm-v0.5.0) (2026-10-01)
 
 
