@@ -20,6 +20,7 @@ export const root = defineCommand({
     hooks: () => import('./commands/hooks').then(m => m.default),
     init: () => import('./commands/init').then(m => m.default),
     log: () => import('./commands/log').then(m => m.default),
+    completions: () => import('./commands/completions').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
@@ -44,6 +45,18 @@ async function resolveUsageTarget(cmd: CommandDef<any>, rawArgs: string[]): Prom
 
 // citty's runMain hard-codes exit code 1, so we own the top level to honour the exit-code contract.
 export async function main(rawArgs = process.argv.slice(2)) {
+  // Hidden hook for the shell completion scripts: it must see flags like --help as plain words, so it
+  // bypasses citty's parsing, and it must never fail or print errors into the user's prompt.
+  if (rawArgs[0] === '__complete') {
+    try {
+      const { complete, renderCandidates } = await import('./completion')
+      const words = rawArgs.slice(rawArgs[1] === '--' ? 2 : 1)
+      const out = renderCandidates(await complete(root, words.length ? words : ['']))
+      if (out) console.log(out)
+    }
+    catch {}
+    return
+  }
   const json = rawArgs.includes('--json')
   const stderrStyle = createStyle(colorEnabled(process.stderr, !rawArgs.includes('--no-color')))
   try {
