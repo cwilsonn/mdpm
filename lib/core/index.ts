@@ -11,7 +11,7 @@ export function createCore(config: CoreConfig = resolveConfig(), hooks: ApiHooks
 
 export { configFilePath, loadConfig, REPO_ROOT, resolveConfig } from './config'
 export type { ConfigSource, LoadedConfig } from './config'
-export { inferProject, normalizeGithubRepo } from './project'
+export { inferProject, normalizeRepoRef } from './project'
 export type { InferredProject } from './project'
 export { createLifecycle, LifecycleError } from './lifecycle'
 export type { Lifecycle, ServerStatus } from './lifecycle'

@@ -148,7 +148,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm config show` | Resolved settings and where each came from |
 | `mdpm ping` | Config, content, and server check |
 
-- **Project scope:** inside a repo, commands default to that repo's project, matched by the `origin` remote against the project's `githubRepo` (`github.com` remotes only), then by directory name equal to the project slug. `--project <slug>` always works; `--all` spans projects.
+- **Project scope:** inside a repo, commands default to that repo's project, matched by the `origin` remote against the project's `githubRepo` (any host: GitHub, GitHub Enterprise, GitLab, Azure DevOps, Bitbucket; compared as `owner/repo`), then by directory name equal to the project slug. `--project <slug>` always works; `--all` spans projects.
 - **Output:** add `--json` for machine-readable output; text flags accept `-` to read stdin (`mdpm task note <ref> -`).
 - **Exit codes:** `0` ok, `1` error, `2` usage or ambiguous ref, `3` server unreachable, `4` not found.
 - **Auto-start:** write commands accept `--auto-start`: if the server is down it is started, the write runs, and it is stopped again only if that command started it (`--keep-running` to leave it up). Make it the default with `MDPM_AUTO_START=1` or `"autoStart": true` in the config file. The MCP server honors the same setting but never stops the server.
