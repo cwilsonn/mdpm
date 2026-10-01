@@ -53,13 +53,13 @@ pnpm install
 
 ### 3. Hosts entries
 
-The dev server is bound to the hostname `mdpm.local`. Add both lines (the `::1` one avoids a ~5s per-request delay on macOS, where `.local` names otherwise go through mDNS):
+The dev server binds the hostname of the base URL, `mdpm.local` by default. **No admin rights?** Skip this step and use `localhost` instead: set `MDPM_BASE_URL=http://localhost:3333` (or `"baseUrl"` in `~/.config/mdpm/config.json`) and `mdpm start` binds `localhost`, which needs no hosts entry. Otherwise add both lines (the `::1` one avoids a ~5s per-request delay on macOS, where `.local` names otherwise go through mDNS):
 
 ```bash
 grep -q mdpm.local /etc/hosts || printf '127.0.0.1 mdpm.local\n::1 mdpm.local\n' | sudo tee -a /etc/hosts
 ```
 
-On **WSL2**, the name also has to resolve on the Windows side if you want `mdpm.local` in a Windows browser: add `127.0.0.1 mdpm.local` (and `::1 mdpm.local`) to `C:\Windows\System32\drivers\etc\hosts` as Administrator. Without that, `http://localhost:3333` works from the Windows browser (the WSL entry is still needed so the server can start). Keep the checkout in the Linux filesystem, not under `/mnt/c`.
+On **WSL2**, the name also has to resolve on the Windows side if you want `mdpm.local` in a Windows browser: add `127.0.0.1 mdpm.local` (and `::1 mdpm.local`) to `C:\Windows\System32\drivers\etc\hosts` as Administrator. Without that, `http://localhost:3333` works from the Windows browser. The WSL-side `mdpm.local` entry is only needed while the base URL is `mdpm.local`; with `MDPM_BASE_URL=http://localhost:3333` neither side needs one. Keep the checkout in the Linux filesystem, not under `/mnt/c`.
 
 ### 4. Install the CLI
 
@@ -140,6 +140,7 @@ To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, `
 | `mdpm: command not found`, or pnpm says its global bin dir "is not in PATH" | `pnpm setup`, put `$PNPM_HOME/bin` on `PATH`, open a new terminal |
 | Every request takes ~5s | Missing `::1 mdpm.local` hosts line |
 | `mdpm start` times out | Read `~/.local/state/mdpm/server-3333.log` |
+| `cannot resolve "mdpm.local"` | Add the hosts entries (step 3), or use `MDPM_BASE_URL=http://localhost:3333` |
 | `Another Nuxt dev is already running` | One dev server per checkout: `mdpm status`, then `mdpm stop` |
 | `stop` says the server wasn't started by `mdpm start` | Something else holds the port; stop it yourself |
 | `better-sqlite3` build or binding error | Install build tools, then `pnpm rebuild better-sqlite3` (also after switching Node versions) |

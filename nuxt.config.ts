@@ -12,7 +12,9 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   devServer: {
     port: 3333,
-    host: 'mdpm.local',
+    // `mdpm start` sets MDPM_HOST from the base URL's hostname, so a machine without /etc/hosts access
+    // can use `http://localhost:3333`. Plain `pnpm dev` keeps the default.
+    host: process.env.MDPM_HOST || 'mdpm.local',
   },
   future: { compatibilityVersion: 4 },
   app: {
@@ -39,7 +41,9 @@ export default defineNuxtConfig({
   vite: {
     server: {
       hmr: {
-        host: 'mdpm.local',
+        // `mdpm start` sets MDPM_HOST from the base URL's hostname, so a machine without /etc/hosts access
+    // can use `http://localhost:3333`. Plain `pnpm dev` keeps the default.
+    host: process.env.MDPM_HOST || 'mdpm.local',
       },
     },
     optimizeDeps: {
