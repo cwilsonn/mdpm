@@ -16,6 +16,7 @@ export const root = defineCommand({
     project: () => import('./commands/project/index').then(m => m.default),
     doc: () => import('./commands/doc/index').then(m => m.default),
     pickup: () => import('./commands/pickup').then(m => m.default),
+    skills: () => import('./commands/skills').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
