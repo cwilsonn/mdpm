@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import { FIXTURE_CONTENT, isolatedEnv, mockApi, REPO, scratchDir } from './helpers'
@@ -12,6 +13,7 @@ after(scratch.cleanup)
 let api: Awaited<ReturnType<typeof mockApi>>
 let child: ReturnType<typeof spawn>
 let nextId = 1
+let serverInfo: { name: string; version: string }
 const pending = new Map<number, (msg: any) => void>()
 
 function rpc(method: string, params: unknown = {}) {
@@ -47,7 +49,7 @@ before(async () => {
       pending.get(msg.id)?.(msg)
     }
   })
-  await rpc('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '0' } })
+  serverInfo = (await rpc('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '0' } })).result.serverInfo
   child.stdin!.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`)
 })
 
@@ -57,6 +59,11 @@ after(async () => {
 })
 
 describe('MCP server through core', () => {
+  it('advertises the package version, not a hardcoded one', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    assert.deepEqual(serverInfo, { name: 'mdpm', version: pkg.version })
+  })
+
   it('lists its tools', async () => {
     const res = await rpc('tools/list')
     const names = res.result.tools.map((t: any) => t.name)

@@ -1,10 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, loadConfig } from '../lib/core'
+import { createCore, createLifecycle, loadConfig, REPO_ROOT } from '../lib/core'
+
+// Same source of truth as the CLI, so release-please keeps both in step.
+const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
 
 const loaded = loadConfig()
 // Opt-in (MDPM_AUTO_START=1 or `autoStart` in the config file): a write that finds the server down
@@ -15,7 +20,7 @@ const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable:
 // ─── Server ──────────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'mdpm', version: '1.0.0' },
+  { name: 'mdpm', version },
   { capabilities: { tools: {} } },
 )
 
