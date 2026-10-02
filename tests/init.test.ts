@@ -82,21 +82,33 @@ describe('mdpm init', () => {
   const init = (cwd: string, args: string[] = []) => runCli(['init', '--json', ...args], { scratch: scratch.dir, cwd, env: { MDPM_BASE_URL: api.url } })
   const writes = () => api.requests.filter(r => r.method !== 'GET')
 
-  it('creates a project for a GitHub repo, records githubRepo, and installs the block', async () => {
+  it('creates a project for a GitHub repo, records its repo link, and installs the block', async () => {
     const repo = makeRepo('newthing', 'git@github.com:acme/newthing.git')
     const r = await init(repo, ['--title', 'New Thing'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual([r.json.project, r.json.created], ['created-slug', true])
-    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/projects', { title: 'New Thing', githubRepo: 'acme/newthing' }]])
+    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/projects', { title: 'New Thing', links: [{ url: 'https://github.com/acme/newthing', provider: 'github', kind: 'repo', ref: 'acme/newthing' }] }]])
     assert.ok(read(repo, 'CLAUDE.md').includes('project `created-slug`'))
     assert.ok(!existsSync(join(repo, '.mdpm')), 'the remote already finds the project, so no marker')
   })
 
-  it('omits githubRepo for non-GitHub remotes and pins the repo with an excluded marker', async () => {
-    const repo = makeRepo('widgets', 'git@gitlab.corp.example:acme/widgets.git')
-    const r = await init(repo)
+  it('records any host as a repo link: GitLab by its provider, unclaimed hosts as generic git, and the remote then finds the project', async () => {
+    const gitlab = makeRepo('app', 'git@gitlab.com:group/sub/app.git')
+    assert.equal((await init(gitlab)).code, 0)
+    assert.deepEqual(writes()[0]!.body.links, [{ url: 'https://gitlab.com/group/sub/app', provider: 'gitlab', kind: 'repo', ref: 'group/sub/app' }])
+    api.requests.length = 0
+    const corp = makeRepo('widgets', 'git@gitlab.corp.example:acme/widgets.git')
+    const r = await init(corp)
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(writes()[0]!.body, { title: 'widgets' })
+    assert.deepEqual(writes()[0]!.body, { title: 'widgets', links: [{ url: 'https://gitlab.corp.example/acme/widgets', provider: 'git', kind: 'repo', ref: 'acme/widgets' }] })
+    assert.ok(!existsSync(join(corp, '.mdpm')), 'the recorded repo link finds the project, so no marker is needed')
+  })
+
+  it('a repo with no remote still pins itself with an excluded marker', async () => {
+    const repo = makeRepo('widgets')
+    const r = await init(repo, ['--title', 'Widgets'])
+    assert.equal(r.code, 0, r.stderr)
+    assert.deepEqual(writes()[0]!.body, { title: 'Widgets' })
     assert.match(read(repo, '.mdpm'), /^project: created-slug$/m)
     assert.ok(excludes(repo).includes('.mdpm'))
     const status = execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' })

@@ -196,7 +196,7 @@ describe('links check', () => {
 describe('providers', () => {
   it('lists, shows, and validates', async () => {
     const list = await cli(['providers', 'list', '--json'])
-    assert.deepEqual(list.json.map((p: any) => p.id), ['github', 'gitlab'])
+    assert.deepEqual(list.json.map((p: any) => p.id), ['git', 'github', 'gitlab'])
     const show = await cli(['providers', 'show', 'gitlab'])
     assert.match(show.stdout, /Merge request/)
     assert.equal((await cli(['providers', 'show', 'nope'])).code, 4)

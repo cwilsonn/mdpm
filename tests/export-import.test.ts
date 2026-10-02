@@ -14,7 +14,7 @@ describe('export', () => {
 
   it('builds a self-describing JSON document, leaving out archived items by default', () => {
     const doc = buildExport(core, {}, at)
-    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 1, '2026-10-01T12:00:00.000Z'])
+    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 2, '2026-10-01T12:00:00.000Z'])
     assert.deepEqual(doc.projects.map(p => p.slug).sort(), ['alpha', 'beta'])
     const alpha = doc.projects.find(p => p.slug === 'alpha')!
     assert.ok(!alpha.tasks.some(t => t.slug === 'old-idea'), 'archived task left out')
@@ -36,18 +36,18 @@ describe('export', () => {
   })
 
   it('CSV quotes commas, quotes, and line breaks, and survives a round trip', () => {
-    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 1, exportedAt: '', standaloneDocs: [], projects: [{
-      slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], githubRepo: null, createdAt: '', archivedAt: null, docs: [],
-      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], githubIssues: [1, 2], githubPRs: [], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma' }],
+    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 2, exportedAt: '', standaloneDocs: [], projects: [{
+      slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], links: [], createdAt: '', archivedAt: null, docs: [],
+      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], links: [{ url: 'https://github.com/acme/w/issues/1', provider: 'github', kind: 'issue', ref: 'acme/w#1' }, { provider: 'github', kind: 'change', ref: '#42' }], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma' }],
     }] }
     const csv = toCsv(doc)
     const rows = parseCsv(csv)
     assert.deepEqual(rows[0], [...CSV_COLUMNS])
     assert.equal(rows[1]![2], 'Say "hi", then leave')
-    assert.equal(rows[1]![14], 'line one\nline two, with comma')
-    assert.deepEqual([rows[1]![5], rows[1]![9]], ['a;b', '1;2'])
+    assert.equal(rows[1]![13], 'line one\nline two, with comma')
+    assert.deepEqual([rows[1]![5], rows[1]![9]], ['a;b', 'https://github.com/acme/w/issues/1;github:change:#42'])
     const back = parseImport(csv)
-    assert.deepEqual(back.projects[0]!.tasks[0], { slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], githubIssues: [1, 2], githubPRs: [], archivedAt: null, description: 'line one\nline two, with comma' })
+    assert.deepEqual(back.projects[0]!.tasks[0], { slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], links: [{ url: 'https://github.com/acme/w/issues/1', provider: 'github', kind: 'issue', ref: 'acme/w#1' }, { provider: 'github', kind: 'change', ref: '#42' }], githubIssues: undefined, githubPRs: undefined, archivedAt: null, description: 'line one\nline two, with comma' })
   })
 
   it('markdown groups tasks by status with checkboxes and lists docs', () => {
@@ -163,7 +163,7 @@ describe('import CLI', () => {
     const r = await run([csv, '--project', 'alpha', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(r.json.steps.map((s: any) => [s.kind, s.action, s.key]), [['project', 'exists', 'alpha'], ['task', 'skip', 'Write the parser'], ['task', 'create', 'Brand new one']])
-    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/tasks', { project: 'alpha', title: 'Brand new one', status: 'todo', priority: 'high', tags: ['a', 'b'], assignees: [], githubIssues: [], githubPRs: [], description: '' }]])
+    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/tasks', { project: 'alpha', title: 'Brand new one', status: 'todo', priority: 'high', tags: ['a', 'b'], assignees: [], description: '' }]])
   })
 
   it('--on-exists update patches the matching task; duplicate creates it again', async () => {
@@ -271,3 +271,105 @@ describe('import CLI', () => {
     assert.ok(writes().filter(w => w.method === 'PATCH' && w.body.dependencies).length >= 3)
   })
 })
+
+describe('links in export and import (format 2)', () => {
+  it('exports effective links, so legacy-shaped content exports the same way', () => {
+    const doc = buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z'))
+    // alpha still stores its repo as the legacy githubRepo field
+    assert.deepEqual(doc.projects[0]!.links, [{ url: 'https://github.com/test/alpha', provider: 'github', kind: 'repo', ref: 'test/alpha' }])
+    assert.ok(doc.projects[0]!.tasks.every(t => Array.isArray(t.links)))
+    assert.ok(!('githubRepo' in doc.projects[0]!) && !('githubIssues' in doc.projects[0]!.tasks[0]!))
+  })
+
+  it('markdown shows the repo and task links; CSV has a links column', () => {
+    const doc = buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z'))
+    doc.projects[0]!.tasks[0]!.links = [{ url: 'https://github.com/test/alpha/pull/3', provider: 'github', kind: 'change', ref: 'test/alpha#3' }, { url: 'https://example.com/spec', title: 'Spec' }]
+    const md = toMarkdown(doc)
+    assert.match(md, /repo: test\/alpha/)
+    assert.match(md, /- links: \[#3\]\(https:\/\/github\.com\/test\/alpha\/pull\/3\), \[Spec\]\(https:\/\/example\.com\/spec\)/)
+    assert.ok(CSV_COLUMNS.includes('links' as never) && !CSV_COLUMNS.includes('github_issues' as never))
+  })
+
+  it('imports links from JSON objects, URLs and provider:kind:ref strings; absent means untouched', () => {
+    const data = parseImport(JSON.stringify([
+      { project: 'p', title: 'A', links: [{ url: 'https://example.com/x/', title: 'X' }, 'https://gitlab.com/g/p/-/merge_requests/9', 'github:change:#42'] },
+      { project: 'p', title: 'B' },
+      { project: 'p', title: 'C', links: [] },
+    ]))
+    const [a, b, c] = data.projects[0]!.tasks
+    assert.deepEqual(a!.links, [
+      { url: 'https://example.com/x', title: 'X' },
+      { url: 'https://gitlab.com/g/p/-/merge_requests/9', provider: 'gitlab', kind: 'change', ref: 'g/p!9' },
+      { provider: 'github', kind: 'change', ref: '#42' },
+    ])
+    assert.deepEqual([b!.links, c!.links], [undefined, []])
+  })
+
+  it('rejects unsafe URLs, short refs, and a format newer than this mdpm, listing each problem', () => {
+    const bad = JSON.stringify([{ project: 'p', title: 'A', links: ['javascript:alert(1)', '#42', 'ABC-1'] }])
+    assert.throws(() => parseImport(bad), (err: Error) => /javascript:/.test(err.message) && /use the full URL in an import file/.test(err.message))
+    assert.throws(() => parseImport(JSON.stringify({ format: 'mdpm-export', formatVersion: 99, projects: [] })), /newer than this mdpm understands/)
+  })
+
+  it('still reads format 1 (legacy fields) and CSV columns, as legacy numbers to convert later', () => {
+    const v1 = parseImport(JSON.stringify({ format: 'mdpm-export', formatVersion: 1, projects: [{ slug: 'p', githubRepo: 'acme/w', tasks: [{ title: 'T', githubIssues: [7], githubPRs: [] }], docs: [] }] }))
+    assert.deepEqual([v1.projects[0]!.githubRepo, v1.projects[0]!.tasks[0]!.githubIssues, v1.projects[0]!.tasks[0]!.githubPRs, v1.projects[0]!.tasks[0]!.links], ['acme/w', [7], undefined, undefined])
+  })
+})
+
+describe('importing links through the API', () => {
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  let api: Awaited<ReturnType<typeof mockApi>>
+  before(async () => {
+    api = await mockApi((req: RecordedRequest) => req.method === 'POST' ? { body: { slug: req.body.slug ?? slugify(req.body.title) } } : {})
+  })
+  after(() => api.close())
+  beforeEach(() => { api.requests.length = 0 })
+  const run = (args: string[]) => runCli(['import', ...args], { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url, MDPM_CONTENT_PATH: FIXTURE_CONTENT } })
+  const writes = () => api.requests.filter(r => r.method !== 'GET' && r.path !== '/api/health')
+  const file = (name: string, text: string) => { const p = join(scratch.dir, `lk-${name}`); writeFileSync(p, text); return p }
+
+  it('a format-1 file becomes links (no legacy arguments, so no deprecation notices)', async () => {
+    const v1 = { format: 'mdpm-export', formatVersion: 1, exportedAt: '', standaloneDocs: [], projects: [{ slug: 'nu', title: 'Nu', githubRepo: 'acme/nu', tasks: [{ slug: 't', title: 'T', githubIssues: [7], githubPRs: [42] }], docs: [] }] }
+    const r = await run([file('v1.json', JSON.stringify(v1)), '--create-projects', '--json'])
+    assert.equal(r.code, 0, r.stderr)
+    const [project, task] = writes()
+    assert.deepEqual(project!.body.links, [{ url: 'https://github.com/acme/nu', provider: 'github', kind: 'repo', ref: 'acme/nu' }])
+    assert.ok(!('githubRepo' in project!.body))
+    assert.deepEqual(task!.body.links.map((l: any) => `${l.kind} ${l.ref}`), ['issue acme/nu#7', 'change acme/nu#42'])
+    assert.ok(!('githubIssues' in task!.body) && !('githubPRs' in task!.body))
+  })
+
+  it('legacy numbers go to the existing project\'s repo; a CSV links column carries URLs', async () => {
+    // alpha's repo is test/alpha (legacy field in the fixtures)
+    const csv = file('l.csv', 'title,github_prs,links\nWith pr,5,https://example.com/a;github:issue:#9\n')
+    const r = await run([csv, '--project', 'alpha', '--json'])
+    assert.equal(r.code, 0, r.stderr)
+    assert.deepEqual(writes()[0]!.body.links, [
+      { url: 'https://example.com/a' },
+      { provider: 'github', kind: 'issue', ref: '#9' },
+      { url: 'https://github.com/test/alpha/pull/5', provider: 'github', kind: 'change', ref: 'test/alpha#5' },
+    ])
+  })
+
+  it('a task with no links in the file sends none, so an update never wipes existing ones', async () => {
+    const csv = file('n.csv', 'title,status\nWrite the parser,done\n')
+    await run([csv, '--project', 'alpha', '--on-exists', 'update'])
+    const patch = writes().find(w => w.method === 'PATCH')!
+    assert.ok(!('links' in patch.body))
+  })
+
+  it('a JSON round trip reproduces project and task links', async () => {
+    const exported = buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z'))
+    exported.projects[0]!.tasks[0]!.links = [{ url: 'https://example.com/keep', title: 'Keep me' }]
+    exported.projects[0]!.slug = 'alpha-copy'
+    exported.projects[0]!.title = 'Alpha copy'
+    const r = await run([file('rt.json', JSON.stringify(exported)), '--create-projects', '--json'])
+    assert.equal(r.code, 0, r.stderr)
+    const created = writes().filter(w => w.path === '/api/projects')[0]!
+    assert.deepEqual(created.body.links, exported.projects[0]!.links)
+    const withLinks = writes().find(w => w.path === '/api/tasks' && w.body.links?.some((l: any) => l.title === 'Keep me'))
+    assert.ok(withLinks, 'the task link, including its title, was sent')
+  })
+})
+

@@ -21,16 +21,20 @@ export interface WatchEvent {
 
 interface TaskSnap {
   title: string; status: string; priority: string; tags: string[]; assignees: string[]; due: string | null
-  dependencies: string[]; githubIssues: number[]; githubPRs: number[]; archivedAt: string | null; body: string
+  dependencies: string[]; links: string[]; archivedAt: string | null; body: string
 }
 interface DocSnap { title: string; tags: string[]; parent: string | null; archivedAt: string | null; body: string }
-interface ProjectSnap { title: string; status: string; tags: string[]; description: string | null; githubRepo: string | null; icon: string | null; archivedAt: string | null }
+interface ProjectSnap { title: string; status: string; tags: string[]; description: string | null; links: string[]; icon: string | null; archivedAt: string | null }
 
 export interface Snapshot {
   project?: ProjectSnap
   tasks: Map<string, TaskSnap>
   docs: Map<string, DocSnap>
 }
+
+// A link is watched by its identity (URL, or provider:kind:ref when it has none), so a diff reads
+// `links: ["https://…"] → ["https://…", "https://…"]` rather than dumping whole objects.
+const linkKeys = (links: Record<string, unknown>[]) => links.map(l => String(l.url ?? `${l.provider}:${l.kind}:${l.ref}`))
 
 export const emptySnapshot = (): Snapshot => ({ tasks: new Map(), docs: new Map() })
 
@@ -40,10 +44,10 @@ export function readProjectSnapshot(ops: Ops, slug: string): Snapshot {
   const project = ops.listProjects({ includeArchived: true }).find(p => p.slug === slug)
   if (!project) return emptySnapshot()
   return {
-    project: { title: project.title, status: project.status, tags: project.tags, description: project.description, githubRepo: project.githubRepo, icon: project.icon, archivedAt: project.archivedAt },
+    project: { title: project.title, status: project.status, tags: project.tags, description: project.description, links: linkKeys(project.links), icon: project.icon, archivedAt: project.archivedAt },
     tasks: new Map(ops.listTasks({ project: slug, includeArchived: true }).map(t => [t.slug, {
       title: t.title, status: t.status, priority: t.priority, tags: t.tags, assignees: t.assignees, due: t.due, dependencies: t.dependencies,
-      githubIssues: t.githubIssues, githubPRs: t.githubPRs, archivedAt: t.archivedAt, body: t.body,
+      links: linkKeys(t.links), archivedAt: t.archivedAt, body: t.body,
     }])),
     docs: new Map(ops.listDocsWithBody({ project: slug, includeArchived: true }).map(d => [d.slug, { title: d.title, tags: d.tags, parent: d.parent, archivedAt: d.archivedAt, body: d.body }])),
   }
@@ -77,7 +81,7 @@ export function diffSnapshots(before: Snapshot, after: Snapshot, project: string
     else if (before.project && after.project) {
       const archivedFlip = !!before.project.archivedAt !== !!after.project.archivedAt
       if (archivedFlip) events.push({ ...base, kind: 'project', action: after.project.archivedAt ? 'archived' : 'unarchived', slug: project, title: after.project.title })
-      const changes = changed(before.project, after.project, ['title', 'status', 'tags', 'description', 'githubRepo', 'icon'])
+      const changes = changed(before.project, after.project, ['title', 'status', 'tags', 'description', 'links', 'icon'])
       if (changes.length) events.push({ ...base, kind: 'project', action: 'updated', slug: project, title: after.project.title, changes })
     }
   }
@@ -86,7 +90,7 @@ export function diffSnapshots(before: Snapshot, after: Snapshot, project: string
     const old = before.tasks.get(slug)
     if (!old) { events.push({ ...base, kind: 'task', action: 'created', slug, title: t.title }); continue }
     if (!!old.archivedAt !== !!t.archivedAt) events.push({ ...base, kind: 'task', action: t.archivedAt ? 'archived' : 'unarchived', slug, title: t.title })
-    const changes = changed(old, t, ['title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'githubIssues', 'githubPRs'])
+    const changes = changed(old, t, ['title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'links'])
     // A note is an append to the body; anything else that touches the body is an edit of the description.
     const oldKeys = new Set(parseNotes(old.body).map(noteKey))
     const fresh = parseNotes(t.body).filter(n => !oldKeys.has(noteKey(n)))

@@ -61,7 +61,7 @@ export function buildPickup(ops: Ops, project: string) {
   }).slice(0, 3).map(t => ({ slug: t.slug, title: t.title, priority: t.priority, status: t.status }))
 
   return {
-    project: { slug: projectInfo.slug, title: projectInfo.title, githubRepo: projectInfo.githubRepo },
+    project: { slug: projectInfo.slug, title: projectInfo.title, githubRepo: projectInfo.githubRepo, links: projectInfo.links },
     openTaskCount: open.length,
     tasks,
     docCount: docs.length,

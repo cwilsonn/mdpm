@@ -128,7 +128,6 @@
           "noun",
           "display",
           "url",
-          "match",
           "ref"
         ],
         "additionalProperties": false

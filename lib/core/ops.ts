@@ -169,7 +169,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return api.delete(`${docBase(project)}/${slug}`)
   }
 
-  function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; parent?: string; slug?: string }) {
+  function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; parent?: string; slug?: string; links?: unknown }) {
     const { project, ...fields } = input
     return api.post(docBase(project), fields)
   }
