@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import matter from 'gray-matter'
 import { contentPathOf, type CoreConfig } from './config'
+import { effectiveLinks } from './github-links'
 import { githubView, projectRepoOf } from './links-compat'
 
 // YAML parses an unquoted `2026-07-01` into a Date. The API writes quoted strings, but hand-edited
@@ -14,7 +15,7 @@ function dateString(value: unknown): string | null {
   return String(value)
 }
 
-const linksOf = (data?: Record<string, unknown>) => Array.isArray(data?.links) ? data.links as Record<string, unknown>[] : []
+const rawLinks = (data?: Record<string, unknown>) => Array.isArray(data?.links) ? data.links as Record<string, unknown>[] : []
 
 export type Reader = ReturnType<typeof createReader>
 export type Doc = ReturnType<Reader['getDocs']>[number]
@@ -56,7 +57,7 @@ export function createReader(config: CoreConfig) {
         tags: (file?.data?.tags as string[]) ?? [],
         description: (file?.data?.description as string) ?? null,
         githubRepo: file ? projectRepoOf(file.data) : null,
-        links: linksOf(file?.data),
+        links: file ? effectiveLinks('project', file.data, null) : [],
         createdAt: dateString(file?.data?.createdAt) ?? '',
         archivedAt: dateString(file?.data?.archivedAt),
         taskCount,
@@ -92,7 +93,7 @@ export function createReader(config: CoreConfig) {
         githubIssues,
         githubPRs,
         githubRepo,
-        links: linksOf(file.data),
+        links: effectiveLinks('task', file.data, githubRepo),
         createdAt: dateString(file.data.createdAt) ?? '',
         updatedAt: dateString(file.data.updatedAt),
         archivedAt: dateString(file.data.archivedAt),
@@ -134,7 +135,7 @@ export function createReader(config: CoreConfig) {
             createdAt: dateString(file.data.createdAt) ?? '',
             updatedAt: dateString(file.data.updatedAt),
             archivedAt: dateString(file.data.archivedAt),
-            links: linksOf(file.data),
+            links: rawLinks(file.data),
             excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
             body: file.content.trim(),
           })
@@ -157,7 +158,7 @@ export function createReader(config: CoreConfig) {
           createdAt: dateString(file.data.createdAt) ?? '',
           updatedAt: dateString(file.data.updatedAt),
           archivedAt: dateString(file.data.archivedAt),
-          links: linksOf(file.data),
+          links: rawLinks(file.data),
           excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
           body: file.content.trim(),
         })

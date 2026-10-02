@@ -3,11 +3,11 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, test } from 'node:test'
 import { builtinRegistry, createProvider, createRegistry, loadBuiltinProviders, loadProviderDir, loadProviderFile, ProviderSpec } from '../lib/core'
-import { BUILTIN_PROVIDERS_DIR } from '../lib/core/providers/registry'
 import { formatIssues, providerJsonSchema } from '../lib/core/providers/schema'
 import { REPO } from './helpers'
 
 const FIXTURES = join(REPO, 'tests/fixtures/providers')
+const BUILTIN_PROVIDERS_DIR = join(REPO, 'providers')
 const github = JSON.parse(readFileSync(join(BUILTIN_PROVIDERS_DIR, 'github.json'), 'utf8'))
 
 const problems = (data: unknown) => {

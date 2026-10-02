@@ -1,54 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { REPO_ROOT } from '../config'
-import { createProvider, type Provider } from './provider'
-import { formatIssues, ProviderSpec } from './schema'
-
-export interface ProviderProblem {
-  file: string
-  problems: string[]
-}
-
-export interface LoadedProviders {
-  providers: Provider[]
-  problems: ProviderProblem[]
-}
-
-export const BUILTIN_PROVIDERS_DIR = join(REPO_ROOT, 'providers')
-
-// One file -> a provider, or the list of what is wrong with it ("field: reason").
-export function loadProviderFile(file: string): { provider: Provider } | { problems: string[] } {
-  let data: unknown
-  try {
-    data = JSON.parse(readFileSync(file, 'utf8'))
-  }
-  catch (err) {
-    return { problems: [`not readable JSON: ${(err as Error).message}`] }
-  }
-  const parsed = ProviderSpec.safeParse(data)
-  return parsed.success ? { provider: createProvider(parsed.data) } : { problems: formatIssues(parsed.error) }
-}
-
-// A directory of *.json provider files. A bad file is reported and skipped, never fatal: one typo in
-// a user's provider must not take the CLI or server down. Missing directory = no providers.
-export function loadProviderDir(dir: string): LoadedProviders {
-  let names: string[]
-  try {
-    names = readdirSync(dir).filter(n => n.endsWith('.json')).sort()
-  }
-  catch {
-    return { providers: [], problems: [] }
-  }
-  const providers: Provider[] = []
-  const problems: ProviderProblem[] = []
-  for (const name of names) {
-    const file = join(dir, name)
-    const result = loadProviderFile(file)
-    if ('provider' in result) providers.push(result.provider)
-    else problems.push({ file, problems: result.problems })
-  }
-  return { providers, problems }
-}
+import { loadBuiltinProviders } from './builtin'
+import type { Provider } from './provider'
 
 export interface Registry {
   providers: Provider[]
@@ -83,10 +34,8 @@ export function createRegistry(...sources: Provider[][]): Registry {
   }
 }
 
-export function loadBuiltinProviders(): LoadedProviders {
-  return loadProviderDir(BUILTIN_PROVIDERS_DIR)
-}
-
+let builtin: Registry | undefined
+// Built-ins only; user providers are layered on by callers that read the config directory.
 export function builtinRegistry() {
-  return createRegistry(loadBuiltinProviders().providers)
+  return builtin ??= createRegistry(loadBuiltinProviders().providers)
 }

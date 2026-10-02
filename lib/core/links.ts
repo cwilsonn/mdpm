@@ -116,7 +116,7 @@ function resolveUrl(registry: Registry, input: string, opts: ResolveOptions): Li
   const top = hits.filter(h => h.rank === best)
 
   if (top.length > 1) {
-    throw new LinkError('ambiguous', `${url} fits ${top.map(h => name(h.provider, h.match.kind)).sort().join(' and ')}; pass --provider (and --kind) to choose`)
+    throw new LinkError('ambiguous', `${url} fits ${top.map(h => name(h.provider, h.match.kind)).sort().join(' and ')}; specify a provider (and kind) to choose`)
   }
   if (top.length === 0) {
     if (opts.provider || opts.kind) throw new LinkError('invalid', `${url} doesn't match ${[opts.provider, opts.kind].filter(Boolean).join('.')}`)
@@ -164,7 +164,7 @@ function resolveShort(registry: Registry, input: string, ctx: ResolveContext, op
   }
 
   if (candidates.length > 1) {
-    throw new LinkError('ambiguous', `"${text}" could be ${candidates.map(c => name(c.provider, c.kind)).sort().join(' or ')}; pass --provider and/or --kind`)
+    throw new LinkError('ambiguous', `"${text}" could be ${candidates.map(c => name(c.provider, c.kind)).sort().join(' or ')}; specify a provider and/or kind`)
   }
   if (candidates.length === 0) {
     throw new LinkError(ambiguousRepo ? 'ambiguous' : 'unresolvable', why.length ? why.join('; ') : `"${text}" is not a URL or a known short reference`)
@@ -225,4 +225,30 @@ export function validateLinks(links: unknown, allowedSchemes: Iterable<string> =
   const parsed = LinksSchema.safeParse(links)
   if (!parsed.success) return parsed.error.issues.map(i => `links${i.path.map(p => typeof p === 'number' ? `[${p}]` : `.${String(p)}`).join('')}: ${i.message}`)
   return parsed.data.flatMap((l, i) => l.url && !isSafeScheme(l.url, allowedSchemes) ? [`links[${i}].url: the "${schemeOf(l.url) ?? '?'}:" scheme is not allowed`] : [])
+}
+
+// What a write path stores: validated, URLs normalized, duplicates dropped (first one wins).
+export function sanitizeLinks(registry: Registry, input: unknown): { links: Link[]; problems: string[] } {
+  const schemes = registry.schemes()
+  const problems = validateLinks(input, schemes)
+  if (problems.length) return { links: [], problems }
+  const out: Link[] = []
+  const seen = new Set<string>()
+  ;(input as Link[]).forEach((raw, i) => {
+    let link = raw
+    if (raw.url) {
+      try {
+        link = { ...raw, url: normalizeUrl(raw.url, schemes) }
+      }
+      catch (err) {
+        problems.push(`links[${i}].url: ${(err as Error).message}`)
+        return
+      }
+    }
+    const key = linkKey(link)
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(link)
+  })
+  return { links: problems.length ? [] : out, problems }
 }

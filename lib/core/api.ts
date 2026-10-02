@@ -8,6 +8,8 @@ export interface ApiHooks {
   // Called when a write finds the server down. Resolve to have the request retried once
   // (e.g. after starting the server); reject to fail the write.
   onUnreachable?: () => Promise<void>
+  // Called for each notice (deprecation, warning) a write response carries; the CLI prints them to stderr.
+  onNotice?: (notice: string) => void
 }
 
 export function createApi(config: CoreConfig, hooks: ApiHooks = {}) {
@@ -69,7 +71,9 @@ export function createApi(config: CoreConfig, hooks: ApiHooks = {}) {
       const err = await res.json().catch(() => ({ message: res.statusText }))
       throw new Error((err as any).message ?? res.statusText)
     }
-    return res.json()
+    const result = await res.json()
+    if (Array.isArray(result?.notices)) for (const notice of result.notices) hooks.onNotice?.(String(notice))
+    return result
   }
 
   // Liveness check; any HTTP response (incl. redirects) counts as up. The default timeout is

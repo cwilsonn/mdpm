@@ -4,7 +4,7 @@ const DOC_LIMIT_PER_PROJECT = 20
 
 export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
-  const body = await readBody<{ title: string; slug?: string; tags?: string[]; parent?: string; isFolder?: boolean; body?: string }>(event)
+  const body = await readBody<{ title: string; slug?: string; tags?: string[]; parent?: string; isFolder?: boolean; body?: string; links?: unknown }>(event)
 
   if (!body.title?.trim()) throw createError({ statusCode: 400, message: 'Title is required' })
   if (!existsSync(contentPath('projects', project))) {
@@ -28,13 +28,15 @@ export default defineEventHandler(async (event) => {
     s => existsSync(contentPath('projects', project, 'docs', `${s}.md`)),
   )
 
-  writeMarkdown(`projects/${project}/docs/${slug}.md`, {
+  const frontmatter: Record<string, unknown> = {
     title: body.title.trim(),
     tags: body.tags ?? [],
     ...(body.parent ? { parent: body.parent } : {}),
     ...(body.isFolder ? { isFolder: true } : {}),
     createdAt: new Date().toISOString().split('T')[0],
-  }, body.body ?? '')
+  }
+  const notices = applyLinkWrite('doc', frontmatter, body as Record<string, unknown>)
+  writeMarkdown(`projects/${project}/docs/${slug}.md`, frontmatter, body.body ?? '')
 
-  return { slug }
+  return { slug, ...(notices.length ? { notices } : {}) }
 })
