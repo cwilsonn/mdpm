@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import matter from 'gray-matter'
 import { contentPathOf, type CoreConfig } from './config'
+import { githubView, projectRepoOf } from './links-compat'
 
 // YAML parses an unquoted `2026-07-01` into a Date. The API writes quoted strings, but hand-edited
 // files won't, so normalize: date-only values become YYYY-MM-DD, anything with a time stays ISO.
@@ -12,6 +13,8 @@ function dateString(value: unknown): string | null {
   }
   return String(value)
 }
+
+const linksOf = (data?: Record<string, unknown>) => Array.isArray(data?.links) ? data.links as Record<string, unknown>[] : []
 
 export type Reader = ReturnType<typeof createReader>
 export type Doc = ReturnType<Reader['getDocs']>[number]
@@ -52,7 +55,8 @@ export function createReader(config: CoreConfig) {
         icon: (file?.data?.icon as string) ?? null,
         tags: (file?.data?.tags as string[]) ?? [],
         description: (file?.data?.description as string) ?? null,
-        githubRepo: (file?.data?.githubRepo as string) ?? null,
+        githubRepo: file ? projectRepoOf(file.data) : null,
+        links: linksOf(file?.data),
         createdAt: dateString(file?.data?.createdAt) ?? '',
         archivedAt: dateString(file?.data?.archivedAt),
         taskCount,
@@ -63,7 +67,7 @@ export function createReader(config: CoreConfig) {
 
   function getTasks(projectSlug: string, statusFilter?: string[], githubIssueFilter?: number, githubPRFilter?: number) {
     const projectFile = readMd(`projects/${projectSlug}/index.md`)
-    const githubRepo = (projectFile?.data?.githubRepo as string) ?? null
+    const githubRepo = projectFile ? projectRepoOf(projectFile.data) : null
     const tasksDir = contentPath('projects', projectSlug, 'tasks')
     return listMdFiles(tasksDir).flatMap((f) => {
       const slug = f.replace('.md', '')
@@ -71,8 +75,8 @@ export function createReader(config: CoreConfig) {
       if (!file) return []
       const status = (file.data.status as string) ?? 'todo'
       if (statusFilter?.length && !statusFilter.includes(status)) return []
-      const githubIssues = (file.data.githubIssues as number[]) ?? []
-      const githubPRs = (file.data.githubPRs as number[]) ?? []
+      // Either storage form (legacy fields or links) reads as the same numbers.
+      const { githubIssues, githubPRs } = githubView(file.data, githubRepo)
       if (githubIssueFilter !== undefined && !githubIssues.includes(githubIssueFilter)) return []
       if (githubPRFilter !== undefined && !githubPRs.includes(githubPRFilter)) return []
       return [{
@@ -88,6 +92,7 @@ export function createReader(config: CoreConfig) {
         githubIssues,
         githubPRs,
         githubRepo,
+        links: linksOf(file.data),
         createdAt: dateString(file.data.createdAt) ?? '',
         updatedAt: dateString(file.data.updatedAt),
         archivedAt: dateString(file.data.archivedAt),
@@ -107,6 +112,7 @@ export function createReader(config: CoreConfig) {
       createdAt: string
       updatedAt: string | null
       archivedAt: string | null
+      links: Record<string, unknown>[]
       excerpt: string
       body: string
     }[] = []
@@ -128,6 +134,7 @@ export function createReader(config: CoreConfig) {
             createdAt: dateString(file.data.createdAt) ?? '',
             updatedAt: dateString(file.data.updatedAt),
             archivedAt: dateString(file.data.archivedAt),
+            links: linksOf(file.data),
             excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
             body: file.content.trim(),
           })
@@ -150,6 +157,7 @@ export function createReader(config: CoreConfig) {
           createdAt: dateString(file.data.createdAt) ?? '',
           updatedAt: dateString(file.data.updatedAt),
           archivedAt: dateString(file.data.archivedAt),
+          links: linksOf(file.data),
           excerpt: file.content.slice(0, 300).replace(/[#*`_]/g, '').trim(),
           body: file.content.trim(),
         })

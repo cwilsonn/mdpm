@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, loadConfig, REPO_ROOT } from '../lib/core'
+import { createCore, createLifecycle, loadConfig, REPO_ROOT, schemaStatus } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -363,6 +363,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           baseUrl: core.config.baseUrl,
           projectCount: projects.length,
           projects: projects.map(p => p.slug),
+          pendingMigration: schemaStatus(core.config.contentPath).pendingFiles,
         }, true)
       }
 

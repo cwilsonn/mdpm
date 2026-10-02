@@ -48,3 +48,6 @@ export { builtinRegistry, createRegistry, loadBuiltinProviders, loadProviderDir,
 export type { Registry } from './providers/registry'
 export { KINDS, ProviderSpec } from './providers/schema'
 export type { Kind } from './providers/schema'
+export { applyMigration, MARKER_FILE as SCHEMA_MARKER_FILE, MigrationError, planMigration, readSchemaMarker, SCHEMA_VERSION, schemaStatus } from './migrate'
+export type { ApplyResult, MigrationPlan, PlanEntry, SchemaMarker, SchemaStatus } from './migrate'
+export { githubView, projectRepoOf } from './links-compat'

@@ -1,3 +1,4 @@
+import { projectRepoOf } from '../../../lib/core/links-compat'
 import { existsSync, readdirSync } from 'node:fs'
 
 export default defineEventHandler(() => {
@@ -18,7 +19,8 @@ export default defineEventHandler(() => {
         icon: (file.data.icon as string | undefined) ?? undefined,
         description: (file.data.description as string | undefined) ?? undefined,
         tags: (file.data.tags as string[]) ?? [],
-        githubRepo: (file.data.githubRepo as string | undefined) ?? undefined,
+        githubRepo: projectRepoOf(file.data) ?? undefined,
+        links: Array.isArray(file.data.links) ? file.data.links : [],
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
         pinned: (file.data.pinned as boolean | undefined) ?? false,

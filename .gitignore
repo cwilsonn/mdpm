@@ -10,3 +10,4 @@ z_local/
 # Local project/author content — managed at runtime by seed/reset, not committed
 content/projects/*/
 content/authors/*.md
+content/.mdpm-schema.json

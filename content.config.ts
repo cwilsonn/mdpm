@@ -1,5 +1,15 @@
 import { defineContentConfig, defineCollection, z } from '@nuxt/content'
 
+// External links (design doc: design-links-and-providers). Deliberately lenient: a malformed link in a
+// hand-edited file must not fail the whole content build; strict validation lives in lib/core/links.ts.
+const links = z.array(z.object({
+  url: z.string().optional(),
+  provider: z.string().optional(),
+  kind: z.string().optional(),
+  ref: z.string().optional(),
+  title: z.string().optional(),
+})).default([])
+
 export default defineContentConfig({
   collections: {
     authors: defineCollection({
@@ -20,6 +30,7 @@ export default defineContentConfig({
         tags: z.array(z.string()).default([]),
         description: z.string().optional(),
         githubRepo: z.string().optional(),
+        links,
         createdAt: z.string(),
         updatedAt: z.string().optional(),
         availableStatuses: z.array(z.string()).optional(),
@@ -43,6 +54,7 @@ export default defineContentConfig({
         createdAt: z.string(),
         updatedAt: z.string().optional(),
         archivedAt: z.string().optional(),
+        links,
       }),
     }),
     standalone_docs: defineCollection({
@@ -57,6 +69,7 @@ export default defineContentConfig({
         createdAt: z.string(),
         updatedAt: z.string().optional(),
         archivedAt: z.string().optional(),
+        links,
       }),
     }),
     tasks: defineCollection({
@@ -72,6 +85,7 @@ export default defineContentConfig({
         dependencies: z.array(z.string()).default([]),
         githubIssues: z.array(z.number()).default([]),
         githubPRs: z.array(z.number()).default([]),
+        links,
         createdAt: z.string(),
         updatedAt: z.string().optional(),
         archivedAt: z.string().optional(),
