@@ -12,11 +12,11 @@ after(scratch.cleanup)
 const AT = '2026-10-01T12:00:00.000Z'
 const task = (over: Record<string, unknown> = {}) => ({
   title: 'T', status: 'todo', priority: 'medium', tags: [] as string[], assignees: [] as string[], due: null as string | null,
-  dependencies: [] as string[], githubIssues: [] as number[], githubPRs: [] as number[], archivedAt: null as string | null, body: '', ...over,
+  dependencies: [] as string[], links: [] as string[], archivedAt: null as string | null, body: '', ...over,
 })
 const doc = (over: Record<string, unknown> = {}) => ({ title: 'D', tags: [] as string[], parent: null as string | null, archivedAt: null as string | null, body: 'x', ...over })
 const snap = (tasks: Record<string, ReturnType<typeof task>> = {}, docs: Record<string, ReturnType<typeof doc>> = {}, project = true): Snapshot => ({
-  project: project ? { title: 'P', status: 'active', tags: [], description: null, githubRepo: null, icon: null, archivedAt: null } : undefined,
+  project: project ? { title: 'P', status: 'active', tags: [], description: null, links: [] as string[], icon: null, archivedAt: null } : undefined,
   tasks: new Map(Object.entries(tasks)),
   docs: new Map(Object.entries(docs)),
 })

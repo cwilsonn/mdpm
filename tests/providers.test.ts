@@ -16,10 +16,15 @@ const problems = (data: unknown) => {
 }
 
 describe('built-in providers', () => {
-  test('github and gitlab load with no problems', () => {
+  test('git, github and gitlab load with no problems', () => {
     const { providers, problems: bad } = loadBuiltinProviders()
     assert.deepEqual(bad, [])
-    assert.deepEqual(providers.map(p => p.id).sort(), ['github', 'gitlab'])
+    assert.deepEqual(providers.map(p => p.id).sort(), ['git', 'github', 'gitlab'])
+  })
+
+  test('builtin.ts bundles every file in providers/ (a new file must be added there too)', () => {
+    const onDisk = readdirSync(BUILTIN_PROVIDERS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(BUILTIN_PROVIDERS_DIR, f), 'utf8')).id).sort()
+    assert.deepEqual(loadBuiltinProviders().providers.map(p => p.id).sort(), onDisk)
   })
 
   test('every shipped provider file validates', () => {
@@ -145,8 +150,11 @@ describe('repo inference from git remotes', () => {
     ['git@github.com:acme/widgets.git', 'github:acme/widgets'],
     ['https://github.com/acme/widgets', 'github:acme/widgets'],
     ['ssh://git@gitlab.com/group/sub/proj.git', 'gitlab:group/sub/proj'],
-    ['git@gitlab.corp.example:team/app.git', undefined],
-    ['https://github.acme.com/team/app', undefined],
+    // hosts no provider claims fall back to the generic `git` provider
+    ['git@gitlab.corp.example:team/app.git', 'git:team/app'],
+    ['https://github.acme.com/team/app', 'git:team/app'],
+    ['https://user:token@git.example.com/team/app.git', 'git:team/app'],
+    ['git@ssh.dev.azure.com:v3/org/proj/repo', 'git:v3/org/proj/repo'],
   ]
   for (const [remote, expected] of cases) {
     test(remote, () => {
@@ -154,6 +162,21 @@ describe('repo inference from git remotes', () => {
       assert.equal(hit && `${hit.provider.id}:${hit.ref}`, expected)
     })
   }
+
+  test('the generic git provider never claims a pasted URL, only git remotes', () => {
+    const git = builtinRegistry().get('git')!
+    assert.deepEqual(git.parseUrl('https://example.com/some/page'), [])
+    assert.deepEqual(git.parseUrl('https://github.com/acme/widgets'), [])
+    assert.equal(git.buildUrl('repo', { repo: 'team/app' }, { host: 'git.example.com' }), 'https://git.example.com/team/app')
+    assert.equal(git.describe({ provider: 'git', kind: 'repo', ref: 'team/app' }).noun, 'Repository')
+  })
+
+  test('a kind may omit match only for a repo kind in a provider with repo.remote', () => {
+    const { match: _, ...noMatch } = github.kinds.repo
+    assert.match(problems({ ...github, kinds: { issue: { ...github.kinds.issue, match: undefined } } }).join('\n'), /^kinds\.issue\.match: "match" is required/m)
+    assert.match(problems({ ...github, repo: undefined, kinds: { repo: noMatch } }).join('\n'), /^kinds\.repo\.match: "match" is required unless the provider has repo\.remote/m)
+    assert.deepEqual(problems({ ...github, kinds: { repo: noMatch } }), [])
+  })
 
   test('an equally specific tie is not guessed', () => {
     const a = createProvider(ProviderSpec.parse({ ...github, id: 'a', hosts: ['git.example'] }))

@@ -1,0 +1,19 @@
+{
+  "$schema": "../schemas/provider.schema.json",
+  "schemaVersion": 1,
+  "id": "git",
+  "name": "Git",
+  "icon": "lucide:git-branch",
+  "kinds": {
+    "repo": {
+      "noun": "Repository",
+      "icon": "lucide:folder-git-2",
+      "display": "{repo}",
+      "url": "https://{host}/{repo}",
+      "ref": "{repo}"
+    }
+  },
+  "repo": {
+    "remote": "^(?:git@|ssh://git@|https?://(?:[^@/\\s]+@)?)(?<host>[^/:]+)[:/](?<repo>[^?#\\s]+?)(?:\\.git)?/?$"
+  }
+}

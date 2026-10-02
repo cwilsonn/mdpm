@@ -78,15 +78,29 @@ export function readMarker(cwd: string): string | undefined {
   }
 }
 
+export interface InferableProject {
+  slug: string
+  // Legacy field; still honoured for content that has not been migrated.
+  githubRepo?: string | null
+  // A project's repository is a link of kind `repo` (any provider, or the generic `git` one).
+  links?: readonly { kind?: unknown; ref?: unknown; url?: unknown }[]
+}
+
+// The repos a project is bound to, as host-independent `owner/repo` keys.
+function repoKeys(project: InferableProject) {
+  const refs = [project.githubRepo, ...(project.links ?? []).filter(l => l.kind === 'repo').map(l => l.ref ?? l.url)]
+  return refs.filter((r): r is string => typeof r === 'string' && !!r).map(normalizeRepoRef)
+}
+
 // Which project does this directory belong to? An explicit `.mdpm` marker wins; then the git remote
-// (any host) matching a project's githubRepo; then the repo (or cwd) directory name matching a slug.
-export function inferProject(cwd: string, projects: { slug: string; githubRepo?: string | null }[]): InferredProject | undefined {
+// (any host) matching one of a project's repo links; then the repo (or cwd) directory name matching a slug.
+export function inferProject(cwd: string, projects: InferableProject[]): InferredProject | undefined {
   const marked = readMarker(cwd)
   if (marked && projects.some(p => p.slug === marked)) return { slug: marked, via: 'marker', detail: MARKER_FILE }
   const remote = gitOriginUrl(cwd)
   if (remote) {
     const repo = normalizeRepoRef(remote)
-    const hit = projects.find(p => p.githubRepo && normalizeRepoRef(p.githubRepo) === repo)
+    const hit = projects.find(p => repoKeys(p).includes(repo))
     if (hit) return { slug: hit.slug, via: 'git-remote', detail: repo }
   }
   const dirName = basename(gitToplevel(cwd) ?? cwd)

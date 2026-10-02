@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { strict as assert } from 'node:assert'
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -195,6 +196,31 @@ describe('project inference', () => {
   it('keeps a bare name and ignores query strings', () => {
     assert.equal(normalizeRepoRef('alpha'), 'alpha')
     assert.equal(normalizeRepoRef('https://git.corp.com/test/alpha?ref=main'), 'test/alpha')
+  })
+
+  it('matches the remote against repo links of any provider (and the legacy field)', () => {
+    const scratch = scratchDir()
+    after(scratch.cleanup)
+    const byLinks = [
+      { slug: 'gl', links: [{ kind: 'repo', provider: 'gitlab', ref: 'group/sub/app' }] },
+      { slug: 'az', links: [{ kind: 'repo', provider: 'git', ref: 'v3/org/proj/repo' }] },
+      { slug: 'plain', links: [{ kind: 'repo', url: 'https://git.example.com/team/svc' }] },
+      { slug: 'not-a-repo', links: [{ kind: 'issue', ref: 'team/svc#1' }] },
+      { slug: 'legacy', githubRepo: 'Test/Legacy' },
+    ]
+    const at = (name: string, remote: string) => {
+      const dir = join(scratch.dir, name)
+      mkdirSync(dir)
+      execFileSync('git', ['init', '-q'], { cwd: dir })
+      execFileSync('git', ['remote', 'add', 'origin', remote], { cwd: dir })
+      return inferProject(dir, byLinks)
+    }
+    assert.deepEqual(at('r1', 'git@gitlab.com:group/sub/app.git'), { slug: 'gl', via: 'git-remote', detail: 'sub/app' })
+    assert.equal(at('r2', 'git@ssh.dev.azure.com:v3/org/proj/repo')?.slug, 'az')
+    assert.equal(at('r3', 'https://token@git.example.com/team/svc.git')?.slug, 'plain')
+    assert.equal(at('r4', 'git@github.com:test/legacy.git')?.slug, 'legacy')
+    assert.equal(at('r5', 'git@github.com:team/svc.git')?.slug, 'plain', 'host-independent, as before; a non-repo link never binds')
+    assert.equal(at('zz-unmatched', 'git@github.com:nobody/nothing.git'), undefined)
   })
 
   it('matches by directory name when there is no remote', () => {

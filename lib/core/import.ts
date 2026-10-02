@@ -1,5 +1,9 @@
-import { EXPORT_FORMAT } from './export'
+import { EXPORT_FORMAT, EXPORT_FORMAT_VERSION } from './export'
+import { numberLink, repoLink } from './github-links'
+import { linkKey, resolveLink, sanitizeLinks, type Link } from './links'
+import { projectRepoOf } from './links-compat'
 import type { Ops } from './ops'
+import { builtinRegistry } from './providers/registry'
 import { TASK_PRIORITIES, TASK_STATUSES } from './schema'
 
 // Import tasks and docs from an mdpm JSON export, a JSON array of tasks, or a CSV of tasks. The file is
@@ -21,6 +25,9 @@ export interface ImportTask {
   assignees?: string[]
   due?: string | null
   dependencies?: string[]
+  // Undefined when the file did not mention links at all (an update then leaves the existing ones alone).
+  links?: Link[]
+  // Format 1 / legacy CSV columns; converted to links when the project's repo is known.
   githubIssues?: number[]
   githubPRs?: number[]
   archivedAt?: string | null
@@ -32,6 +39,7 @@ export interface ImportDoc {
   title: string
   tags?: string[]
   parent?: string | null
+  links?: Link[]
   archivedAt?: string | null
   body?: string
 }
@@ -43,6 +51,8 @@ export interface ImportProject {
   icon?: string | null
   description?: string | null
   tags?: string[]
+  links?: Link[]
+  // Format 1; converted to a repo link.
   githubRepo?: string | null
   tasks: ImportTask[]
   docs: ImportDoc[]
@@ -88,7 +98,7 @@ export function parseCsv(text: string): string[][] {
 }
 
 const HEADER_ALIASES: Record<string, string> = {
-  github_issues: 'githubIssues', githubissues: 'githubIssues', issues: 'githubIssues',
+  links: 'links', github_issues: 'githubIssues', githubissues: 'githubIssues', issues: 'githubIssues',
   github_prs: 'githubPRs', githubprs: 'githubPRs', prs: 'githubPRs',
   created_at: 'createdAt', updated_at: 'updatedAt', archived_at: 'archivedAt', body: 'description',
 }
@@ -100,12 +110,44 @@ const list = (value: unknown): string[] =>
     : typeof value === 'string' ? value.split(/[;,]/).map(v => v.trim()).filter(Boolean)
       : []
 
-const numbers = (value: unknown, where: string, problems: string[]): number[] =>
-  (Array.isArray(value) ? value.map(String) : list(value)).flatMap((s) => {
+// Legacy number lists; an absent or empty value means "not specified" (never clears on update).
+const numbers = (value: unknown, where: string, problems: string[]): number[] | undefined => {
+  const parsed = (Array.isArray(value) ? value.map(String) : list(value)).flatMap((s) => {
     const n = Number(s)
     if (!Number.isInteger(n) || n < 1) { problems.push(`${where}: '${s}' is not a positive integer`); return [] }
     return [n]
   })
+  return parsed.length ? parsed : undefined
+}
+
+const LINK_TRIPLE = /^([a-z][a-z0-9-]*):(issue|change|doc|message|repo|url):(.+)$/
+
+// Links in an import file: objects (JSON), or strings: a URL, or `provider:kind:ref` for a link that had no URL
+// (CSV cells hold several, `;`-separated). Short refs like "#42" can't be resolved without a project's repo, so
+// a file must use full URLs. Undefined when the file did not mention links.
+function parseLinks(value: unknown, where: string, problems: string[]): Link[] | undefined {
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return undefined
+  const entries = Array.isArray(value) ? value : typeof value === 'string' ? value.split(';') : [value]
+  const registry = builtinRegistry()
+  const out: Link[] = []
+  const seen = new Set<string>()
+  const keep = (link: Link) => { if (!seen.has(linkKey(link))) { seen.add(linkKey(link)); out.push(link) } }
+  for (const entry of entries) {
+    if (isObject(entry)) {
+      const clean = sanitizeLinks(registry, [entry])
+      problems.push(...clean.problems.map(p => `${where}: ${p}`))
+      clean.links.forEach(keep)
+      continue
+    }
+    const token = String(entry).trim()
+    if (!token) continue
+    const triple = LINK_TRIPLE.exec(token)
+    if (triple) { keep({ provider: triple[1]!, kind: triple[2] as Link['kind'], ref: triple[3]! }); continue }
+    try { keep(resolveLink(registry, token)) }
+    catch (err) { problems.push(`${where}: link '${token}': ${(err as Error).message}${/^[#!]|^[A-Z]+-\d+$/.test(token) ? ' (use the full URL in an import file)' : ''}`) }
+  }
+  return out
+}
 
 function normalizeTask(raw: Record<string, unknown>, where: string, problems: string[]): ImportTask | undefined {
   const title = typeof raw.title === 'string' ? raw.title.trim() : ''
@@ -126,6 +168,7 @@ function normalizeTask(raw: Record<string, unknown>, where: string, problems: st
     assignees: list(raw.assignees),
     due,
     dependencies: list(raw.dependencies),
+    links: parseLinks(raw.links, `${at} links`, problems),
     githubIssues: numbers(raw.githubIssues, `${at} githubIssues`, problems),
     githubPRs: numbers(raw.githubPRs, `${at} githubPRs`, problems),
     archivedAt: raw.archivedAt ? String(raw.archivedAt) : null,
@@ -141,6 +184,7 @@ function normalizeDoc(raw: Record<string, unknown>, where: string, problems: str
     title,
     tags: list(raw.tags),
     parent: typeof raw.parent === 'string' && raw.parent ? raw.parent : null,
+    links: parseLinks(raw.links, `${where} '${title}' links`, problems),
     archivedAt: raw.archivedAt ? String(raw.archivedAt) : null,
     body: typeof raw.body === 'string' ? raw.body : '',
   }
@@ -187,6 +231,7 @@ export function parseImport(text: string, opts: { format?: string; project?: str
     }
     else if (isObject(parsed) && Array.isArray(parsed.projects)) {
       if (parsed.format !== undefined && parsed.format !== EXPORT_FORMAT) throw new ImportError(`unrecognised export format '${String(parsed.format)}' (expected '${EXPORT_FORMAT}')`)
+      if (typeof parsed.formatVersion === 'number' && parsed.formatVersion > EXPORT_FORMAT_VERSION) throw new ImportError(`this export is format version ${parsed.formatVersion}, newer than this mdpm understands (${EXPORT_FORMAT_VERSION}); update mdpm to import it`)
       for (const [pi, rawProject] of (parsed.projects as unknown[]).entries()) {
         if (!isObject(rawProject) || typeof rawProject.slug !== 'string' || !rawProject.slug) { problems.push(`project #${pi + 1}: missing slug`); continue }
         const p = project(rawProject.slug)
@@ -197,6 +242,7 @@ export function parseImport(text: string, opts: { format?: string; project?: str
           description: typeof rawProject.description === 'string' ? rawProject.description : null,
           tags: list(rawProject.tags),
           githubRepo: typeof rawProject.githubRepo === 'string' ? rawProject.githubRepo : null,
+          links: parseLinks(rawProject.links, `${p.slug} links`, problems),
         })
         for (const [i, t] of (Array.isArray(rawProject.tasks) ? rawProject.tasks : []).entries()) {
           const task = isObject(t) ? normalizeTask(t, `${p.slug} task #${i + 1}`, problems) : (problems.push(`${p.slug} task #${i + 1}: expected an object`), undefined)
@@ -243,6 +289,11 @@ export interface ImportStep {
   error?: string
 }
 
+const mergeLinks = (a: Link[], b: Link[]) => {
+  const seen = new Set(a.map(linkKey))
+  return [...a, ...b.filter(l => !seen.has(linkKey(l)) && seen.add(linkKey(l)))]
+}
+
 // What the server would call a title. Only used to label dry runs; real slugs come from the server.
 const predictSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
@@ -264,6 +315,16 @@ export async function runImport(ops: Ops, data: ImportData, opts: ImportOptions 
     catch (err) { steps.push({ ...step, action: 'failed', error: err instanceof Error ? err.message : String(err) }) }
   }
 
+  // The GitHub repo legacy numbers belong to: the file's project (links, or the format-1 field), else the project as it exists.
+  const repoOf = (p: ImportProject) => projectRepoOf({ githubRepo: p.githubRepo, links: p.links }) ?? (known.get(p.slug)?.githubRepo ?? null)
+  const taskLinks = (t: ImportTask, repo: string | null) => {
+    if (t.links === undefined && !t.githubIssues && !t.githubPRs) return undefined
+    return mergeLinks(t.links ?? [], [
+      ...(t.githubIssues ?? []).map(n => numberLink(repo, 'issue', n)),
+      ...(t.githubPRs ?? []).map(n => numberLink(repo, 'change', n)),
+    ])
+  }
+
   // file slug -> real slug, per project; real slugs come back from the server when something is created.
   const projectSlugs = new Map<string, string>()
   const taskSlugs = new Map<string, Map<string, string>>()
@@ -279,7 +340,8 @@ export async function runImport(ops: Ops, data: ImportData, opts: ImportOptions 
     const title = p.title || p.slug
     let created = predictSlug(title) || p.slug
     await attempt({ kind: 'project', action: 'create', key: title, slug: created }, async () => {
-      const r = await ops.createProject({ title, description: p.description ?? undefined, icon: p.icon ?? undefined, status: p.status, tags: p.tags, githubRepo: p.githubRepo ?? undefined })
+      const links = mergeLinks(p.links ?? [], p.githubRepo ? [repoLink(p.githubRepo)] : [])
+      const r = await ops.createProject({ title, description: p.description ?? undefined, icon: p.icon ?? undefined, status: p.status, tags: p.tags, ...(links.length && { links }) })
       created = r.slug
     })
     if (steps.at(-1)!.action === 'failed') continue
@@ -296,7 +358,7 @@ export async function runImport(ops: Ops, data: ImportData, opts: ImportOptions 
       const match = existingTasks.find(e => (t.slug && e.slug === t.slug) || e.title.toLowerCase() === t.title.toLowerCase())
       const fields = {
         title: t.title, status: t.status, priority: t.priority, tags: t.tags, assignees: t.assignees,
-        ...(t.due ? { due: t.due } : {}), githubIssues: t.githubIssues, githubPRs: t.githubPRs, description: t.description,
+        ...(t.due ? { due: t.due } : {}), links: taskLinks(t, repoOf(p)), description: t.description,
       }
       const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
       const deps = (t.dependencies ?? []).length ? t.dependencies! : undefined
@@ -355,7 +417,7 @@ export async function runImport(ops: Ops, data: ImportData, opts: ImportOptions 
       if (match && onExists === 'update') {
         if (d.slug) map.set(d.slug, match.slug)
         await attempt({ kind: 'doc', action: 'update', project: where, key: d.title, slug: match.slug }, async () => {
-          await ops.updateDoc({ project, slug: match.slug }, { title: d.title, body: d.body, tags: d.tags })
+          await ops.updateDoc({ project, slug: match.slug }, { title: d.title, body: d.body, tags: d.tags, ...(d.links && { links: d.links }) })
           if (d.archivedAt && !match.archivedAt) await ops.archiveDoc({ project, slug: match.slug }, true)
         })
         if (steps.at(-1)!.action !== 'failed') parentLater(match.slug)
@@ -363,7 +425,7 @@ export async function runImport(ops: Ops, data: ImportData, opts: ImportOptions 
       else {
         let slug = d.slug ?? predictSlug(d.title)
         await attempt({ kind: 'doc', action: 'create', project: where, key: d.title, slug }, async () => {
-          const r = await ops.createDoc({ project, title: d.title, body: d.body, tags: d.tags, slug: d.slug })
+          const r = await ops.createDoc({ project, title: d.title, body: d.body, tags: d.tags, slug: d.slug, ...(d.links?.length && { links: d.links }) })
           slug = r.slug
           if (d.archivedAt) await ops.archiveDoc({ project, slug }, true)
         })

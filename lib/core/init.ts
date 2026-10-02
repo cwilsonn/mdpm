@@ -2,9 +2,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { REPO_ROOT } from './config'
 import { NotFoundError } from './errors'
+import type { Link } from './links'
 import type { Ops } from './ops'
+import { builtinRegistry } from './providers/registry'
 import { installHooks } from './hooks'
-import { excludeLocally, gitOriginUrl, gitToplevel, inferProject, MARKER_FILE, normalizeRepoRef, readMarker } from './project'
+import { excludeLocally, gitOriginUrl, gitToplevel, inferProject, MARKER_FILE, readMarker } from './project'
 
 const BLOCK_START = '<!-- mdpm:work-logging:start -->'
 const BLOCK_END = '<!-- mdpm:work-logging:end -->'
@@ -32,7 +34,14 @@ export function upsertWorkLoggingBlock(existing: string | undefined, block: stri
   return { content: `${existing}${separator}${body}\n`, action: 'appended' }
 }
 
-const onGithub = (remote?: string) => !!remote && /(^|[@/])github\.com[:/]/i.test(remote)
+// The repo link a remote stands for, through whichever provider claims its host (GitHub, GitLab, or the
+// generic `git` provider for everything else), so any host is recorded and findable.
+function repoLinkFor(remote?: string): Link | undefined {
+  const hit = remote ? builtinRegistry().inferRepo(remote) : undefined
+  if (!hit) return undefined
+  const url = hit.provider.buildUrl('repo', { repo: hit.ref }, { host: hit.host })
+  return { ...(url && { url }), provider: hit.provider.id, kind: 'repo', ref: hit.ref }
+}
 
 export interface InitOptions {
   cwd: string
@@ -70,7 +79,7 @@ export interface InitResult {
 export async function initRepo(ops: Ops, opts: InitOptions): Promise<InitResult> {
   const root = gitToplevel(opts.cwd) ?? resolve(opts.cwd)
   const remote = gitOriginUrl(root)
-  const repoKey = remote ? normalizeRepoRef(remote) : undefined
+  const repoLink = repoLinkFor(remote)
   const projects = ops.listProjects({ includeArchived: true })
   const steps: InitStep[] = []
   const dry = !!opts.dryRun
@@ -90,16 +99,15 @@ export async function initRepo(ops: Ops, opts: InitOptions): Promise<InitResult>
     }
     else {
       const title = opts.title ?? basename(root)
-      // The UI links githubRepo to github.com, so only record it for GitHub remotes.
-      const githubRepo = onGithub(remote) ? repoKey : undefined
+      const detail = repoLink ? `repo ${repoLink.ref}` : undefined
       if (dry) {
-        steps.push({ step: 'project', action: 'would-create', target: title, detail: githubRepo ? `githubRepo ${githubRepo}` : undefined })
+        steps.push({ step: 'project', action: 'would-create', target: title, detail })
       }
       else {
-        const result = await ops.createProject({ title, description: opts.description, githubRepo })
+        const result = await ops.createProject({ title, description: opts.description, ...(repoLink && { links: [repoLink] }) })
         slug = result.slug as string
         created = true
-        steps.push({ step: 'project', action: 'created', target: slug, detail: githubRepo ? `githubRepo ${githubRepo}` : undefined })
+        steps.push({ step: 'project', action: 'created', target: slug, detail })
       }
     }
   }
@@ -107,9 +115,9 @@ export async function initRepo(ops: Ops, opts: InitOptions): Promise<InitResult>
   // 2. Marker: pin the repo to the project when nothing else would find it.
   const markerFile = join(root, MARKER_FILE)
   const alreadyMarked = slug !== undefined && readMarker(root) === slug
-  // Would inference find this project without a marker? An existing project keeps its own githubRepo;
-  // a new one gets what we are about to store (github.com remotes only).
-  const candidate = projects.find(p => p.slug === slug) ?? { slug: slug ?? '', githubRepo: onGithub(remote) ? repoKey : null }
+  // Would inference find this project without a marker? An existing project keeps its own repo links;
+  // a new one gets the repo link we are about to store.
+  const candidate = projects.find(p => p.slug === slug) ?? { slug: slug ?? '', links: repoLink ? [repoLink] : [] }
   const findable = slug !== undefined && inferProject(root, [...projects.filter(p => p.slug !== slug), candidate])?.slug === slug
   const wantMarker = opts.marker ?? !findable
   if (wantMarker && !alreadyMarked && (slug || dry)) {

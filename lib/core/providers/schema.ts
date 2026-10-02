@@ -31,7 +31,9 @@ const KindSpec = z.object({
   icon: icon.optional(),
   display: z.string().min(1),
   url: z.string().min(1),
-  match: pattern,
+  // Recognizes a pasted URL; named groups become fields. Optional: a kind without it is never matched
+  // from a URL (the generic `git` provider's repo kind is recognized from git remotes only).
+  match: pattern.optional(),
   ref: z.string().min(1),
   short: pattern.optional(),
 }).strict()
@@ -56,7 +58,9 @@ export const ProviderSpec = z.object({
   for (const [kind, k] of Object.entries(spec.kinds)) {
     if (!k) continue
     const at = (field: string) => ['kinds', kind, field]
-    const groups = new Set(groupNames(k.match))
+    // Without `match`, a repo kind's fields come from the provider's git-remote pattern.
+    const groups = new Set(k.match ? groupNames(k.match) : kind === 'repo' && spec.repo ? groupNames(spec.repo.remote) : [])
+    if (!k.match && !(kind === 'repo' && spec.repo)) ctx.addIssue({ code: 'custom', path: at('match'), message: kind === 'repo' ? '"match" is required unless the provider has repo.remote' : '"match" is required' })
     const refFields = new Set(placeholders(k.ref))
     const check = (field: 'display' | 'ref', allowed: Set<string>) => {
       for (const name of placeholders(k[field])) {

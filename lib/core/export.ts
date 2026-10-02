@@ -1,10 +1,16 @@
+import type { Link } from './links'
+import { viewLink } from './links'
 import type { Ops } from './ops'
+import { builtinRegistry } from './providers/registry'
 
 // Export tasks and docs to JSON (full fidelity, re-importable), CSV (tasks, for spreadsheets), or markdown
 // (human-readable). Everything is read from the files, so no server is needed.
+//
+// Format version 2 carries `links` (the effective list, so content that still uses the legacy GitHub
+// fields exports the same way). Version 1 files (githubRepo/githubIssues/githubPRs) are still importable.
 
 export const EXPORT_FORMAT = 'mdpm-export'
-export const EXPORT_FORMAT_VERSION = 1
+export const EXPORT_FORMAT_VERSION = 2
 
 export interface ExportedTask {
   slug: string
@@ -15,8 +21,7 @@ export interface ExportedTask {
   assignees: string[]
   due: string | null
   dependencies: string[]
-  githubIssues: number[]
-  githubPRs: number[]
+  links: Link[]
   createdAt: string
   updatedAt: string | null
   archivedAt: string | null
@@ -28,6 +33,7 @@ export interface ExportedDoc {
   title: string
   tags: string[]
   parent: string | null
+  links: Link[]
   createdAt: string
   updatedAt: string | null
   archivedAt: string | null
@@ -41,7 +47,7 @@ export interface ExportedProject {
   icon: string | null
   description: string | null
   tags: string[]
-  githubRepo: string | null
+  links: Link[]
   createdAt: string
   archivedAt: string | null
   tasks: ExportedTask[]
@@ -63,8 +69,8 @@ export interface ExportOptions {
   docs?: boolean
 }
 
-const asDoc = (d: { slug: string; title: string; tags: string[]; parent: string | null; createdAt: string; updatedAt: string | null; archivedAt: string | null; body: string }): ExportedDoc => ({
-  slug: d.slug, title: d.title, tags: d.tags, parent: d.parent, createdAt: d.createdAt, updatedAt: d.updatedAt, archivedAt: d.archivedAt, body: d.body,
+const asDoc = (d: { slug: string; title: string; tags: string[]; parent: string | null; links: Record<string, unknown>[]; createdAt: string; updatedAt: string | null; archivedAt: string | null; body: string }): ExportedDoc => ({
+  slug: d.slug, title: d.title, tags: d.tags, parent: d.parent, links: d.links as Link[], createdAt: d.createdAt, updatedAt: d.updatedAt, archivedAt: d.archivedAt, body: d.body,
 })
 
 export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()): ExportDocument {
@@ -78,12 +84,12 @@ export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()
       icon: p.icon,
       description: p.description,
       tags: p.tags,
-      githubRepo: p.githubRepo,
+      links: p.links as Link[],
       createdAt: p.createdAt,
       archivedAt: p.archivedAt,
       tasks: ops.listTasks({ project: p.slug, includeArchived: opts.includeArchived }).map(t => ({
         slug: t.slug, title: t.title, status: t.status, priority: t.priority, tags: t.tags, assignees: t.assignees, due: t.due,
-        dependencies: t.dependencies, githubIssues: t.githubIssues, githubPRs: t.githubPRs,
+        dependencies: t.dependencies, links: t.links as Link[],
         createdAt: t.createdAt, updatedAt: t.updatedAt, archivedAt: t.archivedAt, description: t.body,
       })),
       docs: withDocs ? ops.listDocsWithBody({ project: p.slug, includeArchived: opts.includeArchived }).map(asDoc) : [],
@@ -99,7 +105,7 @@ export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()
 
 // ── CSV ───────────────────────────────────────────────────────────────────────
 
-export const CSV_COLUMNS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'github_issues', 'github_prs', 'created_at', 'updated_at', 'archived_at', 'description'] as const
+export const CSV_COLUMNS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'links', 'created_at', 'updated_at', 'archived_at', 'description'] as const
 
 // RFC 4180 quoting: wrap in quotes when the value has a comma, quote, or line break; double inner quotes.
 const cell = (value: unknown) => {
@@ -107,11 +113,15 @@ const cell = (value: unknown) => {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+// A link in a CSV cell is its URL; one with no URL is written as provider:kind:ref so import can rebuild it.
+// (CSV carries no titles; JSON is the full-fidelity format.)
+const csvLink = (l: Link) => l.url ?? `${l.provider}:${l.kind}:${l.ref}`
+
 // Lists use `;` inside a cell (tags can contain commas' worth of structure, and `;` survives spreadsheets).
 export function toCsv(doc: ExportDocument): string {
   const rows = doc.projects.flatMap(p => p.tasks.map(t => [
     p.slug, t.slug, t.title, t.status, t.priority, t.tags.join(';'), t.assignees.join(';'), t.due, t.dependencies.join(';'),
-    t.githubIssues.join(';'), t.githubPRs.join(';'), t.createdAt, t.updatedAt, t.archivedAt, t.description,
+    t.links.map(csvLink).join(';'), t.createdAt, t.updatedAt, t.archivedAt, t.description,
   ]))
   return `${[CSV_COLUMNS as readonly string[], ...rows].map(r => r.map(cell).join(',')).join('\n')}\n`
 }
@@ -121,11 +131,16 @@ export function toCsv(doc: ExportDocument): string {
 const STATUS_ORDER = ['in-progress', 'blocked', 'in-review', 'todo', 'on-hold', 'done']
 const STATUS_LABEL: Record<string, string> = { 'in-progress': 'In progress', 'blocked': 'Blocked', 'in-review': 'In review', 'todo': 'Todo', 'on-hold': 'On hold', 'done': 'Done' }
 
+const mdLink = (l: Link) => {
+  const view = viewLink(builtinRegistry(), l)
+  return view.href ? `[${view.label}](${view.href})` : view.label
+}
+
 export function toMarkdown(doc: ExportDocument): string {
   const out = ['# mdpm export', '', `_Exported ${doc.exportedAt}_`]
   for (const p of doc.projects) {
     out.push('', `## ${p.title} (\`${p.slug}\`)`, '')
-    out.push([`status: ${p.status}${p.archivedAt ? ' (archived)' : ''}`, p.tags.length && `tags: ${p.tags.join(', ')}`, p.githubRepo && `repo: ${p.githubRepo}`].filter(Boolean).join(' · '))
+    out.push([`status: ${p.status}${p.archivedAt ? ' (archived)' : ''}`, p.tags.length && `tags: ${p.tags.join(', ')}`, p.links.find(l => l.kind === 'repo') && `repo: ${p.links.find(l => l.kind === 'repo')!.ref}`].filter(Boolean).join(' · '))
     if (p.description) out.push('', `> ${p.description.replace(/\n/g, '\n> ')}`)
     if (p.tasks.length) {
       out.push('', '### Tasks')
@@ -137,6 +152,7 @@ export function toMarkdown(doc: ExportDocument): string {
         for (const t of tasks) {
           const meta = [t.priority, t.tags.length && t.tags.join(', '), t.assignees.length && `@${t.assignees.join(' @')}`, t.due && `due ${t.due}`, t.archivedAt && 'archived'].filter(Boolean).join(' · ')
           out.push(`- [${status === 'done' ? 'x' : ' '}] **${t.title}** \`${t.slug}\`${meta ? ` (${meta})` : ''}`)
+          if (t.links.length) out.push(`  - links: ${t.links.map(mdLink).join(', ')}`)
           if (t.dependencies.length) out.push(`  - waits on: ${t.dependencies.map(d => `\`${d}\``).join(', ')}`)
           if (t.description.trim()) out.push(...t.description.trim().split('\n').map(l => l ? `  > ${l}` : '  >'))
         }

@@ -88,7 +88,7 @@ export function createProvider(spec: ProviderSpec): Provider {
   const kinds = Object.entries(spec.kinds) as [Kind, KindSpec][]
   const compiled = new Map(kinds.map(([kind, k]) => [kind, {
     spec: k,
-    match: new RegExp(k.match),
+    match: k.match ? new RegExp(k.match) : undefined,
     short: k.short ? new RegExp(k.short) : undefined,
     ref: refPattern(k.ref),
   }]))
@@ -116,7 +116,7 @@ export function createProvider(spec: ProviderSpec): Provider {
       if (host === false || (host !== undefined && provider.claims(host) === 0)) return []
       const out: LinkMatch[] = []
       for (const [kind, c] of compiled) {
-        const fields = c.match.exec(url)?.groups
+        const fields = c.match?.exec(url)?.groups
         if (!fields) continue
         const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)) as Fields
         const ref = fill(c.spec.ref, clean)
