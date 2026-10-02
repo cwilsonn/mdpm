@@ -18,7 +18,7 @@ export default defineCommand({
     icon: { type: 'string', description: 'Icon name, or "none" to clear' },
     status: { type: 'string', description: 'Project status, e.g. active | on-hold' },
     tags: { type: 'string', description: 'Comma-separated; replaces the existing tags' },
-    'github-repo': { type: 'string', description: 'owner/name, or "none" to clear' },
+    'github-repo': { type: 'string', description: 'Deprecated: use `project link`. owner/name, or "none" to clear' },
     'available-statuses': { type: 'string', description: 'Comma-separated task statuses the project uses' },
     'default-status': { type: 'string', description: 'Or "none" to clear' },
     'default-priority': { type: 'string', description: `${TASK_PRIORITIES.join(' | ')}, or "none" to clear` },

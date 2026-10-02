@@ -2,6 +2,7 @@ import { defineCommand } from 'citty'
 import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
 import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
+import { repeatedFlag, repoLinks, resolveLinkFlags } from '../../links'
 import { emit } from '../../output'
 import { projectArgs, requireProject, resolveDependencies } from './shared'
 
@@ -18,11 +19,12 @@ export default defineCommand({
     assignees: { type: 'string', description: 'Comma-separated' },
     due: { type: 'string', description: 'YYYY-MM-DD' },
     dependencies: { type: 'string', description: 'Comma-separated tasks this one waits on (slug, fragment, or project/slug)' },
-    'github-issues': { type: 'string', description: 'Comma-separated issue numbers' },
-    'github-prs': { type: 'string', description: 'Comma-separated PR numbers' },
+    link: { type: 'string', description: 'A URL or short ref (#42, ABC-123) to link; repeat for several. For an ambiguous ref use `task link add --kind`' },
+    'github-issues': { type: 'string', description: 'Deprecated: use --link. Comma-separated issue numbers' },
+    'github-prs': { type: 'string', description: 'Deprecated: use --link. Comma-separated PR numbers' },
     description: { type: 'string', description: 'Markdown body; use - to read it from stdin' },
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
     const ctx = createContext(args)
     const project = requireProject(ctx, args)
     const fields = {
@@ -33,6 +35,7 @@ export default defineCommand({
       assignees: csv(args.assignees),
       due: args.due,
       dependencies: args.dependencies === undefined ? undefined : resolveDependencies(ctx, undefined, project, csv(args.dependencies) ?? []),
+      links: args.link === undefined ? undefined : resolveLinkFlags(repeatedFlag(rawArgs, 'link'), repoLinks(ctx, project)),
       githubIssues: csvNumbers(args['github-issues'], '--github-issues'),
       githubPRs: csvNumbers(args['github-prs'], '--github-prs'),
       description: args.description === undefined ? undefined : await textOrStdin(args.description),

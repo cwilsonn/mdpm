@@ -16,6 +16,8 @@ export const root = defineCommand({
     project: () => import('./commands/project/index').then(m => m.default),
     doc: () => import('./commands/doc/index').then(m => m.default),
     pickup: () => import('./commands/pickup').then(m => m.default),
+    links: () => import('./commands/links/index').then(m => m.default),
+    providers: () => import('./commands/providers/index').then(m => m.default),
     skills: () => import('./commands/skills').then(m => m.default),
     hooks: () => import('./commands/hooks').then(m => m.default),
     init: () => import('./commands/init').then(m => m.default),

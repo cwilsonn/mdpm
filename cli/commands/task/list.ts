@@ -1,8 +1,8 @@
 import { defineCommand } from 'citty'
-import { matches, parseWhere, TASK_PRIORITIES, TASK_STATUSES, WHERE_FIELDS } from '../../../lib/core'
+import { matches, parseLinkedFilter, parseWhere, removalVersion, TASK_PRIORITIES, TASK_STATUSES, WHERE_FIELDS } from '../../../lib/core'
 import { createContext, globalArgs } from '../../context'
 import { csv, oneOf } from '../../io'
-import { emit, table } from '../../output'
+import { CliError, emit, ExitCode, table } from '../../output'
 import { projectArgs, scopeProject, shortRef } from './shared'
 
 export default defineCommand({
@@ -15,8 +15,9 @@ export default defineCommand({
     priority: { type: 'string', description: `Comma-separated: ${TASK_PRIORITIES.join(', ')}` },
     tags: { type: 'string', description: 'Comma-separated; matches tasks with any of them' },
     assignee: { type: 'string', description: 'Only tasks assigned to this name' },
-    'github-issue': { type: 'string', description: 'Only tasks linked to this GitHub issue number' },
-    'github-pr': { type: 'string', description: 'Only tasks linked to this GitHub PR number' },
+    linked: { type: 'string', description: 'Only tasks with a link matching provider[:kind[:ref]], e.g. github, jira, github:change, gitlab:change:group/proj!9' },
+    'github-issue': { type: 'string', description: 'Deprecated: use --linked github:issue. Only tasks linked to this GitHub issue number' },
+    'github-pr': { type: 'string', description: 'Deprecated: use --linked github:change. Only tasks linked to this GitHub PR number' },
     where: { type: 'string', description: `Further filter: ${WHERE_FIELDS.join(', ')} with = != ~, joined by commas, | for alternatives` },
     'include-archived': { type: 'boolean', description: 'Include archived tasks', default: false },
   },
@@ -26,6 +27,16 @@ export default defineCommand({
     const status = csv(args.status)?.map(s => oneOf(s, TASK_STATUSES, '--status')!)
     const priority = csv(args.priority)?.map(p => oneOf(p, TASK_PRIORITIES, '--priority')!)
     const clauses = args.where === undefined ? undefined : parseWhere(args.where)
+    for (const flag of ['github-issue', 'github-pr'] as const) {
+      if (args[flag]) console.error(`${ctx.style.yellow('note:')} --${flag} is deprecated; use --linked github:${flag === 'github-pr' ? 'change' : 'issue'}. Removal planned for ${removalVersion()}.`)
+    }
+    let linked
+    try {
+      linked = args.linked === undefined ? undefined : parseLinkedFilter(args.linked)
+    }
+    catch (err) {
+      throw new CliError((err as Error).message, ExitCode.usage)
+    }
     const tasks = ctx.core.listTasks({
       project,
       status,
@@ -34,6 +45,7 @@ export default defineCommand({
       assignee: args.assignee,
       githubIssue: args['github-issue'] ? Number(args['github-issue']) : undefined,
       githubPR: args['github-pr'] ? Number(args['github-pr']) : undefined,
+      linked,
       includeArchived: args['include-archived'],
     }).filter(t => !clauses || matches(t, clauses))
     emit(ctx.json, tasks.map(({ body: _, ...t }) => t), () => {

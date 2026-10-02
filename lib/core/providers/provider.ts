@@ -36,6 +36,8 @@ export interface Provider {
   name: string
   icon: string
   schemes: string[]
+  // Host patterns this provider claims (absent: any host).
+  hosts?: string[]
   kinds: Partial<Record<Kind, KindSpec>>
   settings: NonNullable<ProviderSpec['settings']>
   // 0: doesn't claim the host; higher is more specific (exact host 3, glob 2, unrestricted 1).
@@ -98,6 +100,7 @@ export function createProvider(spec: ProviderSpec): Provider {
     name: spec.name,
     icon: spec.icon,
     schemes: spec.schemes,
+    ...(spec.hosts && { hosts: spec.hosts }),
     kinds: spec.kinds,
     settings: spec.settings ?? {},
 
