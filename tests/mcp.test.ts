@@ -147,4 +147,68 @@ describe('MCP server through core', () => {
     await tool('delete_doc', { slug: 'standalone-guide' })
     assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['DELETE', '/api/standalone-docs/standalone-guide'])
   })
+
+  it('advertises link tools and a links field on create/update', async () => {
+    const tools = (await rpc('tools/list')).result.tools
+    const byName = Object.fromEntries(tools.map((t: any) => [t.name, t]))
+    for (const name of ['add_link', 'remove_link', 'resolve_link']) assert.ok(byName[name], name)
+    for (const name of ['create_task', 'update_task', 'create_project', 'update_project']) assert.ok(byName[name].inputSchema.properties.links, `${name} has links`)
+    assert.match(byName.create_task.inputSchema.properties.githubPRs.description, /Deprecated: use add_link/)
+    assert.ok(byName.list_tasks.inputSchema.properties.linked)
+  })
+
+  it('resolve_link understands a URL, expands a short ref from the project repo, and writes nothing', async () => {
+    api.requests.length = 0
+    const url = await tool('resolve_link', { input: 'https://gitlab.com/g/p/-/merge_requests/9' })
+    assert.deepEqual([url.json.link.ref, url.json.view.noun], ['g/p!9', 'Merge request'])
+    // alpha's repo (test/alpha) is still a legacy githubRepo field: it reads as a repo link
+    const short = await tool('resolve_link', { input: '#7', project: 'alpha', kind: 'issue' })
+    assert.equal(short.json.link.url, 'https://github.com/test/alpha/issues/7')
+    const amb = await tool('resolve_link', { input: '#7', project: 'alpha' })
+    assert.ok(amb.isError)
+    assert.match(amb.text, /github\.change or github\.issue/)
+    assert.equal(api.requests.filter(r => r.method !== 'GET' && r.path !== '/api/health').length, 0)
+  })
+
+  it('add_link PATCHes the item with its existing links plus the new one; a duplicate sends nothing', async () => {
+    api.requests.length = 0
+    const added = await tool('add_link', { type: 'task', project: 'alpha', slug: 'write-parser', input: 'https://github.com/test/alpha/pull/3' })
+    assert.equal(added.json.added, true)
+    const w = api.requests.find(r => r.method === 'PATCH')!
+    assert.equal(w.path, '/api/tasks/alpha/write-parser')
+    assert.deepEqual(w.body.links, [{ url: 'https://github.com/test/alpha/pull/3', provider: 'github', kind: 'change', ref: 'test/alpha#3' }])
+    api.requests.length = 0
+    const project = await tool('add_link', { type: 'project', slug: 'beta', input: 'https://example.com/board', title: 'Board' })
+    assert.deepEqual([project.json.added, api.requests.find(r => r.method === 'PATCH')!.path], [true, '/api/projects/beta'])
+    const doc = await tool('add_link', { type: 'doc', slug: 'standalone-guide', input: 'https://example.com/g' })
+    assert.equal(api.requests.find(r => r.path === '/api/standalone-docs/standalone-guide')!.method, 'PATCH')
+    assert.equal(doc.json.target, 'standalone-guide')
+  })
+
+  it('add_link and remove_link report problems as tool errors, writing nothing', async () => {
+    api.requests.length = 0
+    for (const args of [
+      { type: 'task', project: 'alpha', slug: 'write-parser', input: '#3' },
+      { type: 'task', project: 'alpha', slug: 'write-parser', input: 'javascript:alert(1)' },
+      { type: 'task', slug: 'write-parser', input: 'https://example.com/x' },
+    ]) assert.ok((await tool('add_link', args)).isError, JSON.stringify(args))
+    const missing = await tool('remove_link', { type: 'task', project: 'alpha', slug: 'write-parser', link: 'nope' })
+    assert.ok(missing.isError)
+    assert.match(missing.text, /No link on alpha\/write-parser matches 'nope'/)
+    assert.equal(api.requests.filter(r => r.method === 'PATCH').length, 0)
+  })
+
+  it('list_tasks accepts linked, and rejects a bad one', async () => {
+    assert.deepEqual((await tool('list_tasks', { project: 'alpha', linked: 'github' })).json, [])
+    const bad = await tool('list_tasks', { project: 'alpha', linked: 'github:nope' })
+    assert.ok(bad.isError)
+    assert.match(bad.text, /kind must be one of/)
+  })
+
+  it('create_task passes links through and returns the server notices', async () => {
+    api.requests.length = 0
+    await tool('create_task', { project: 'alpha', title: 'L', links: [{ url: 'https://example.com/x' }], githubPRs: [4] })
+    const w = api.requests.find(r => r.method === 'POST')!
+    assert.deepEqual([w.body.links, w.body.githubPRs], [[{ url: 'https://example.com/x' }], [4]])
+  })
 })

@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
 import { AmbiguousError, NotFoundError } from './errors'
-import { matchesLinked, type LinkedFilter, type Link } from './links'
+import { addLink, findLinks, LinkError, linkKey, matchesLinked, resolveLink, viewLink, type Link, type LinkedFilter } from './links'
+import { builtinRegistry } from './providers/registry'
+import type { Kind } from './providers/schema'
 import type { Doc, Reader } from './read'
 
 // Higher-level operations shared by the MCP server and the CLI. Reads go
@@ -193,8 +195,67 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return api.post(postPath, { title, body, tags, parent, slug })
   }
 
+  // ── Links ──────────────────────────────────────────────────────────────────
+
+  // Where an item's links live and how to save them. Shared by the CLI and the MCP server so both
+  // resolve short refs, de-duplicate and report ambiguity identically.
+  interface LinkTarget {
+    name: string
+    links: Link[]
+    // Repo links of the owning project, used to expand short refs like "#42".
+    repos: Link[]
+    save(links: Link[]): Promise<unknown>
+  }
+
+  const repoLinksOf = (project?: string | null) => project ? (getProject(project).links as Link[]).filter(l => l.kind === 'repo') : []
+
+  function linkTarget(scope: 'task' | 'project' | 'doc', ref: { project?: string | null; slug: string }): LinkTarget {
+    if (scope === 'task') {
+      if (!ref.project) throw new NotFoundError('a task needs its project')
+      const task = getTask(ref.project, ref.slug)
+      return { name: `${ref.project}/${ref.slug}`, links: task.links as Link[], repos: repoLinksOf(ref.project), save: links => updateTask(ref.project!, ref.slug, { links }) }
+    }
+    if (scope === 'project') {
+      const project = getProject(ref.slug)
+      return { name: ref.slug, links: project.links as Link[], repos: (project.links as Link[]).filter(l => l.kind === 'repo'), save: links => updateProject(ref.slug, { links }) }
+    }
+    const doc = getDoc(ref.slug, ref.project ?? undefined)
+    return { name: doc.project ? `${doc.project}/${doc.slug}` : doc.slug, links: doc.links as Link[], repos: repoLinksOf(doc.project), save: links => updateDoc(doc, { links }) }
+  }
+
+  // A pasted URL or short ref -> a link, without writing anything.
+  function resolveLinkInput(input: string, opts: { project?: string; provider?: string; kind?: Kind; title?: string } = {}) {
+    const registry = builtinRegistry()
+    const link = resolveLink(registry, input, { repos: repoLinksOf(opts.project) }, opts)
+    return { link, view: viewLink(registry, link) }
+  }
+
+  async function addLinkTo(target: LinkTarget, input: string, opts: { provider?: string; kind?: Kind; title?: string } = {}) {
+    const registry = builtinRegistry()
+    const link = resolveLink(registry, input, { repos: target.repos }, opts)
+    const { links, added } = addLink(target.links, link)
+    if (added) await target.save(links)
+    return { target: target.name, added, link, view: viewLink(registry, link) }
+  }
+
+  async function removeLinkFrom(target: LinkTarget, query: string) {
+    const registry = builtinRegistry()
+    const found = findLinks(registry, target.links, query)
+    if (!found.length) throw new NotFoundError(`No link on ${target.name} matches '${query}'`)
+    if (found.length > 1) {
+      throw new LinkError('ambiguous', `'${query}' matches ${found.length} links on ${target.name}: ${found.map(l => { const v = viewLink(registry, l); return `${v.noun} ${v.label}` }).join(', ')}; name one by @N or URL`)
+    }
+    const [removed] = found
+    await target.save(target.links.filter(l => linkKey(l) !== linkKey(removed!)))
+    return { target: target.name, removed: removed! }
+  }
+
   return {
     config,
+    linkTarget,
+    resolveLinkInput,
+    addLinkTo,
+    removeLinkFrom,
     listProjects,
     getProject,
     listTasks,
