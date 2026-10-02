@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.12.0...mdpm-v0.13.0) (2026-10-02)
+
+
+### Features
+
+* **core:** record any git remote as a repo link and export/import links (format 2) ([a0c7e8c](https://github.com/cwilsonn/mdpm/commit/a0c7e8c544ab8c5f4d58d4b5558214fc0e0f40ac))
+
 ## [0.12.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.11.0...mdpm-v0.12.0) (2026-10-02)
 
 
