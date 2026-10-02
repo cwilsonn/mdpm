@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.10.0...mdpm-v0.11.0) (2026-10-02)
+
+
+### Features
+
+* **cli:** add link commands, --link and --linked, links and providers commands ([ed222a5](https://github.com/cwilsonn/mdpm/commit/ed222a564f34d35174fab729dc2a30215ed92140))
+
 ## [0.10.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.9.0...mdpm-v0.10.0) (2026-10-02)
 
 
