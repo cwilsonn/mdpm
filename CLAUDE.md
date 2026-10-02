@@ -76,6 +76,8 @@ Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create
 
 Groundwork for service-agnostic links (design: mdpm doc `design-links-and-providers`; not wired into tasks/projects yet). `providers/*.json` are declarative providers (GitHub, GitLab) validated by the zod schema in `lib/core/providers/schema.ts`; `schemas/provider.schema.json` is generated from it (`pnpm schema:provider`, a test fails when stale). `lib/core/links.ts` normalizes, validates and resolves URLs and short refs (`#42`) into links, and `viewLink` computes label/noun/icon/href. Providers are leaves: nothing outside `lib/core/providers` may name a provider.
 
+Content schema: tasks, projects and docs may carry a `links` frontmatter list. The legacy `githubRepo`/`githubIssues`/`githubPRs` fields are converted by `mdpm migrate` (dry run by default; `--apply` takes a backup under `~/.local/state/mdpm/backups/`, edits only the legacy keys textually, verifies, and stamps `content/.mdpm-schema.json`; `--file`/`--project` narrow it; `--check` exits 1 when pending). Readers and the web API map either form to the same legacy-shaped fields (`lib/core/links-compat.ts`) until the UI understands links. Empty `githubIssues: []` fields are harmless and never count as pending. **Always pass `--content-path` (or set `MDPM_CONTENT_PATH`) when experimenting: `--apply` on the default path migrates real content.**
+
 ## Claude Code Skills
 
 Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<name>.md` are symlinks into it, managed by `mdpm skills install|uninstall|status` (edit in the repo, never the symlink target dir). They stay global because `/pickup <project>` runs in every registered project:

@@ -49,7 +49,7 @@ export class LifecycleError extends Error {
   override name = 'LifecycleError'
 }
 
-function stateDir() {
+export function stateDir() {
   return process.env.MDPM_STATE_DIR ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), '.local', 'state'), 'mdpm')
 }
 

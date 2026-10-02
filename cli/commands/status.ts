@@ -1,4 +1,6 @@
 import { defineCommand } from 'citty'
+import { existsSync } from 'node:fs'
+import { schemaStatus } from '../../lib/core'
 import { createContext, globalArgs, parsePort, portArg } from '../context'
 import { emit, ExitCode } from '../output'
 
@@ -15,11 +17,19 @@ export default defineCommand({
   async run({ args }) {
     const ctx = createContext(args)
     const s = await ctx.lifecycle.status(parsePort(args.port))
-    emit(ctx.json, s, () => {
+    // Content health is best-effort: status must work even when the content directory is unreachable.
+    let content: { pendingMigration: number } | undefined
+    try {
+      const root = ctx.loadedConfig.config.contentPath
+      if (existsSync(root)) content = { pendingMigration: schemaStatus(root).pendingFiles }
+    }
+    catch {}
+    emit(ctx.json, { ...s, ...(content && { content }) }, () => {
       const mark = s.running ? ctx.style.green('✓') : ctx.style.yellow('!')
       const lines = [`${mark} ${s.state}: ${s.url}`]
       if (s.pid) lines.push(`  pid ${s.pid}, up ${formatUptime(s.uptimeSeconds ?? 0)}${s.managed ? `, log: ${s.logFile}` : ' (started outside mdpm; pid from nuxt.lock)'}`)
       else if (s.running) lines.push('  pid unknown (not started by mdpm, no Nuxt lock); stop it manually')
+      if (content?.pendingMigration) lines.push(`  ${ctx.style.yellow('!')} ${content.pendingMigration} file(s) use legacy GitHub fields; run \`mdpm migrate\``)
       return lines.join('\n')
     })
     // Scripts can gate on `mdpm status`; a down server maps to the "unreachable" exit code.
