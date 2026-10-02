@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.9.0...mdpm-v0.10.0) (2026-10-02)
+
+
+### Features
+
+* **api:** accept links on writes and map legacy GitHub arguments with notices ([74c016f](https://github.com/cwilsonn/mdpm/commit/74c016fcf2eebeadfa5da593d00fbdfa447fdd12))
+
 ## [0.9.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.8.0...mdpm-v0.9.0) (2026-10-02)
 
 
