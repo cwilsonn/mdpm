@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.11.0...mdpm-v0.12.0) (2026-10-02)
+
+
+### Features
+
+* **mcp:** add link tools and share link operations with the CLI ([d48ef4c](https://github.com/cwilsonn/mdpm/commit/d48ef4c5830477a2c31d8a90174a4882910ca3f2))
+
 ## [0.11.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.10.0...mdpm-v0.11.0) (2026-10-02)
 
 
