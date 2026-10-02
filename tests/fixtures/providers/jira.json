@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "jira",
+  "name": "Jira",
+  "icon": "simple-icons:jira",
+  "hosts": [
+    "*.atlassian.net"
+  ],
+  "settings": {
+    "host": {
+      "description": "Your Jira host, used to expand bare keys like ABC-123",
+      "required": true
+    }
+  },
+  "kinds": {
+    "issue": {
+      "noun": "Ticket",
+      "plural": "Tickets",
+      "icon": "lucide:ticket",
+      "display": "{key}",
+      "url": "https://{host}/browse/{key}",
+      "match": "^https?://(?<host>[^/]+)/browse/(?<key>[A-Z][A-Z0-9]+-\\d+)(?:[/?#].*)?$",
+      "ref": "{key}",
+      "short": "^(?<key>[A-Z][A-Z0-9]+-\\d+)$"
+    }
+  }
+}

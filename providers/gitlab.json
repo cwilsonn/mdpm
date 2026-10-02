@@ -1,0 +1,43 @@
+{
+  "$schema": "../schemas/provider.schema.json",
+  "schemaVersion": 1,
+  "id": "gitlab",
+  "name": "GitLab",
+  "icon": "simple-icons:gitlab",
+  "hosts": [
+    "gitlab.com"
+  ],
+  "kinds": {
+    "change": {
+      "noun": "Merge request",
+      "plural": "Merge requests",
+      "icon": "lucide:git-merge",
+      "display": "!{number}",
+      "url": "https://{host}/{repo}/-/merge_requests/{number}",
+      "match": "^https?://(?<host>[^/]+)/(?<repo>.+?)/-/merge_requests/(?<number>\\d+)(?:[/?#].*)?$",
+      "ref": "{repo}!{number}",
+      "short": "^!(?<number>\\d+)$"
+    },
+    "issue": {
+      "noun": "Issue",
+      "plural": "Issues",
+      "icon": "lucide:circle-dot",
+      "display": "#{number}",
+      "url": "https://{host}/{repo}/-/issues/{number}",
+      "match": "^https?://(?<host>[^/]+)/(?<repo>.+?)/-/issues/(?<number>\\d+)(?:[/?#].*)?$",
+      "ref": "{repo}#{number}",
+      "short": "^#(?<number>\\d+)$"
+    },
+    "repo": {
+      "noun": "Repository",
+      "icon": "lucide:folder-git-2",
+      "display": "{repo}",
+      "url": "https://{host}/{repo}",
+      "match": "^https?://(?<host>[^/]+)/(?<repo>[^/?#]+(?:/(?!-(?:/|$))[^/?#]+?)+?)(?:\\.git)?/?$",
+      "ref": "{repo}"
+    }
+  },
+  "repo": {
+    "remote": "^(?:git@|ssh://git@|https?://)(?<host>[^/:]+)[:/](?<repo>.+?)(?:\\.git)?/?$"
+  }
+}
