@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.7.0...mdpm-v0.8.0) (2026-10-02)
+
+
+### Features
+
+* **cli:** add mdpm tui, an interactive kanban board for the terminal ([0d32c21](https://github.com/cwilsonn/mdpm/commit/0d32c21bece90b7a42cb5b26fe59f91d9cd91f7d))
+
+
+### Bug Fixes
+
+* **cli:** fit the tui layout and key hints to the terminal size ([8bef654](https://github.com/cwilsonn/mdpm/commit/8bef654a47be8d5f3333a6187cfa0b0fc36dbc8b))
+
 ## [0.7.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.6.0...mdpm-v0.7.0) (2026-10-01)
 
 
