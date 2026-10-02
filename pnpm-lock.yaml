@@ -50,6 +50,9 @@ importers:
       vue-draggable-plus:
         specifier: ^0.6.1
         version: 0.6.1(@types/sortablejs@1.15.9)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
