@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
 import { AmbiguousError, NotFoundError } from './errors'
+import { matchesLinked, type LinkedFilter, type Link } from './links'
 import type { Doc, Reader } from './read'
 
 // Higher-level operations shared by the MCP server and the CLI. Reads go
@@ -17,8 +18,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return project
   }
 
-  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; githubIssue?: number; githubPR?: number; includeArchived?: boolean } = {}) {
-    const { project, status, priority, tags, assignee, githubIssue, githubPR, includeArchived } = opts
+  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; githubIssue?: number; githubPR?: number; linked?: LinkedFilter; includeArchived?: boolean } = {}) {
+    const { project, status, priority, tags, assignee, githubIssue, githubPR, linked, includeArchived } = opts
     return (project
       ? reader.getTasks(project, status, githubIssue, githubPR)
       : reader.getAllTasks(status, githubIssue, githubPR)
@@ -26,7 +27,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
       (includeArchived || !t.archivedAt)
       && (!priority?.length || priority.includes(t.priority))
       && (!tags?.length || tags.some(tag => t.tags.includes(tag)))
-      && (!assignee || t.assignees.includes(assignee)),
+      && (!assignee || t.assignees.includes(assignee))
+      && (!linked || matchesLinked(t.links as Link[], linked)),
     )
   }
 
@@ -170,7 +172,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return api.post(docBase(project), fields)
   }
 
-  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null }) {
+  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null; links?: unknown }) {
     return api.patch(`${docBase(doc.project)}/${doc.slug}`, fields)
   }
 

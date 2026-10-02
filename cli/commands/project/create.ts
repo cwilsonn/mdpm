@@ -14,7 +14,7 @@ export default defineCommand({
     icon: { type: 'string', description: 'Icon name, e.g. i-lucide-folder' },
     status: { type: 'string', description: 'Project status (default: active)' },
     tags: { type: 'string', description: 'Comma-separated' },
-    'github-repo': { type: 'string', description: 'owner/name' },
+    'github-repo': { type: 'string', description: 'Deprecated: use `project link add`. owner/name' },
     'available-statuses': { type: 'string', description: 'Comma-separated task statuses the project uses' },
     'default-status': { type: 'string' },
     'default-priority': { type: 'string', description: TASK_PRIORITIES.join(' | ') },

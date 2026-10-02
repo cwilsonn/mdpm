@@ -18,8 +18,8 @@ export default defineCommand({
       .filter(p => (!args.status || p.status === args.status) && (!tags?.length || tags.some(t => p.tags.includes(t))))
     emit(ctx.json, projects, () => projects.length
       ? `${table(
-        projects.map(p => [p.slug, p.status, String(p.taskCount), String(p.docCount), p.githubRepo ?? '-', p.archivedAt ? `${p.title} ${ctx.style.dim('(archived)')}` : p.title]),
-        ['SLUG', 'STATUS', 'TASKS', 'DOCS', 'GITHUB', 'TITLE'],
+        projects.map(p => [p.slug, p.status, String(p.taskCount), String(p.docCount), (p.links.find(l => l.kind === 'repo')?.ref as string | undefined) ?? '-', p.archivedAt ? `${p.title} ${ctx.style.dim('(archived)')}` : p.title]),
+        ['SLUG', 'STATUS', 'TASKS', 'DOCS', 'REPO', 'TITLE'],
       )}\n${ctx.style.dim(`${projects.length} project${projects.length === 1 ? '' : 's'}`)}`
       : ctx.style.dim('no projects'))
   },

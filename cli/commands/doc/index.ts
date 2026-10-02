@@ -5,6 +5,7 @@ export default defineCommand({
   subCommands: {
     list: () => import('./list').then(m => m.default),
     show: () => import('./show').then(m => m.default),
+    link: () => import('./link').then(m => m.default),
     search: () => import('./search').then(m => m.default),
     create: () => import('./create').then(m => m.default),
     edit: () => import('./edit').then(m => m.default),

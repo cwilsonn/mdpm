@@ -252,3 +252,44 @@ export function sanitizeLinks(registry: Registry, input: unknown): { links: Link
   })
   return { links: problems.length ? [] : out, problems }
 }
+
+// ── Finding links on an item ─────────────────────────────────────────────────
+
+// What a person typed to point at one of an item's links: "@2" (position in `link list`), a URL, a
+// ref ("acme/widgets#42"), the displayed label ("#42"), or the title. Several matches are returned
+// so the caller can report the ambiguity instead of removing the wrong one.
+export function findLinks(registry: Registry, links: readonly Link[], target: string): Link[] {
+  const t = target.trim()
+  const index = /^@(\d+)$/.exec(t)
+  if (index) {
+    const link = links[Number(index[1]) - 1]
+    return link ? [link] : []
+  }
+  let url: string | undefined
+  try {
+    url = normalizeUrl(t, registry.schemes())
+  }
+  catch {}
+  return links.filter(l => (url !== undefined && l.url === url) || l.ref === t || l.title === t || viewLink(registry, l).label === t)
+}
+
+// `--linked provider[:kind[:ref]]`: tasks that have a link matching every part given.
+export interface LinkedFilter {
+  provider?: string
+  kind?: Kind
+  ref?: string
+}
+
+export function parseLinkedFilter(spec: string): LinkedFilter {
+  const [provider, kind, ...ref] = spec.split(':')
+  if (kind && !(KINDS as readonly string[]).includes(kind)) throw new LinkError('invalid', `--linked: kind must be one of ${KINDS.join(', ')} (got "${kind}")`)
+  const filter: LinkedFilter = {}
+  if (provider) filter.provider = provider
+  if (kind) filter.kind = kind as Kind
+  if (ref.length) filter.ref = ref.join(':')
+  if (!filter.provider && !filter.kind && !filter.ref) throw new LinkError('invalid', '--linked needs provider[:kind[:ref]]')
+  return filter
+}
+
+export const matchesLinked = (links: readonly Link[], f: LinkedFilter) =>
+  links.some(l => (!f.provider || l.provider === f.provider) && (!f.kind || l.kind === f.kind) && (!f.ref || l.ref === f.ref))
