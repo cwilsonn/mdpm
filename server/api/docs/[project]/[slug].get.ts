@@ -13,6 +13,7 @@ export default defineEventHandler((event) => {
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: (file.data.updatedAt as string) ?? undefined,
     archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
+    links: Array.isArray(file.data.links) ? file.data.links : [],
     body: file.content,
   }
 })

@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
     description?: string
     tags?: string[]
     githubRepo?: string
+    links?: unknown
     availableStatuses?: string[]
     defaultStatus?: string
     defaultPriority?: string
@@ -33,20 +34,21 @@ export default defineEventHandler(async (event) => {
 
   const slug = uniqueSlug(base, s => existsSync(contentPath('projects', s)))
 
-  writeMarkdown(`projects/${slug}/index.md`, {
+  const frontmatter: Record<string, unknown> = {
     title: body.title.trim(),
     status: body.status ?? 'active',
     ...(body.icon ? { icon: body.icon } : {}),
     ...(body.description ? { description: body.description } : {}),
     tags: body.tags ?? [],
-    ...(body.githubRepo ? { githubRepo: body.githubRepo } : {}),
     pinnedOrder: projectCount,
     availableStatuses: body.availableStatuses ?? ['todo', 'in-progress', 'done'],
     ...(body.defaultStatus ? { defaultStatus: body.defaultStatus } : {}),
     ...(body.defaultPriority ? { defaultPriority: body.defaultPriority } : {}),
     ...(body.defaultAssignee ? { defaultAssignee: body.defaultAssignee } : {}),
     createdAt: new Date().toISOString().split('T')[0],
-  })
+  }
+  const notices = applyLinkWrite('project', frontmatter, body as Record<string, unknown>)
+  writeMarkdown(`projects/${slug}/index.md`, frontmatter)
 
-  return { slug }
+  return { slug, ...(notices.length ? { notices } : {}) }
 })

@@ -7,18 +7,29 @@ after(scratch.cleanup)
 
 let api: Awaited<ReturnType<typeof mockApi>>
 let failWith: { status: number; body: unknown } | undefined
+let notices: string[] | undefined
 let healthRoot: string | undefined
 before(async () => {
   api = await mockApi(req => req.path === '/api/health'
     ? { body: { ok: true, ...(healthRoot && { contentRoot: healthRoot }) } }
-    : failWith ?? {})
+    : failWith ?? (notices ? { body: { ok: true, slug: 'created-slug', notices } } : {}))
 })
 after(() => api.close())
-beforeEach(() => { api.requests.length = 0; failWith = undefined; healthRoot = undefined })
+beforeEach(() => { api.requests.length = 0; failWith = undefined; healthRoot = undefined; notices = undefined })
 
 const cli = (args: string[], input?: string) =>
   runCli(args, { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url }, input })
 const last = () => api.requests.at(-1)!
+
+describe('notices from the server', () => {
+  it('are printed to stderr, never stdout, so --json output stays clean', async () => {
+    notices = ['githubPRs is deprecated; use links. Removal planned for 0.10.']
+    const r = await cli(['task', 'set', 'parser', '--project', 'alpha', '--github-prs', '5', '--json'])
+    assert.equal(r.code, 0)
+    assert.match(r.stderr, /note: githubPRs is deprecated; use links\. Removal planned for 0\.10\./)
+    assert.doesNotMatch(r.stdout, /deprecated/)
+  })
+})
 
 describe('task writes hit the API', () => {
   it('add posts the fields', async () => {

@@ -18,7 +18,7 @@ const OWNER_REPO = /^[\w.-]+\/[\w.-]+$/
 
 export const isOwnerRepo = (value: unknown): value is string => typeof value === 'string' && OWNER_REPO.test(value)
 
-const githubLinks = (links: unknown, kind: string) =>
+export const githubLinks = (links: unknown, kind: string) =>
   (Array.isArray(links) ? links as LinkLike[] : []).filter(l => l && l.provider === 'github' && l.kind === kind && typeof l.ref === 'string')
 
 // The project's repo: the legacy field when present, else its GitHub repo link.
@@ -28,7 +28,7 @@ export function projectRepoOf(data: Record<string, unknown>): string | null {
 }
 
 // "acme/widgets#42" or an unresolved "#42" -> 42, when it belongs to `repo` (or to no repo at all).
-function numberFromRef(ref: string, repo: string | null) {
+export function numberFromRef(ref: string, repo: string | null) {
   const m = /^(?:(.+))?#(\d+)$/.exec(ref)
   if (!m || (m[1] && m[1] !== repo)) return undefined
   return Number(m[2])

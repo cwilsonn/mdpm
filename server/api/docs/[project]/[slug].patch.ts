@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
   assertSafeSlug(project, slug)
-  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string; archivedAt?: string | null }>(event)
+  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string; archivedAt?: string | null; links?: unknown }>(event)
 
   const file = readMarkdown(`projects/${project}/docs/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Doc not found' })
@@ -19,17 +19,18 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const { body: newBody, ...frontmatterFields } = body
+  const { body: newBody, links: _links, ...frontmatterFields } = body
   const merged: Record<string, unknown> = { ...file.data }
   for (const [k, v] of Object.entries(frontmatterFields)) {
     if (v === undefined) continue
     if (v === null) { delete merged[k]; continue }
     merged[k] = v
   }
+  const notices = applyLinkWrite('doc', merged, body as Record<string, unknown>)
   merged.updatedAt = new Date().toISOString()
 
   writeMarkdown(`projects/${project}/docs/${slug}.md`, merged, newBody !== undefined ? String(newBody) : file.content)
-  return { ok: true }
+  return { ok: true, ...(notices.length ? { notices } : {}) }
 })
 
 function wouldCreateCycleProject(slug: string, newParent: string, project: string): boolean {

@@ -1,3 +1,4 @@
+import { projectRepoOf } from '../../../../lib/core/links-compat'
 
 export default defineEventHandler(async (event) => {
   const project = getRouterParam(event, 'project')!
@@ -13,6 +14,7 @@ export default defineEventHandler(async (event) => {
     dependencies?: string[]
     githubIssues?: number[]
     githubPRs?: number[]
+    links?: unknown
     description?: string
     order?: number
     archivedAt?: string | null
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Task not found' })
 
-  const { description, ...frontmatterFields } = body
+  const { description, links: _links, githubIssues: _issues, githubPRs: _prs, ...frontmatterFields } = body
 
   const newStatus = body.status ?? (file.data.status as string)
   const now = new Date().toISOString()
@@ -32,6 +34,8 @@ export default defineEventHandler(async (event) => {
     if (v === null) { delete updated[k]; continue }
     updated[k] = v
   }
+  const projectFile = readMarkdown(`projects/${project}/index.md`)
+  const notices = applyLinkWrite('task', updated, body as Record<string, unknown>, projectFile ? projectRepoOf(projectFile.data) : null)
   updated.updatedAt = now
 
   if (newStatus === 'done' && !file.data.completedAt) {
@@ -43,5 +47,5 @@ export default defineEventHandler(async (event) => {
 
   const newBody = description !== undefined ? String(description) : file.content
   writeMarkdown(`projects/${project}/tasks/${slug}.md`, updated, newBody)
-  return { ok: true }
+  return { ok: true, ...(notices.length ? { notices } : {}) }
 })

@@ -1,3 +1,4 @@
+import { projectRepoOf } from '../../../lib/core/links-compat'
 import { existsSync, readdirSync } from 'node:fs'
 
 const TASK_LIMIT_PER_PROJECT = 20
@@ -15,6 +16,7 @@ export default defineEventHandler(async (event) => {
     dependencies?: string[]
     githubIssues?: number[]
     githubPRs?: number[]
+    links?: unknown
     description?: string
   }>(event)
 
@@ -49,7 +51,7 @@ export default defineEventHandler(async (event) => {
     s => existsSync(contentPath('projects', body.project, 'tasks', `${s}.md`)),
   )
 
-  writeMarkdown(`projects/${body.project}/tasks/${slug}.md`, {
+  const frontmatter: Record<string, unknown> = {
     title: body.title.trim(),
     status: body.status ?? projectDefaultStatus,
     priority: body.priority ?? projectDefaultPriority,
@@ -57,11 +59,11 @@ export default defineEventHandler(async (event) => {
     assignees: body.assignees ?? (projectDefaultAssignee ? [projectDefaultAssignee] : []),
     ...(body.due ? { due: body.due } : {}),
     dependencies: body.dependencies ?? [],
-    githubIssues: body.githubIssues ?? [],
-    githubPRs: body.githubPRs ?? [],
     createdAt: new Date().toISOString().split('T')[0],
     order: taskCount,
-  }, body.description ?? '')
+  }
+  const notices = applyLinkWrite('task', frontmatter, body as Record<string, unknown>, projectFile ? projectRepoOf(projectFile.data) : null)
+  writeMarkdown(`projects/${body.project}/tasks/${slug}.md`, frontmatter, body.description ?? '')
 
-  return { slug }
+  return { slug, ...(notices.length ? { notices } : {}) }
 })

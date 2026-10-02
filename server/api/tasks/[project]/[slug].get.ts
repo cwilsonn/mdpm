@@ -1,3 +1,4 @@
+import { effectiveLinks } from '../../../../lib/core/github-links'
 import { githubView, projectRepoOf } from '../../../../lib/core/links-compat'
 export default defineEventHandler((event) => {
   const project = getRouterParam(event, 'project')!
@@ -24,7 +25,7 @@ export default defineEventHandler((event) => {
     due: (file.data.due as string | undefined) ?? undefined,
     githubIssues: gh.githubIssues,
     githubPRs: gh.githubPRs,
-    links: Array.isArray(file.data.links) ? file.data.links : [],
+    links: effectiveLinks('task', file.data, githubRepo),
     githubRepo,
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
