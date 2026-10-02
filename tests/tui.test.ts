@@ -4,7 +4,7 @@ import { cpSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { parseKeys, type Key } from '../cli/tui/keys'
-import { fit, renderScreen, wrap } from '../cli/tui/render'
+import { fit, hintsFor, renderScreen, wrap } from '../cli/tui/render'
 import { columns, initialState, selectedTask, update, withMessage, withProjects, withTasks, type Effect, type TuiState, type TuiTask } from '../cli/tui/state'
 import { FIXTURE_CONTENT, isolatedEnv, mockApi, REPO, scratchDir } from './helpers'
 
@@ -238,7 +238,7 @@ describe('rendering', () => {
     assert.match(text, /TODO \(2\)\s+IN PROGRESS \(1\)\s+IN REVIEW \(0\)\s+DONE \(1\)/)
     assert.match(text, /!\s?Title of a/)
     assert.match(text, /~Title of b/, 'a card that waits on another is marked')
-    assert.match(text, /H\/L move/)
+    assert.match(text, /H\/L shift/, 'at 100 columns the medium hint line fits')
   })
 
   it('highlights exactly the selected card', () => {
@@ -276,6 +276,36 @@ describe('rendering', () => {
     const out = lines({ ...board(many), row: 35 }, { columns: 80, rows: 20 }).map(strip).join('\n')
     assert.match(out, /Title of s35/)
     assert.doesNotMatch(out, /Title of s0\b/)
+  })
+
+  it('key hints shrink to fit the width instead of being cut off mid-word', () => {
+    assert.match(hintsFor(112), /H\/L move .* p project .* q quit$/)
+    assert.match(hintsFor(80), /H\/L shift .* \? help {2}q quit$/)
+    assert.match(hintsFor(52), /\? help {2}q quit$/)
+    assert.equal(hintsFor(20), '? help  q quit')
+    assert.equal(hintsFor(5), '? help  q quit', 'the shortest line is the fallback')
+    for (const columns of [20, 30, 40, 52, 70, 90, 112]) {
+      const last = strip(renderScreen(board(tasks), { columns, rows: 20 }).at(-1)!)
+      assert.match(last, /\? help/, `${columns} columns`)
+      assert.ok(!last.includes('…'), `no ellipsis at ${columns} columns: ${last}`)
+    }
+  })
+
+  it('a small board hands its spare rows to the selected card\'s details', () => {
+    const body = Array.from({ length: 12 }, (_, i) => `description line ${i + 1}`).join('\n')
+    const out = renderScreen(board([t('a', 'todo', { body }), t('b', 'todo', { order: 1 })]), { columns: 112, rows: 26 }).map(strip)
+    for (let i = 1; i <= 12; i++) assert.ok(out.some(l => l.includes(`description line ${i}`)), `line ${i} is visible`)
+    const rule = out.findIndex(l => /^─+$/.test(l.trim()) && !l.includes(' '))
+    assert.ok(rule > 0 && rule <= 7, `the board stays compact (rule at line ${rule})`)
+  })
+
+  it('a big board keeps a readable details pane and scrolls instead', () => {
+    const many = Array.from({ length: 40 }, (_, i) => t(`s${i}`, 'todo', { order: i, body: 'details' }))
+    const out = renderScreen(board(many), { columns: 112, rows: 30 }).map(strip)
+    const rule = out.findIndex(l => /^─+$/.test(l.trim()) && !l.includes(' '))
+    const detail = out.length - 1 - rule - 1
+    assert.ok(detail >= 8, `at least 8 rows of details, got ${detail}`)
+    assert.equal(out.length, 30)
   })
 
   it('fit() and wrap() behave on edge cases', () => {
