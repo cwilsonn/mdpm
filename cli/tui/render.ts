@@ -39,7 +39,14 @@ const priorityMark = (p: string) => PRIORITY_MARK[p] ?? [' ', '']
 
 const STATUS_LABEL: Record<string, string> = { 'todo': 'TODO', 'in-progress': 'IN PROGRESS', 'in-review': 'IN REVIEW', 'blocked': 'BLOCKED', 'on-hold': 'ON HOLD', 'done': 'DONE' }
 
-const KEYS = '←→ column  ↑↓ card  H/L move  +/- priority  d done  n note  a add  / filter  p project  ⏎ open  ? help  q quit'
+// The longest hint line that fits; a terminal too narrow for any of them still gets `? help  q quit`.
+const HINTS = [
+  '←→ column  ↑↓ card  H/L move  +/- priority  d done  n note  a add  / filter  p project  ⏎ open  ? help  q quit',
+  '←→↑↓ move  H/L shift  d done  n note  a add  / find  ⏎ open  ? help  q quit',
+  '←→↑↓ move  H/L shift  d done  ? help  q quit',
+  '? help  q quit',
+]
+export const hintsFor = (width: number) => HINTS.find(h => [...h].length <= width) ?? HINTS.at(-1)!
 
 export const HELP: string[] = [
   'Board',
@@ -124,7 +131,7 @@ export function renderScreen(state: TuiState, size: { columns: number; rows: num
       return fit(`${label}: ${state.prompt!.text}▏`, width)
     }
     if (state.message) return paint(fit(state.message.text, width), state.message.error ? style.red : style.green)
-    return paint(fit(KEYS, width), style.dim)
+    return paint(fit(hintsFor(width), width), style.dim)
   })()
   const middle = rows - 2
 
@@ -147,10 +154,15 @@ export function renderScreen(state: TuiState, size: { columns: number; rows: num
   if (!state.tasks.length) {
     return [header, ...pad([fit('', width), fit('  No tasks yet. Press a to add one.', width)], middle, width), footer]
   }
-  // Board on top and the selected card's details underneath. A short terminal gets the board alone
-  // (Enter still opens the card).
-  const detailRows = middle >= 14 ? Math.min(8, Math.max(4, Math.floor(middle / 3))) : 0
-  const boardHeight = detailRows ? middle - detailRows - 1 : middle
+  // Board on top and the selected card's details underneath. The board takes the rows its tallest column
+  // needs (at least three cards' worth) and the details get everything left over, so a small board gives
+  // its spare space to the description instead of leaving it blank. A big board is capped so the details
+  // keep a readable minimum. A short terminal gets the board alone (Enter still opens the card).
+  const showDetail = middle >= 14
+  const minDetail = Math.min(8, Math.max(4, Math.floor(middle / 3)))
+  const tallest = Math.max(3, ...columns(state).map(c => c.tasks.length))
+  const boardHeight = showDetail ? Math.min(2 + tallest, middle - minDetail - 1) : middle
+  const detailRows = showDetail ? middle - boardHeight - 1 : 0
   const board = pad(boardLines(state, width, boardHeight), boardHeight, width)
   if (!detailRows) return [header, ...board, footer]
   const rule = paint('─'.repeat(width), style.dim)
