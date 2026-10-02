@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.8.0...mdpm-v0.9.0) (2026-10-02)
+
+
+### Features
+
+* **core:** add links content model and mdpm migrate for legacy GitHub fields ([593d796](https://github.com/cwilsonn/mdpm/commit/593d796b4e711ee6036cbcd6c1b43b20680949ec))
+
 ## [0.8.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.7.0...mdpm-v0.8.0) (2026-10-02)
 
 
