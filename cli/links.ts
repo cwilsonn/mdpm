@@ -1,26 +1,17 @@
 import { defineCommand } from 'citty'
-import { addLink, builtinRegistry, findLinks, KINDS, LinkError, linkKey, resolveLink, viewLink, type Kind, type Link } from '../lib/core'
+import { addLink, builtinRegistry, KINDS, LinkError, resolveLink, viewLink, type Kind, type Link } from '../lib/core'
 import { createContext, globalArgs, writeArgs, type Context } from './context'
 import { CliError, emit, ExitCode } from './output'
 
 // `task link`, `project link` and `doc link` share one implementation: each supplies how to find its
 // target and how to save a new links list; add/remove/list are the same everywhere.
 
-export interface LinkTarget {
-  // "project/slug", for messages
-  name: string
-  // The item's effective links (stored plus any legacy GitHub fields folded in)
-  links: Link[]
-  // Repo links of the owning project, used to expand short refs like "#42"
-  repos: Link[]
-  save(links: Link[]): Promise<unknown>
-}
-
 export interface LinkCommandSpec {
   description: string
-  // Positional `ref` (and scope flags) that identify the target
+  // Positional `ref` (and scope flags) that identify the item
   targetArgs: Record<string, any>
-  target(ctx: Context, args: any): LinkTarget
+  // Resolve the user's (possibly fuzzy) ref to one concrete item
+  item(ctx: Context, args: any): { scope: 'task' | 'project' | 'doc'; project?: string | null; slug: string }
 }
 
 const registry = builtinRegistry()
@@ -32,6 +23,17 @@ export function parseKind(value: unknown): Kind | undefined {
 }
 
 // A resolver error that is really "tell me which one you mean" gets the flags that answer it.
+// The resolver's "which one do you mean" errors get the CLI flags that answer them.
+async function explainAmbiguity<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  }
+  catch (err) {
+    if (err instanceof LinkError && err.code === 'ambiguous') throw new CliError(err.message.replace(/; specify a provider.*$/, '; use --provider and/or --kind to choose'), ExitCode.usage)
+    throw err
+  }
+}
+
 export function resolveOrExplain(input: string, repos: Link[], opts: { provider?: string; kind?: Kind; title?: string } = {}) {
   try {
     return resolveLink(registry, input, { repos }, opts)
@@ -90,12 +92,11 @@ export function linkCommand(spec: LinkCommandSpec) {
     },
     async run({ args }) {
       const ctx = createContext(args)
-      const target = spec.target(ctx, args)
-      const link = resolveOrExplain(args.input, target.repos, { provider: args.provider, kind: parseKind(args.kind), title: args.title })
-      const { links, added } = addLink(target.links, link)
-      if (added) await target.save(links)
-      const { view, text } = describeLink(link)
-      emit(ctx.json, { target: target.name, added, link, view }, () => added
+      const { scope, ...ref } = spec.item(ctx, args)
+      const target = ctx.core.linkTarget(scope, ref)
+      const result = await explainAmbiguity(() => ctx.core.addLinkTo(target, args.input, { provider: args.provider, kind: parseKind(args.kind), title: args.title }))
+      const { view, text } = describeLink(result.link)
+      emit(ctx.json, result, () => result.added
         ? `${ctx.style.green('✓')} linked ${text} to ${target.name}${view.href ? `\n  ${ctx.style.dim(view.href)}` : ctx.style.yellow('\n  (no URL: the project has no repo to expand it against)')}`
         : `${text} is already linked to ${target.name} (nothing changed)`)
     },
@@ -111,15 +112,10 @@ export function linkCommand(spec: LinkCommandSpec) {
     },
     async run({ args }) {
       const ctx = createContext(args)
-      const target = spec.target(ctx, args)
-      const found = findLinks(registry, target.links, args.link)
-      if (!found.length) throw new CliError(`no link on ${target.name} matches '${args.link}' (see \`link list\`)`, ExitCode.notFound)
-      if (found.length > 1) {
-        throw new CliError(`'${args.link}' matches ${found.length} links on ${target.name}: ${found.map(l => describeLink(l).text).join(', ')}; name one by @N or URL`, ExitCode.usage)
-      }
-      const [gone] = found
-      await target.save(target.links.filter(l => linkKey(l) !== linkKey(gone!)))
-      emit(ctx.json, { target: target.name, removed: gone }, () => `${ctx.style.green('✓')} removed ${describeLink(gone!).text} from ${target.name}`)
+      const { scope, ...ref } = spec.item(ctx, args)
+      const target = ctx.core.linkTarget(scope, ref)
+      const result = await ctx.core.removeLinkFrom(target, args.link)
+      emit(ctx.json, result, () => `${ctx.style.green('✓')} removed ${describeLink(result.removed).text} from ${target.name}`)
     },
   })
 
@@ -128,7 +124,8 @@ export function linkCommand(spec: LinkCommandSpec) {
     args: { ...globalArgs, ...spec.targetArgs },
     run({ args }) {
       const ctx = createContext(args)
-      const target = spec.target(ctx, args)
+      const { scope, ...ref } = spec.item(ctx, args)
+      const target = ctx.core.linkTarget(scope, ref)
       emit(ctx.json, target.links.map(link => ({ link, view: viewLink(registry, link) })), () =>
         target.links.length ? renderLinks(ctx, target.links) : ctx.style.dim(`no links on ${target.name}`))
     },

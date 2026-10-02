@@ -70,7 +70,7 @@ Required env vars (set in shell profile or `.env`):
 - `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and writes are refused when the server reports a different root (`GET /api/health`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
-Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`
+Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`, plus archive/delete tools and `add_link`, `remove_link`, `resolve_link` (links on tasks, projects and docs; `create_*`/`update_*` also take `links`, and the legacy `githubIssues`/`githubPRs`/`githubRepo` arguments still work with a deprecation notice in the result)
 
 ## Links and Providers
 

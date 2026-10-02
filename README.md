@@ -193,7 +193,7 @@ Lets Claude Code read and write mdpm data from any project you're working on. Re
 
 Read tools query the markdown files directly and work without the dev server. Write tools go through the server, which must be running unless auto-start is on.
 
-**Tools (24):** `ping` · `list_projects` · `get_project` · `create_project` · `update_project` · `archive_project` · `unarchive_project` · `delete_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `append_task_note` · `archive_task` · `unarchive_task` · `delete_task` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `archive_doc` · `unarchive_doc` · `delete_doc`
+**Tools (27):** `ping` · `list_projects` · `get_project` · `create_project` · `update_project` · `archive_project` · `unarchive_project` · `delete_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `append_task_note` · `archive_task` · `unarchive_task` · `delete_task` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `archive_doc` · `unarchive_doc` · `delete_doc` · `add_link` · `remove_link` · `resolve_link`
 
 CLI vs MCP: the CLI is the first-class interface and works the same for you and for agents (`--json`); the MCP server is the native tool surface inside Claude Code. Both go through the same core library.
 

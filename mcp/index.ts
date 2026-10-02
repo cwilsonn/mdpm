@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, loadConfig, REPO_ROOT, schemaStatus } from '../lib/core'
+import { createCore, createLifecycle, KINDS, loadConfig, parseLinkedFilter, REPO_ROOT, schemaStatus } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -15,6 +15,23 @@ const loaded = loadConfig()
 // Opt-in (MDPM_AUTO_START=1 or `autoStart` in the config file): a write that finds the server down
 // starts it and retries. Unlike the CLI, this long-lived process never stops it again.
 const lifecycle = createLifecycle(loaded.config)
+// A stored link. Prefer add_link/remove_link, which resolve a pasted URL or short ref for you;
+// passing `links` replaces the whole list, so read the item first (get_task returns its links).
+const LINKS_PROP = {
+  type: 'array',
+  description: 'Replaces the item\'s whole list of links; to add or remove one, use add_link / remove_link instead.',
+  items: {
+    type: 'object',
+    properties: {
+      url: { type: 'string' },
+      provider: { type: 'string', description: 'e.g. github, gitlab' },
+      kind: { type: 'string', enum: [...KINDS] },
+      ref: { type: 'string', description: 'Provider-canonical ref, e.g. "owner/repo#42"' },
+      title: { type: 'string' },
+    },
+  },
+} as const
+
 const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable: async () => { await lifecycle.start() } } : {})
 
 // ─── Server ──────────────────────────────────────────────────────────────────
@@ -62,8 +79,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
             description: 'Filter by status values. Omit for all.',
           },
-          githubIssue: { type: 'number', description: 'Return only tasks linked to this GitHub issue number.' },
-          githubPR: { type: 'number', description: 'Return only tasks linked to this GitHub PR number.' },
+          linked: { type: 'string', description: 'Return only tasks with a link matching provider[:kind[:ref]], e.g. "github", "jira", "github:change", "gitlab:change:group/proj!9".' },
+          githubIssue: { type: 'number', description: 'Deprecated: use linked ("github:issue"). Return only tasks linked to this GitHub issue number.' },
+          githubPR: { type: 'number', description: 'Deprecated: use linked ("github:change"). Return only tasks linked to this GitHub PR number.' },
           includeArchived: { type: 'boolean', description: 'Include archived tasks. Defaults to false.' },
         },
       },
@@ -93,8 +111,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string', description: 'YYYY-MM-DD' },
-          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub issue numbers.' },
-          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub PR numbers.' },
+          links: LINKS_PROP,
+          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub issue numbers (replaces the list; converted to links).' },
+          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub PR numbers (replaces the list; converted to links).' },
           description: { type: 'string', description: 'Markdown body' },
         },
         required: ['project', 'title'],
@@ -114,11 +133,58 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string' },
-          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub issue numbers.' },
-          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Linked GitHub PR numbers.' },
+          links: LINKS_PROP,
+          githubIssues: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub issue numbers (replaces the list; converted to links).' },
+          githubPRs: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub PR numbers (replaces the list; converted to links).' },
           description: { type: 'string', description: 'Markdown body' },
         },
         required: ['project', 'slug'],
+      },
+    },
+    {
+      name: 'add_link',
+      description: 'Add a link to a task, project, or doc from a pasted URL or a short ref (#42, ABC-123). Short refs expand against the project\'s repo link; "#42" on GitHub could be an issue or a pull request, so pass kind. Duplicates are ignored. Returns the stored link and how it displays.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['task', 'project', 'doc'] },
+          project: { type: 'string', description: 'Project slug. Required for a task; for a doc omit it to mean a standalone doc.' },
+          slug: { type: 'string', description: 'Task or doc slug, or the project slug when type is project.' },
+          input: { type: 'string', description: 'A URL, or a short ref such as "#42" or "ABC-123".' },
+          provider: { type: 'string', description: 'Provider id (github, gitlab, ...) when the input could be several.' },
+          kind: { type: 'string', enum: [...KINDS], description: 'Which kind of link when ambiguous, e.g. "change" for a pull/merge request.' },
+          title: { type: 'string', description: 'Label to show instead of the derived one.' },
+        },
+        required: ['type', 'slug', 'input'],
+      },
+    },
+    {
+      name: 'remove_link',
+      description: 'Remove a link from a task, project, or doc. Name it by @N (position in the item\'s links), URL, ref, label, or title; an ambiguous name is an error.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['task', 'project', 'doc'] },
+          project: { type: 'string', description: 'Project slug. Required for a task; omit for a standalone doc.' },
+          slug: { type: 'string' },
+          link: { type: 'string', description: '@N, URL, ref, label (e.g. "#42"), or title.' },
+        },
+        required: ['type', 'slug', 'link'],
+      },
+    },
+    {
+      name: 'resolve_link',
+      description: 'Show how a URL or short ref would be understood (provider, kind, canonical URL, label) without writing anything.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          input: { type: 'string' },
+          project: { type: 'string', description: 'Project whose repo link expands short refs.' },
+          provider: { type: 'string' },
+          kind: { type: 'string', enum: [...KINDS] },
+          title: { type: 'string' },
+        },
+        required: ['input'],
       },
     },
     {
@@ -159,7 +225,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'create_project',
-      description: 'Create a new project. Use when tracking a new repo/effort in mdpm for the first time; pass githubRepo to link the repo. Follow up with the onboard skill to scaffold architecture/context docs.',
+      description: 'Create a new project. Use when tracking a new repo/effort in mdpm for the first time; pass links (or add_link afterwards) to link the repo. Follow up with the onboard skill to scaffold architecture/context docs.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -168,7 +234,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           icon: { type: 'string' },
           status: { type: 'string', description: 'Project status. Defaults to "active".' },
           tags: { type: 'array', items: { type: 'string' } },
-          githubRepo: { type: 'string', description: 'GitHub repo, e.g. "owner/name".' },
+          links: LINKS_PROP,
+          githubRepo: { type: 'string', description: 'Deprecated: use add_link (a repo URL). GitHub repo, e.g. "owner/name".' },
           availableStatuses: { type: 'array', items: { type: 'string' } },
           defaultStatus: { type: 'string' },
           defaultPriority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
@@ -189,7 +256,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           icon: { type: ['string', 'null'] },
           status: { type: 'string', description: 'Project status, e.g. "active" or "on-hold".' },
           tags: { type: 'array', items: { type: 'string' } },
-          githubRepo: { type: ['string', 'null'], description: 'GitHub repo, e.g. "owner/name".' },
+          links: LINKS_PROP,
+          githubRepo: { type: ['string', 'null'], description: 'Deprecated: use add_link/remove_link. GitHub repo, e.g. "owner/name".' },
           availableStatuses: { type: 'array', items: { type: 'string' } },
           defaultStatus: { type: ['string', 'null'] },
           defaultPriority: { type: ['string', 'null'], enum: ['low', 'medium', 'high', 'urgent', null] },
@@ -373,8 +441,25 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case 'get_project':
         return json(core.getProject((args as { slug: string }).slug), true)
 
-      case 'list_tasks':
-        return json(core.listTasks(args as Parameters<typeof core.listTasks>[0]), true)
+      case 'list_tasks': {
+        const { linked, ...rest } = args as Parameters<typeof core.listTasks>[0] & { linked?: string }
+        return json(core.listTasks({ ...rest, ...(linked && { linked: parseLinkedFilter(linked) }) }), true)
+      }
+
+      case 'add_link': {
+        const { type, project, slug, input, provider, kind, title } = args as { type: 'task' | 'project' | 'doc'; project?: string; slug: string; input: string; provider?: string; kind?: (typeof KINDS)[number]; title?: string }
+        return json(await core.addLinkTo(core.linkTarget(type, { project, slug }), input, { provider, kind, title }))
+      }
+
+      case 'remove_link': {
+        const { type, project, slug, link } = args as { type: 'task' | 'project' | 'doc'; project?: string; slug: string; link: string }
+        return json(await core.removeLinkFrom(core.linkTarget(type, { project, slug }), link))
+      }
+
+      case 'resolve_link': {
+        const { input, project, provider, kind, title } = args as { input: string; project?: string; provider?: string; kind?: (typeof KINDS)[number]; title?: string }
+        return json(core.resolveLinkInput(input, { project, provider, kind, title }), true)
+      }
 
       case 'get_task': {
         const { project, slug } = args as { project: string; slug: string }
