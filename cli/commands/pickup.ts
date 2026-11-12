@@ -42,7 +42,7 @@ export function renderPickup(p: Pickup, opts: { delta?: boolean } = {}) {
   out.push('', `### Docs (${p.docCount})`)
   for (const d of p.docs) out.push(`- ${d.highPriority ? '⭐ ' : ''}${d.title} (\`${d.slug}\`)${d.summary ? `: ${d.summary}` : ''}`)
   if (p.hiddenDocs) out.push(`- … ${p.hiddenDocs} more (mdpm doc list)`)
-  if (p.sessionNotesCount) out.push(`- ${p.sessionNotesCount} session-notes doc${p.sessionNotesCount === 1 ? '' : 's'} (latest shown below)`)
+  if (p.sessionNotesCount) out.push(`- ${p.sessionNotesCount} session-notes doc${p.sessionNotesCount === 1 ? '' : 's'} (latest shown below)${p.compactionHint ? `; ${p.compactionHint}` : ''}`)
   if (p.docs.some(d => d.highPriority)) out.push('', '⭐ = tagged architecture, decisions, or context: read first.')
 
   out.push('', '### Last Session Notes')
