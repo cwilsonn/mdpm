@@ -21,7 +21,8 @@ Steps:
    (slug, old status → new status)
    Keep it concise: the next /pickup reads at most the first ~2000 characters of it.
 5. Confirm the writes succeeded and report any failures.
-6. Output only:
+6. If `mdpm pickup $ARGUMENTS --json` reported a `compactionHint` (more than 10 session-notes docs), run `mdpm notes compact --project $ARGUMENTS` (a dry run) and offer the result to the user; never pass `--apply` without their yes.
+7. Output only:
    > ✓ Session notes saved: http://mdpm.local:3333/projects/<project>/docs/<slug>
    Do NOT print the session-notes body. The link is sufficient for the user to verify.
 

@@ -148,6 +148,7 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
     docs: shownDocs,
     ...(shownDocs.length < docList.length && { hiddenDocs: docList.length - shownDocs.length }),
     sessionNotesCount: sessionNotes.length,
+    ...(sessionNotes.length > 10 && { compactionHint: `${sessionNotes.length} session-notes docs: run \`mdpm notes compact\` to roll the old ones into a digest` }),
     lastSessionNotes: lastSessionNotes && {
       slug: lastSessionNotes.slug,
       title: lastSessionNotes.title,

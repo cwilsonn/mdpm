@@ -169,6 +169,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm log` | Recent activity, newest first: task notes (with author) plus tasks created or updated. Filters: `--project`/`--all`, `--since 2d` (or a date), `--author`, `--limit` |
 | `mdpm export \| import` | Move data in and out: JSON (full fidelity, re-importable), CSV (tasks), markdown (readable). See below |
 | `mdpm pickup [project]` | Session briefing, capped: open tasks (8 per status), blockers, what changed since the last handoff, docs, latest session notes (2000 chars), suggested focus. `--delta` prints only the changes and blockers; `--full` lifts every cap |
+| `mdpm notes compact` | Keep the newest 5 (`--keep N`) session-notes docs and roll older ones into a single `notes-rollup` doc of short digests, archiving (never deleting) the originals. Dry run unless `--apply`; `mdpm doc unarchive <slug>` restores one. `pickup` suggests it past 10 docs |
 | `mdpm usage` | Response sizes per CLI command and MCP tool (name and size only, never content), heaviest first; `--since 7d`. Set `MDPM_USAGE_LOG=0` to stop logging |
 | `mdpm config show` | Resolved settings and where each came from |
 | `mdpm completions zsh \| bash \| fish` | Print a shell completion script (see below) |

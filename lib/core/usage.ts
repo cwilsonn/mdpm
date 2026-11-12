@@ -86,7 +86,7 @@ export function summarizeUsage(entries: UsageEntry[]): UsageRow[] {
 
 // Commands with subcommands; for these the name is two words (`task list`), otherwise one (`pickup`),
 // so positional arguments such as a project slug never leak into the log.
-const GROUPS = new Set(['task', 'doc', 'project', 'links', 'providers', 'skills', 'hooks', 'config'])
+const GROUPS = new Set(['task', 'doc', 'project', 'links', 'providers', 'skills', 'hooks', 'config', 'notes'])
 
 export function commandName(rawArgs: string[]) {
   const words = rawArgs.filter(a => !a.startsWith('-'))
