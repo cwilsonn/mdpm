@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.13.0...mdpm-v0.14.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** MCP list tools no longer return a bare JSON array, and CLI list/search --json defaults to 20 rows with summary fields (use --limit 0 --fields '*' for the old shape, minus bodies).
+
+### Features
+
+* **cli:** add notes compact to roll old session notes into a digest ([471f466](https://github.com/cwilsonn/mdpm/commit/471f46653507d9732fec4ccfc394f3b10432be94))
+* **cli:** fire-and-forget writes with --async and async: true ([970260b](https://github.com/cwilsonn/mdpm/commit/970260bc1a7caebd174c718e65b8026cf69268b1))
+* **cli:** page, summarize and cap task and doc reads ([f1bc391](https://github.com/cwilsonn/mdpm/commit/f1bc39196a6082270a0fbd2909b86885213a681b))
+* **core:** cap pickup and add blockers and a delta since last handoff ([b590e79](https://github.com/cwilsonn/mdpm/commit/b590e792f6f4898ce035e88b5b1d42af2495f9f8))
+* **core:** log response sizes and add mdpm usage ([59a5c27](https://github.com/cwilsonn/mdpm/commit/59a5c27b910213ac567888dbe2333b7918fa6996))
+* **skills:** pin models by the judgment each skill needs ([602cdef](https://github.com/cwilsonn/mdpm/commit/602cdef19f9fd688d832be4bc9b20c29ee715528))
+* **skills:** write task notes once, at completion, in one batch ([956ae10](https://github.com/cwilsonn/mdpm/commit/956ae102222f77d872149ecc1df9f425f45a1ceb))
+* **task:** batch writes, task start, and notes in the same write ([275cb0f](https://github.com/cwilsonn/mdpm/commit/275cb0ffe277e8a81a20bfd361684fb3ad6770b1))
+
 ## [0.13.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.12.0...mdpm-v0.13.0) (2026-10-02)
 
 
