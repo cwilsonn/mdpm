@@ -7,6 +7,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -151,6 +152,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           githubIssues: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub issue numbers (replaces the list; converted to links).' },
           githubPRs: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub PR numbers (replaces the list; converted to links).' },
           description: { type: 'string', description: 'Markdown body' },
+          note: { type: 'string', description: 'Appended as a timestamped note in the same write.' },
+          noteAuthor: { type: 'string', description: 'Author of the note; defaults to $MDPM_AUTHOR, else "claude".' },
         },
         required: ['project', 'title'],
       },
@@ -173,8 +176,57 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           githubIssues: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub issue numbers (replaces the list; converted to links).' },
           githubPRs: { type: 'array', items: { type: 'number' }, description: 'Deprecated: use add_link. Linked GitHub PR numbers (replaces the list; converted to links).' },
           description: { type: 'string', description: 'Markdown body' },
+          note: { type: 'string', description: 'Appended as a timestamped note in the same write (status + note in one call).' },
+          noteAuthor: { type: 'string', description: 'Author of the note; defaults to $MDPM_AUTHOR, else "claude".' },
         },
         required: ['project', 'slug'],
+      },
+    },
+    {
+      name: 'batch_tasks',
+      description: 'Apply several task writes in ONE call (up to 100, in order; a failing item does not stop the rest). Use it to record a whole session at once instead of one call per task. Items: {op:"update", ref, status?, priority?, note?, ...}, {op:"note", ref, note}, {op:"create", title, status?, priority?, description?}. ref is a slug, unique fragment or project/slug. Returns only {ok, failed, results:[{index, ok, id, status | error}]}.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Default project for items that do not name one.' },
+          ops: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 100,
+            items: {
+              type: 'object',
+              properties: {
+                op: { type: 'string', enum: ['create', 'update', 'note'] },
+                ref: { type: 'string', description: 'update/note: the task (slug, fragment or project/slug).' },
+                project: { type: 'string' },
+                title: { type: 'string', description: 'create: the title; update: a new title.' },
+                status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
+                priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+                tags: { type: 'array', items: { type: 'string' } },
+                description: { type: 'string', description: 'Markdown body (replaces it on update).' },
+                note: { type: 'string', description: 'Appended as a timestamped note in the same write.' },
+                author: { type: 'string', description: 'Note author; defaults to $MDPM_AUTHOR, else "claude".' },
+              },
+              required: ['op'],
+            },
+          },
+        },
+        required: ['ops'],
+      },
+    },
+    {
+      name: 'start_task',
+      description: 'Begin a unit of work in ONE call: resume the open task whose slug or title exactly matches, or create it, and set it in-progress. Replaces search + create + update. Returns {id, status, created}.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          title: { type: 'string', description: 'Task title, or the exact slug of an existing task.' },
+          priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          tags: { type: 'array', items: { type: 'string' } },
+          description: { type: 'string', description: 'Scope and why (used only when it creates the task).' },
+        },
+        required: ['project', 'title'],
       },
     },
     {
@@ -462,6 +514,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   return result
 })
 
+// A note without an author is credited to $MDPM_AUTHOR, else "claude".
+const withNoteAuthor = (fields: Record<string, unknown>) =>
+  typeof fields.note === 'string' && fields.note.trim() && !fields.noteAuthor ? { ...fields, noteAuthor: process.env.MDPM_AUTHOR || 'claude' } : fields
+
 async function callTool(name: string, args: Record<string, unknown>) {
   // Compact by default: indentation is pure token cost. A string (the tsv list form) is sent as is.
   const text = (value: string | object) => ({
@@ -523,12 +579,23 @@ async function callTool(name: string, args: Record<string, unknown>) {
 
       case 'create_task': {
         const { project, ...rest } = args as { project: string; [k: string]: unknown }
-        return json(await core.createTask(project, rest))
+        return json(await core.createTask(project, withNoteAuthor(rest)))
       }
 
       case 'update_task': {
         const { project, slug, ...rest } = args as { project: string; slug: string; [k: string]: unknown }
-        return json(await core.updateTask(project, slug, rest))
+        return json(await core.updateTask(project, slug, withNoteAuthor(rest)))
+      }
+
+      case 'batch_tasks': {
+        const { project, ops } = args as { project?: string; ops: BatchItem[] }
+        const author = process.env.MDPM_AUTHOR || 'claude'
+        return json(await core.batchTasks(project, ops.map(o => (o.op === 'note' || (o as { note?: string }).note) ? { ...o, author: (o as { author?: string }).author?.trim() || author } as BatchItem : o)))
+      }
+
+      case 'start_task': {
+        const { project, title, ...fields } = args as { project: string; title: string; [k: string]: unknown }
+        return json(await core.startTask(project, title, fields))
       }
 
       case 'create_project':

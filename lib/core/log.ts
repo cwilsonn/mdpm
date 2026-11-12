@@ -45,6 +45,15 @@ export function parseNotes(body: string): ParsedNote[] {
   }))
 }
 
+// The text of a task body after appending a note. A body starting with `---` would be parsed as frontmatter,
+// so the separator is only emitted when there is existing content above it. Used by the CLI/MCP and the server.
+export function appendNoteToBody(body: string, note: string, author?: string, now = new Date()) {
+  const timestamp = now.toISOString().replace('T', ' ').slice(0, 16)
+  const existing = body.trim()
+  const prefix = existing ? `${existing}\n\n---\n` : ''
+  return `${prefix}**Note** _(${timestamp})_${author?.trim() ? ` by ${author.trim()}` : ''}\n\n${note.trim()}`
+}
+
 // ── Log ───────────────────────────────────────────────────────────────────────
 
 export interface LogEntry {
