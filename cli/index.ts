@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, renderUsage, runCommand, type CommandDef } from 'citty'
-import { REPO_ROOT } from '../lib/core'
+import { commandName, recordUsage, REPO_ROOT } from '../lib/core'
 import { runCleanups } from './context'
 import { colorEnabled, createStyle, ExitCode, exitCodeFor, reportError } from './output'
 
@@ -21,6 +21,7 @@ export const root = defineCommand({
     skills: () => import('./commands/skills').then(m => m.default),
     hooks: () => import('./commands/hooks').then(m => m.default),
     init: () => import('./commands/init').then(m => m.default),
+    usage: () => import('./commands/usage').then(m => m.default),
     log: () => import('./commands/log').then(m => m.default),
     completions: () => import('./commands/completions').then(m => m.default),
     export: () => import('./commands/export').then(m => m.default),
@@ -69,6 +70,13 @@ export async function main(rawArgs = process.argv.slice(2)) {
     catch {}
     return
   }
+  // Response-size log: count what this command writes to stdout (what an agent would read back).
+  let stdoutChars = 0
+  const realWrite = process.stdout.write.bind(process.stdout)
+  process.stdout.write = ((chunk: string | Uint8Array, ...rest: any[]) => {
+    stdoutChars += typeof chunk === 'string' ? chunk.length : chunk.byteLength
+    return (realWrite as any)(chunk, ...rest)
+  }) as typeof process.stdout.write
   const json = rawArgs.includes('--json')
   const stderrStyle = createStyle(colorEnabled(process.stderr, !rawArgs.includes('--no-color')))
   try {
@@ -91,6 +99,9 @@ export async function main(rawArgs = process.argv.slice(2)) {
     process.exitCode = code
   }
   finally {
+    // `usage` reads the log, so recording it would only skew the numbers.
+    const name = commandName(rawArgs)
+    if (name && name !== 'usage' && !rawArgs.includes('--help') && !rawArgs.includes('-h')) recordUsage({ surface: 'cli', name, chars: stdoutChars })
     await runCleanups().catch(err => console.error(`${stderrStyle.yellow('warning:')} cleanup failed: ${err instanceof Error ? err.message : err}`))
   }
 }
