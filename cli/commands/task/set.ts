@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
+import { resolveAuthor, TASK_PRIORITIES, TASK_STATUSES } from '../../../lib/core'
 import { createContext, globalArgs, writeArgs } from '../../context'
 import { csv, csvNumbers, oneOf, textOrStdin } from '../../io'
 import { addLink, type Link } from '../../../lib/core'
@@ -27,6 +27,8 @@ export default defineCommand({
     'github-issues': { type: 'string', description: 'Deprecated: use --link. Comma-separated issue numbers; replaces the existing list' },
     'github-prs': { type: 'string', description: 'Deprecated: use --link. Comma-separated PR numbers; replaces the existing list' },
     description: { type: 'string', description: 'Replace the markdown body; use - to read it from stdin' },
+    note: { type: 'string', description: 'Append this note in the same write as the other changes (text, or - for stdin)' },
+    author: { type: 'string', description: 'Who wrote the note (default: $MDPM_AUTHOR, "claude" under Claude Code, git user.name)' },
   },
   async run({ args, rawArgs }) {
     const ctx = createContext(args)
@@ -36,6 +38,8 @@ export default defineCommand({
     }
     // Everything except dependencies is the same for every task; dependencies resolve per task (same-project
     // slugs, cycle check), so they are computed inside changesFor.
+    // Read once: `-` consumes stdin.
+    const noteText = args.note === undefined ? undefined : (await textOrStdin(args.note)).trim()
     const common: Record<string, unknown> = {
       title: args.title,
       status: oneOf(args.status, TASK_STATUSES, '--status'),
@@ -47,6 +51,7 @@ export default defineCommand({
       githubIssues: csvNumbers(args['github-issues'], '--github-issues'),
       githubPRs: csvNumbers(args['github-prs'], '--github-prs'),
       description: args.description === undefined ? undefined : await textOrStdin(args.description),
+      ...(noteText && { note: noteText, noteAuthor: resolveAuthor({ flag: args.author }) }),
     }
     // --link adds to the task's own links, expanding short refs against its project's repo.
     const linksFor = (task: { project: string; links: unknown }) => {
@@ -78,7 +83,7 @@ export default defineCommand({
       return
     }
     await ctx.core.updateTask(task.project, task.slug, changed)
-    emit(ctx.json, { project: task.project, slug: task.slug, updated: Object.keys(changed) }, () =>
-      `${ctx.style.green('✓')} updated ${task.project}/${task.slug} (${Object.keys(changed).join(', ')})`)
+    emit(ctx.json, { project: task.project, slug: task.slug, updated: Object.keys(changed).filter(k => k !== 'noteAuthor') }, () =>
+      `${ctx.style.green('✓')} updated ${task.project}/${task.slug} (${Object.keys(changed).filter(k => k !== 'noteAuthor').join(', ')})`)
   },
 })

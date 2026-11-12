@@ -9,6 +9,8 @@ export default defineCommand({
     graph: () => import('./graph').then(m => m.default),
     show: () => import('./show').then(m => m.default),
     link: () => import('./link').then(m => m.default),
+    start: () => import('./start').then(m => m.default),
+    batch: () => import('./batch').then(m => m.default),
     add: () => import('./add').then(m => m.default),
     set: () => import('./set').then(m => m.default),
     done: () => import('./done').then(m => m.default),

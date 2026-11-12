@@ -34,7 +34,9 @@ async function tool(name: string, args: Record<string, unknown> = {}) {
 }
 
 before(async () => {
-  api = await mockApi()
+  api = await mockApi(req => req.path === '/api/tasks/batch'
+    ? { body: { ok: req.body.ops.length, failed: 0, results: req.body.ops.map((_: unknown, index: number) => ({ index, ok: true, id: 'alpha/write-parser', status: 'done' })) } }
+    : {})
   child = spawn('node', ['--import', 'tsx', join(REPO, 'mcp/index.ts')], {
     cwd: REPO,
     env: isolatedEnv(scratch.dir, { MDPM_CONTENT_PATH: FIXTURE_CONTENT, MDPM_BASE_URL: api.url }) as NodeJS.ProcessEnv,
@@ -237,6 +239,24 @@ describe('MCP server through core', () => {
     assert.ok(missing.isError)
     assert.match(missing.text, /No link on alpha\/write-parser matches 'nope'/)
     assert.equal(api.requests.filter(r => r.method === 'PATCH').length, 0)
+  })
+
+  it('batch_tasks resolves refs and sends one request; update_task credits note authors', async () => {
+    api.requests.length = 0
+    const batch = await tool('batch_tasks', { project: 'alpha', ops: [{ op: 'update', ref: 'write-parser', status: 'done', note: 'finished' }] })
+    assert.equal(batch.isError, false)
+    assert.equal(batch.json.ok, 1)
+    const batches = api.requests.filter(r => r.path === '/api/tasks/batch')
+    assert.equal(batches.length, 1)
+    assert.deepEqual(batches[0]!.body.ops, [{ op: 'update', project: 'alpha', slug: 'write-parser', status: 'done', note: 'finished', noteAuthor: 'claude' }])
+    await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done', note: 'n' })
+    assert.deepEqual(api.requests.at(-1)!.body, { status: 'done', note: 'n', noteAuthor: 'claude' })
+  })
+
+  it('start_task creates an unknown task directly in-progress', async () => {
+    api.requests.length = 0
+    await tool('start_task', { project: 'alpha', title: 'Brand new thing' })
+    assert.deepEqual(api.requests.filter(r => r.method === 'POST').map(r => r.body), [{ project: 'alpha', title: 'Brand new thing', status: 'in-progress' }])
   })
 
   it('list_tasks accepts linked, and rejects a bad one', async () => {

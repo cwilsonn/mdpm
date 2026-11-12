@@ -2,10 +2,22 @@ import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
 import { AmbiguousError, NotFoundError } from './errors'
+import { appendNoteToBody } from './log'
 import { addLink, findLinks, LinkError, linkKey, matchesLinked, resolveLink, viewLink, type Link, type LinkedFilter } from './links'
 import { builtinRegistry } from './providers/registry'
 import type { Kind } from './providers/schema'
 import type { Doc, Reader } from './read'
+
+export type BatchItem =
+  | ({ op: 'create'; project?: string; title: string } & Record<string, unknown>)
+  | ({ op: 'update'; ref: string; project?: string } & Record<string, unknown>)
+  | { op: 'note'; ref: string; project?: string; note: string; author?: string }
+
+export interface BatchResult {
+  ok: number
+  failed: number
+  results: { index: number; ok: boolean; id?: string; status?: string; error?: string }[]
+}
 
 // Higher-level operations shared by the MCP server and the CLI. Reads go
 // through the Reader (files), writes through the ApiClient (HTTP).
@@ -113,18 +125,65 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return api.patch(`/api/tasks/${project}/${slug}`, fields)
   }
 
+  // ── Batch ─────────────────────────────────────────────────────────────────
+
+  // One request for several task writes. `update`/`note` items name their task by `ref` (slug, fragment, or
+  // project/slug); `create` items by `title`. Refs are resolved here, from the files, so the server only sees ids.
+  // A ref that does not resolve fails that item locally; the rest still go through, in order.
+  async function batchTasks(defaultProject: string | undefined, items: BatchItem[]): Promise<BatchResult> {
+    const sent: { index: number; op: Record<string, unknown> }[] = []
+    const results: BatchResult['results'] = []
+    items.forEach((item, index) => {
+      try {
+        if (item.op === 'create') {
+          const project = item.project ?? defaultProject
+          if (!project) throw new NotFoundError('create needs a project')
+          const { op, project: _p, ...fields } = item
+          sent.push({ index, op: { op, project, ...fields } })
+          return
+        }
+        if (item.op !== 'update' && item.op !== 'note') throw new Error(`unknown op '${(item as { op?: string }).op}'`)
+        if (!item.ref) throw new NotFoundError(`${item.op} needs a ref`)
+        const task = resolveTask(item.ref, item.project ?? defaultProject)
+        const { op, ref: _r, project: _p, author, ...fields } = item as BatchItem & { author?: string }
+        sent.push({ index, op: { op, project: task.project, slug: task.slug, ...fields, ...(author && { noteAuthor: author }) } })
+      }
+      catch (err) {
+        results.push({ index, ok: false, error: err instanceof Error ? err.message : String(err) })
+      }
+    })
+    if (sent.length) {
+      const res = await api.post('/api/tasks/batch', { ops: sent.map(s => s.op) }) as { results: BatchResult['results'] }
+      res.results.forEach((r, i) => results.push({ ...r, index: sent[i]!.index }))
+    }
+    results.sort((a, b) => a.index - b.index)
+    const failed = results.filter(r => !r.ok).length
+    return { ok: results.length - failed, failed, results }
+  }
+
+  // Begin a unit of work in one call: resume the open task that exactly matches `titleOrRef` (its slug, the slug
+  // of that title, or its title), otherwise create it, and leave it in-progress. Never a fuzzy match: starting
+  // the wrong task silently would be worse than creating a new one.
+  async function startTask(project: string, titleOrRef: string, fields: Record<string, unknown> = {}) {
+    getProject(project)
+    const wantSlug = titleOrRef.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+    const existing = listTasks({ project }).find(t =>
+      t.status !== 'done' && (t.slug === titleOrRef || t.slug === wantSlug || t.title.toLowerCase() === titleOrRef.trim().toLowerCase()))
+    if (existing) {
+      if (existing.status !== 'in-progress') await updateTask(project, existing.slug, { status: 'in-progress' })
+      return { id: `${project}/${existing.slug}`, slug: existing.slug, status: 'in-progress', created: false, was: existing.status }
+    }
+    const created = await createTask(project, { title: titleOrRef.trim(), ...fields, status: 'in-progress' }) as { slug: string }
+    return { id: `${project}/${created.slug}`, slug: created.slug, status: 'in-progress', created: true }
+  }
+
   function deleteTask(project: string, slug: string) {
     return api.delete(`/api/tasks/${project}/${slug}`)
   }
 
   function appendTaskNote(project: string, slug: string, note: string, author?: string) {
     const task = getTask(project, slug)
-    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16)
-    // A body starting with `---` would be parsed as frontmatter, so only emit
-    // the separator when there is existing content above it.
-    const existing = task.body.trim()
-    const prefix = existing ? `${existing}\n\n---\n` : ''
-    const description = `${prefix}**Note** _(${timestamp})_${author ? ` by ${author.trim()}` : ''}\n\n${note.trim()}`
+    const description = appendNoteToBody(task.body, note, author)
     return api.patch(`/api/tasks/${project}/${slug}`, { description })
   }
 
@@ -268,6 +327,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     resolveDoc,
     archiveTask,
     createTask,
+    batchTasks,
+    startTask,
     updateTask,
     deleteTask,
     appendTaskNote,
