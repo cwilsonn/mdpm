@@ -70,7 +70,11 @@ Required env vars (set in shell profile or `.env`):
 - `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and writes are refused when the server reports a different root (`GET /api/health`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
-Tools: `ping`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`, plus archive/delete tools and `add_link`, `remove_link`, `resolve_link` (links on tasks, projects and docs; `create_*`/`update_*` also take `links`, and the legacy `githubIssues`/`githubPRs`/`githubRepo` arguments still work with a deprecation notice in the result)
+Tools: `ping`, `pickup`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`, plus archive/delete tools and `add_link`, `remove_link`, `resolve_link` (links on tasks, projects and docs; `create_*`/`update_*` also take `links`, and the legacy `githubIssues`/`githubPRs`/`githubRepo` arguments still work with a deprecation notice in the result)
+
+## Payload size
+
+Token cost is a design constraint: agents pay for every byte they read. Shared presentation-layer shaping lives in `lib/core/shape.ts` (pagination, `--fields`, TSV, body caps, spec-vs-notes split) and is used by both the CLI and the MCP server. Limits are applied only when printing; `ops.listTasks` stays unbounded because bulk `--where`, the log, hooks, the dependency graph and export need every row. `GET /api/tasks` (the web board) is likewise unbounded. Lists default to 20 rows and summary columns; `get_task`/`doc show` cap the body and say how to read the rest. `mdpm usage` (`lib/core/usage.ts`) logs name and size of every CLI command and MCP call under the state dir (`usage.jsonl`) so the heaviest endpoints are measured, not guessed. MCP list tools answer in TSV by default (`format: json` for objects) and all MCP JSON is compact.
 
 ## Links and Providers
 
