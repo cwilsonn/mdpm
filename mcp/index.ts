@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, KINDS, loadConfig, parseLinkedFilter, REPO_ROOT, schemaStatus } from '../lib/core'
+import { createCore, createLifecycle, KINDS, loadConfig, parseLinkedFilter, recordUsage, REPO_ROOT, schemaStatus } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -415,10 +415,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   ],
 }))
 
+// Logs how much each tool returns (name and size only) so `mdpm usage` can rank what costs the most tokens.
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const { name, arguments: args = {} } = req.params
+  const result = await callTool(req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>)
+  recordUsage({ surface: 'mcp', name: req.params.name, chars: result.content.reduce((n, c) => n + c.text.length, 0) })
+  return result
+})
+
+async function callTool(name: string, args: Record<string, unknown>) {
   const json = (value: unknown, pretty = false) => ({
-    content: [{ type: 'text', text: JSON.stringify(value, null, pretty ? 2 : undefined) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(value, null, pretty ? 2 : undefined) }],
   })
 
   try {
@@ -549,11 +555,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   }
   catch (err: any) {
     return {
-      content: [{ type: 'text', text: `Error: ${err.message}` }],
+      content: [{ type: 'text' as const, text: `Error: ${err.message}` }],
       isError: true,
     }
   }
-})
+}
 
 const transport = new StdioServerTransport()
 await server.connect(transport)
