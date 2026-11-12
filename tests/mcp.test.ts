@@ -27,7 +27,10 @@ function rpc(method: string, params: unknown = {}) {
 async function tool(name: string, args: Record<string, unknown> = {}) {
   const res = await rpc('tools/call', { name, arguments: args })
   const text = res.result.content[0].text as string
-  return { isError: !!res.result.isError, text, json: res.result.isError ? undefined : JSON.parse(text) }
+  // List tools answer in tsv by default, which is not JSON.
+  let json: any
+  if (!res.result.isError && !text.startsWith('#')) json = JSON.parse(text)
+  return { isError: !!res.result.isError, text, json }
 }
 
 before(async () => {
@@ -76,8 +79,46 @@ describe('MCP server through core', () => {
   })
 
   it('list_tasks filters like the CLI', async () => {
-    const { json } = await tool('list_tasks', { project: 'alpha', status: ['blocked'] })
-    assert.deepEqual(json.map((t: any) => t.slug), ['fix-login-bug'])
+    const { json } = await tool('list_tasks', { project: 'alpha', status: ['blocked'], format: 'json' })
+    assert.deepEqual(json.items.map((t: any) => t.slug), ['fix-login-bug'])
+  })
+
+  it('list_tasks is a small tsv page by default: totals line, header, no bodies', async () => {
+    const { text } = await tool('list_tasks', { project: 'alpha', limit: 2 })
+    const [head, header, ...rows] = text.split('\n')
+    assert.match(head!, /^# total=7 returned=2 offset=0 next=2$/)
+    assert.equal(header, 'project\tslug\ttitle\tstatus\tpriority\ttags\tassignees\tdue\tupdatedAt')
+    assert.equal(rows.length, 2)
+    assert.doesNotMatch(text, /Implement the parser/)
+  })
+
+  it('list_tasks pages with offset and picks fields; limit 0 returns everything', async () => {
+    const second = await tool('list_tasks', { project: 'alpha', limit: 3, offset: 6, fields: ['slug', 'status'] })
+    const lines = second.text.split('\n')
+    assert.equal(lines[0], '# total=7 returned=1 offset=6 next=none')
+    assert.equal(lines[1], 'slug\tstatus')
+    const all = await tool('list_tasks', { project: 'alpha', limit: 0, format: 'json' })
+    assert.equal(all.json.returned, 7)
+    assert.equal(all.json.nextOffset, null)
+    const bad = await tool('list_tasks', { project: 'alpha', fields: ['nope'] })
+    assert.ok(bad.isError)
+    assert.match(bad.text, /unknown field/)
+  })
+
+  it('search_tasks returns a match column instead of bodies', async () => {
+    const { text } = await tool('search_tasks', { query: 'parser', project: 'alpha' })
+    assert.match(text, /\bmatch\b/)
+    assert.match(text, /write-parser/)
+  })
+
+  it('get_doc caps the body and says how to continue', async () => {
+    const cut = (await tool('get_doc', { project: 'alpha', slug: 'architecture', maxChars: 10 })).json
+    assert.equal(cut.body.length, 10)
+    assert.equal(cut.truncated, true)
+    assert.equal(cut.nextOffset, 10)
+    const rest = (await tool('get_doc', { project: 'alpha', slug: 'architecture', maxChars: 0, offset: 10 })).json
+    assert.ok(rest.body.length > 0)
+    assert.equal(rest.truncated, true)
   })
 
   it('get_task and get_doc return bodies', async () => {
@@ -199,7 +240,7 @@ describe('MCP server through core', () => {
   })
 
   it('list_tasks accepts linked, and rejects a bad one', async () => {
-    assert.deepEqual((await tool('list_tasks', { project: 'alpha', linked: 'github' })).json, [])
+    assert.match((await tool('list_tasks', { project: 'alpha', linked: 'github' })).text, /^# total=0 returned=0/)
     const bad = await tool('list_tasks', { project: 'alpha', linked: 'github:nope' })
     assert.ok(bad.isError)
     assert.match(bad.text, /kind must be one of/)

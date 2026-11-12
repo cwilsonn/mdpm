@@ -30,6 +30,13 @@ export interface ParsedNote {
 // Notes written before authors existed have no `by`.
 const NOTE_RE = /\*\*Note\*\* _\((\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})\)_(?: by ([^\n]+))?\n\n([\s\S]*?)(?=\n\n---\n\*\*Note\*\* _\(|$)/g
 
+// A task body is the spec followed by appended notes (`\n\n---\n**Note** _(...)_`). Splits them, so readers can
+// show the spec in full and only the newest notes. `spec` is everything before the first note.
+export function splitNotes(body: string): { spec: string; notes: ParsedNote[] } {
+  const first = body.search(/(?:^|\n\n---\n)\*\*Note\*\* _\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)_/)
+  return { spec: (first < 0 ? body : body.slice(0, first)).trim(), notes: parseNotes(body) }
+}
+
 export function parseNotes(body: string): ParsedNote[] {
   return [...body.matchAll(NOTE_RE)].map(m => ({
     at: new Date(`${m[1]}T${m[2]}:00Z`),

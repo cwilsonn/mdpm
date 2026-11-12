@@ -44,7 +44,8 @@ export function colorEnabled(stream: NodeJS.WriteStream, flag: boolean) {
 
 // stdout carries the result (JSON or human); everything diagnostic goes to stderr.
 export function emit(json: boolean, data: unknown, human: () => string) {
-  console.log(json ? JSON.stringify(data, null, 2) : human())
+  // Indented only for a person at a terminal; piped output (agents, scripts) is compact, since whitespace is token cost.
+  console.log(json ? JSON.stringify(data, null, process.stdout.isTTY ? 2 : undefined) : human())
 }
 
 export function reportError(err: unknown, json: boolean, style: Style) {

@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, KINDS, loadConfig, parseLinkedFilter, recordUsage, REPO_ROOT, schemaStatus } from '../lib/core'
+import { createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -31,6 +31,26 @@ const LINKS_PROP = {
     },
   },
 } as const
+
+// Shared by every list/search tool: small pages, chosen fields, compact output.
+const LIST_PROPS = {
+  limit: { type: 'number', description: `Max rows (default ${DEFAULT_LIMIT}; 0 = all). The result says how many more there are and the offset for the next page.` },
+  offset: { type: 'number', description: 'Skip this many rows (the nextOffset of the previous page).' },
+  fields: { type: 'array', items: { type: 'string' }, description: 'Columns to include; ["*"] for all. Fewer fields = fewer tokens.' },
+  format: { type: 'string', enum: ['tsv', 'json'], description: 'tsv (default): a "# total=.. returned=.. next=.." line, a header, then tab-separated rows. json: {total, returned, offset, nextOffset, items}, compact.' },
+} as const
+
+interface ListArgs { limit?: number; offset?: number; fields?: string[]; format?: 'tsv' | 'json' }
+
+function listResult(rows: Record<string, unknown>[], args: ListArgs, allowed: readonly string[], fallback: readonly string[]) {
+  const fields = parseFields(args.fields, allowed, fallback)
+  const page = paginate(rows, { limit: args.limit, offset: args.offset })
+  if (args.format === 'json') {
+    return { ...page, items: page.items.map(r => pickFields(r, fields)) }
+  }
+  const head = `# total=${page.total} returned=${page.returned} offset=${page.offset} next=${page.nextOffset ?? 'none'}`
+  return `${head}\n${toTsv(page.items, fields)}`
+}
 
 const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable: async () => { await lifecycle.start() } } : {})
 
@@ -69,10 +89,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: 'List tasks, optionally filtered by project, status, or linked GitHub issue/PR number. Omit project for all projects. Archived tasks are excluded unless includeArchived is set.',
+      description: `List tasks as a compact page (default ${DEFAULT_LIMIT} rows, summary columns only: no bodies). Optionally filtered by project, status, or link. Omit project for all projects. Archived tasks are excluded unless includeArchived is set. Use get_task for one task's body; fields ["summary"] adds a one-line digest.`,
       inputSchema: {
         type: 'object',
         properties: {
+          ...LIST_PROPS,
           project: { type: 'string', description: 'Project slug. Omit for all projects.' },
           status: {
             type: 'array',
@@ -88,12 +109,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'get_task',
-      description: 'Get full details and description body for a single task.',
+      description: `Get one task with its description. The body is capped (spec up to ${DEFAULT_MAX_CHARS} chars, newest 3 notes shortened) and says what was left out; pass full for everything.`,
       inputSchema: {
         type: 'object',
         properties: {
           project: { type: 'string' },
           slug: { type: 'string' },
+          full: { type: 'boolean', description: 'Return the whole body, every note included.' },
+          notes: { type: 'number', description: 'How many of the newest notes to include (default 3).' },
         },
         required: ['project', 'slug'],
       },
@@ -189,10 +212,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_docs',
-      description: 'List docs. Pass project to scope to a project. Omit both for all docs including standalone. Archived docs (and children of archived folders) are excluded unless includeArchived is set.',
+      description: `List docs as a compact page (default ${DEFAULT_LIMIT} rows, no bodies; fields ["summary"] adds a one-line digest). Pass project to scope to a project. Omit both for all docs including standalone. Archived docs (and children of archived folders) are excluded unless includeArchived is set.`,
       inputSchema: {
         type: 'object',
         properties: {
+          ...LIST_PROPS,
           project: { type: 'string', description: 'Project slug. Omit for all docs (project + standalone).' },
           standalone: { type: 'boolean', description: 'Set true to list only standalone (non-project) docs.' },
           includeArchived: { type: 'boolean', description: 'Include archived docs and descendants of archived folders. Defaults to false.' },
@@ -201,12 +225,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'get_doc',
-      description: 'Get full content of a doc including markdown body. Omit project for a standalone doc.',
+      description: `Get a doc with its markdown body. The body is capped at ${DEFAULT_MAX_CHARS} chars; when cut, the result gives nextOffset to continue. Omit project for a standalone doc.`,
       inputSchema: {
         type: 'object',
         properties: {
           project: { type: 'string', description: 'Project slug. Omit for standalone doc.' },
           slug: { type: 'string' },
+          maxChars: { type: 'number', description: `Cap on the body (default ${DEFAULT_MAX_CHARS}; 0 = all).` },
+          offset: { type: 'number', description: 'Start the body at this character (continue a cut body).' },
         },
         required: ['slug'],
       },
@@ -367,10 +393,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'search_tasks',
-      description: 'Full-text search across task titles and description bodies, optionally scoped to a project.',
+      description: 'Full-text search across task titles and bodies, optionally scoped to a project. Returns a compact page with a `match` column (the first matching line), not bodies.',
       inputSchema: {
         type: 'object',
         properties: {
+          ...LIST_PROPS,
           query: { type: 'string' },
           project: { type: 'string', description: 'Scope to a project. Omit for all projects.' },
           status: {
@@ -423,9 +450,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 })
 
 async function callTool(name: string, args: Record<string, unknown>) {
-  const json = (value: unknown, pretty = false) => ({
-    content: [{ type: 'text' as const, text: JSON.stringify(value, null, pretty ? 2 : undefined) }],
+  // Compact by default: indentation is pure token cost. A string (the tsv list form) is sent as is.
+  const text = (value: string | object) => ({
+    content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value) }],
   })
+  const json = (value: unknown, _pretty = false) => text(value as object)
 
   try {
     switch (name) {
@@ -448,8 +477,9 @@ async function callTool(name: string, args: Record<string, unknown>) {
         return json(core.getProject((args as { slug: string }).slug), true)
 
       case 'list_tasks': {
-        const { linked, ...rest } = args as Parameters<typeof core.listTasks>[0] & { linked?: string }
-        return json(core.listTasks({ ...rest, ...(linked && { linked: parseLinkedFilter(linked) }) }), true)
+        const { linked, limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listTasks>[0] & { linked?: string } & ListArgs
+        const tasks = core.listTasks({ ...rest, ...(linked && { linked: parseLinkedFilter(linked) }) })
+        return text(listResult(tasks.map(t => taskRow(t)), { limit, offset, fields, format }, TASK_FIELDS, TASK_LIST_FIELDS))
       }
 
       case 'add_link': {
@@ -468,8 +498,8 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'get_task': {
-        const { project, slug } = args as { project: string; slug: string }
-        return json(core.getTask(project, slug), true)
+        const { project, slug, full, notes } = args as { project: string; slug: string; full?: boolean; notes?: number }
+        return json(shapeTask(core.getTask(project, slug), { full, notes }))
       }
 
       case 'create_task': {
@@ -524,8 +554,8 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'search_tasks': {
-        const { query, project, status } = args as { query: string; project?: string; status?: string[] }
-        return json(core.searchTasks(query, project, status), true)
+        const { query, project, status, limit, offset, fields, format } = args as unknown as { query: string; project?: string; status?: string[] } & ListArgs
+        return text(listResult(core.searchTasks(query, project, status).map(t => taskRow(t, query)), { limit, offset, fields, format }, TASK_FIELDS, ['project', 'slug', 'title', 'status', 'priority', 'match']))
       }
 
       case 'append_task_note': {
@@ -533,12 +563,14 @@ async function callTool(name: string, args: Record<string, unknown>) {
         return json(await core.appendTaskNote(project, slug, note, author?.trim() || process.env.MDPM_AUTHOR || 'claude'))
       }
 
-      case 'list_docs':
-        return json(core.listDocs(args as Parameters<typeof core.listDocs>[0]), true)
+      case 'list_docs': {
+        const { limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listDocs>[0] & ListArgs
+        return text(listResult(core.listDocsWithBody(rest).map(d => docRow(d)), { limit, offset, fields, format }, DOC_FIELDS, DOC_LIST_FIELDS))
+      }
 
       case 'get_doc': {
-        const { project, slug } = args as { project?: string; slug: string }
-        return json(core.getDoc(slug, project), true)
+        const { project, slug, maxChars, offset } = args as { project?: string; slug: string; maxChars?: number; offset?: number }
+        return json(shapeDoc(core.getDoc(slug, project), { maxChars, offset }))
       }
 
       case 'search_docs': {
