@@ -3,6 +3,7 @@ import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
 import { AmbiguousError, NotFoundError } from './errors'
 import { appendNoteToBody } from './log'
+import { slugify, uniqueSlug } from './slug'
 import { addLink, findLinks, LinkError, linkKey, matchesLinked, resolveLink, viewLink, type Link, type LinkedFilter } from './links'
 import { builtinRegistry } from './providers/registry'
 import type { Kind } from './providers/schema'
@@ -164,17 +165,35 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
   // Begin a unit of work in one call: resume the open task that exactly matches `titleOrRef` (its slug, the slug
   // of that title, or its title), otherwise create it, and leave it in-progress. Never a fuzzy match: starting
   // the wrong task silently would be worse than creating a new one.
+  function findStartable(project: string, titleOrRef: string) {
+    const wantSlug = slugify(titleOrRef.trim())
+    return listTasks({ project }).find(t =>
+      t.status !== 'done' && (t.slug === titleOrRef || t.slug === wantSlug || t.title.toLowerCase() === titleOrRef.trim().toLowerCase()))
+  }
+
+  // The id startTask would end up with, without writing (for fire-and-forget callers).
+  function previewStart(project: string, titleOrRef: string) {
+    getProject(project)
+    const existing = findStartable(project, titleOrRef)
+    return `${project}/${existing?.slug ?? predictTaskSlug(project, titleOrRef.trim())}`
+  }
+
   async function startTask(project: string, titleOrRef: string, fields: Record<string, unknown> = {}) {
     getProject(project)
-    const wantSlug = titleOrRef.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-    const existing = listTasks({ project }).find(t =>
-      t.status !== 'done' && (t.slug === titleOrRef || t.slug === wantSlug || t.title.toLowerCase() === titleOrRef.trim().toLowerCase()))
+    const existing = findStartable(project, titleOrRef)
     if (existing) {
       if (existing.status !== 'in-progress') await updateTask(project, existing.slug, { status: 'in-progress' })
       return { id: `${project}/${existing.slug}`, slug: existing.slug, status: 'in-progress', created: false, was: existing.status }
     }
     const created = await createTask(project, { title: titleOrRef.trim(), ...fields, status: 'in-progress' }) as { slug: string }
     return { id: `${project}/${created.slug}`, slug: created.slug, status: 'in-progress', created: true }
+  }
+
+  // The slug a create would get, from the files; the server picks the same unless a writer races us.
+  function predictTaskSlug(project: string, title: string) {
+    getProject(project)
+    const taken = new Set(listTasks({ project, includeArchived: true }).map(t => t.slug))
+    return uniqueSlug(slugify(title), s => taken.has(s))
   }
 
   function deleteTask(project: string, slug: string) {
@@ -328,6 +347,8 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     archiveTask,
     createTask,
     batchTasks,
+    predictTaskSlug,
+    previewStart,
     startTask,
     updateTask,
     deleteTask,

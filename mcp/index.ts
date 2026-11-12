@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, readAsyncFailures, recordAsyncFailure, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
 import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
@@ -51,6 +51,14 @@ function listResult(rows: Record<string, unknown>[], args: ListArgs, allowed: re
   }
   const head = `# total=${page.total} returned=${page.returned} offset=${page.offset} next=${page.nextOffset ?? 'none'}`
   return `${head}\n${toTsv(page.items, fields)}`
+}
+
+// Fire-and-forget: the tool returns the id at once and the write completes in the background. A failure has
+// nobody to tell, so it is recorded (ping and `mdpm status` report it). The change may not be readable yet.
+const ASYNC_PROP = { type: 'boolean', description: 'Return the id immediately and do the write in the background. Failures are recorded and shown by ping / mdpm status; the change may not be visible to an immediate read.' } as const
+
+function inBackground(what: string, work: Promise<unknown>) {
+  work.catch(err => recordAsyncFailure({ source: 'mcp', what, error: err instanceof Error ? err.message : String(err) }))
 }
 
 const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable: async () => { await lifecycle.start() } } : {})
@@ -141,6 +149,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
+          async: ASYNC_PROP,
           project: { type: 'string' },
           title: { type: 'string' },
           status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
@@ -164,6 +173,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
+          async: ASYNC_PROP,
           project: { type: 'string' },
           slug: { type: 'string' },
           title: { type: 'string' },
@@ -188,6 +198,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
+          async: ASYNC_PROP,
           project: { type: 'string', description: 'Default project for items that do not name one.' },
           ops: {
             type: 'array',
@@ -220,6 +231,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
+          async: ASYNC_PROP,
           project: { type: 'string' },
           title: { type: 'string', description: 'Task title, or the exact slug of an existing task.' },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
@@ -480,6 +492,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
+          async: ASYNC_PROP,
           project: { type: 'string' },
           slug: { type: 'string' },
           note: { type: 'string', description: 'Markdown note to append' },
@@ -536,6 +549,7 @@ async function callTool(name: string, args: Record<string, unknown>) {
           projectCount: projects.length,
           projects: projects.map(p => p.slug),
           pendingMigration: schemaStatus(core.config.contentPath).pendingFiles,
+          ...(readAsyncFailures().length && { asyncFailures: readAsyncFailures().length }),
         }, true)
       }
 
@@ -578,23 +592,43 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'create_task': {
-        const { project, ...rest } = args as { project: string; [k: string]: unknown }
+        const { project, async: later, ...rest } = args as { project: string; async?: boolean; [k: string]: unknown }
+        if (later) {
+          const slug = (rest.slug as string | undefined) ?? core.predictTaskSlug(project, String(rest.title))
+          inBackground('create_task', core.createTask(project, withNoteAuthor({ ...rest, slug })))
+          return json({ queued: true, id: `${project}/${slug}` })
+        }
         return json(await core.createTask(project, withNoteAuthor(rest)))
       }
 
       case 'update_task': {
-        const { project, slug, ...rest } = args as { project: string; slug: string; [k: string]: unknown }
+        const { project, slug, async: later, ...rest } = args as { project: string; slug: string; async?: boolean; [k: string]: unknown }
+        if (later) {
+          core.getTask(project, slug)
+          inBackground('update_task', core.updateTask(project, slug, withNoteAuthor(rest)))
+          return json({ queued: true, id: `${project}/${slug}` })
+        }
         return json(await core.updateTask(project, slug, withNoteAuthor(rest)))
       }
 
       case 'batch_tasks': {
-        const { project, ops } = args as { project?: string; ops: BatchItem[] }
+        const { project, ops, async: later } = args as { project?: string; ops: BatchItem[]; async?: boolean }
         const author = process.env.MDPM_AUTHOR || 'claude'
-        return json(await core.batchTasks(project, ops.map(o => (o.op === 'note' || (o as { note?: string }).note) ? { ...o, author: (o as { author?: string }).author?.trim() || author } as BatchItem : o)))
+        const items = ops.map(o => (o.op === 'note' || (o as { note?: string }).note) ? { ...o, author: (o as { author?: string }).author?.trim() || author } as BatchItem : o)
+        if (later) {
+          inBackground('batch_tasks', core.batchTasks(project, items).then((r) => { if (r.failed) throw new Error(`${r.failed} of ${r.results.length} ops failed: ${r.results.filter(x => !x.ok).map(x => `#${x.index} ${x.error}`).join('; ')}`) }))
+          return json({ queued: true, ops: items.length })
+        }
+        return json(await core.batchTasks(project, items))
       }
 
       case 'start_task': {
-        const { project, title, ...fields } = args as { project: string; title: string; [k: string]: unknown }
+        const { project, title, async: later, ...fields } = args as { project: string; title: string; async?: boolean; [k: string]: unknown }
+        if (later) {
+          const id = core.previewStart(project, title)
+          inBackground('start_task', core.startTask(project, title, fields))
+          return json({ queued: true, id, status: 'in-progress' })
+        }
         return json(await core.startTask(project, title, fields))
       }
 
@@ -645,8 +679,14 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'append_task_note': {
-        const { project, slug, note, author } = args as { project: string; slug: string; note: string; author?: string }
-        return json(await core.appendTaskNote(project, slug, note, author?.trim() || process.env.MDPM_AUTHOR || 'claude'))
+        const { project, slug, note, author, async: later } = args as { project: string; slug: string; note: string; author?: string; async?: boolean }
+        const who = author?.trim() || process.env.MDPM_AUTHOR || 'claude'
+        if (later) {
+          core.getTask(project, slug)
+          inBackground('append_task_note', core.appendTaskNote(project, slug, note, who))
+          return json({ queued: true, id: `${project}/${slug}` })
+        }
+        return json(await core.appendTaskNote(project, slug, note, who))
       }
 
       case 'list_docs': {

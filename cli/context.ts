@@ -14,6 +14,7 @@ export const globalArgs = {
 export const writeArgs = {
   'auto-start': { type: 'boolean', description: 'Start the server if it is down, run the write, then stop it again (--no-auto-start to disable)' },
   'keep-running': { type: 'boolean', description: 'With --auto-start, leave a server this command started running', default: false },
+  async: { type: 'boolean', description: 'Fire and forget (task set|done|note|start|add|batch|archive): print the id and return at once; the write happens in a detached process, and a failure shows in `mdpm status`', default: false },
 } as const
 
 export const portArg = {
