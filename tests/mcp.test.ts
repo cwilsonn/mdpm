@@ -259,6 +259,21 @@ describe('MCP server through core', () => {
     assert.deepEqual(api.requests.filter(r => r.method === 'POST').map(r => r.body), [{ project: 'alpha', title: 'Brand new thing', status: 'in-progress' }])
   })
 
+  it('async writes return the id at once and the write follows; create pins the predicted slug', async () => {
+    api.requests.length = 0
+    const upd = await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done', async: true })
+    assert.deepEqual(upd.json, { queued: true, id: 'alpha/write-parser' })
+    const created = await tool('create_task', { project: 'alpha', title: 'Write parser', async: true })
+    assert.deepEqual(created.json, { queued: true, id: 'alpha/write-parser-2' })
+    const start = await tool('start_task', { project: 'alpha', title: 'write-parser', async: true })
+    assert.deepEqual(start.json, { queued: true, id: 'alpha/write-parser', status: 'in-progress' })
+    await new Promise(r => setTimeout(r, 300))
+    assert.deepEqual(api.requests.filter(r => r.method === 'PATCH').map(r => r.body).slice(0, 1), [{ status: 'done' }])
+    assert.equal(api.requests.find(r => r.method === 'POST')!.body.slug, 'write-parser-2')
+    const missing = await tool('update_task', { project: 'alpha', slug: 'nope', status: 'done', async: true })
+    assert.ok(missing.isError, 'an unknown task fails at once, even when async')
+  })
+
   it('list_tasks accepts linked, and rejects a bad one', async () => {
     assert.match((await tool('list_tasks', { project: 'alpha', linked: 'github' })).text, /^# total=0 returned=0/)
     const bad = await tool('list_tasks', { project: 'alpha', linked: 'github:nope' })
