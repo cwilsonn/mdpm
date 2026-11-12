@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, KINDS, loadConfig, paginate, parseFields, parseLinkedFilter, pickFields, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
@@ -67,6 +67,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: 'ping',
       description: 'Check that the mdpm MCP server is reachable and return basic stats.',
       inputSchema: { type: 'object', properties: {} },
+    },
+    {
+      name: 'pickup',
+      description: 'One-call session briefing for a project: open tasks (capped per status), blockers, what changed since the last handoff, docs, the latest session notes (capped) and a suggested focus. Prefer this over assembling list_tasks + list_docs + get_doc. delta=true returns only the changes since the last handoff plus blockers.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Project slug.' },
+          delta: { type: 'boolean', description: 'Only what changed since the last handoff, plus blockers.' },
+          full: { type: 'boolean', description: 'No caps: every task and doc, the whole last session notes.' },
+        },
+        required: ['project'],
+      },
     },
     {
       name: 'list_projects',
@@ -468,6 +481,12 @@ async function callTool(name: string, args: Record<string, unknown>) {
           projects: projects.map(p => p.slug),
           pendingMigration: schemaStatus(core.config.contentPath).pendingFiles,
         }, true)
+      }
+
+      case 'pickup': {
+        const { project, delta, full } = args as { project: string; delta?: boolean; full?: boolean }
+        const p = buildPickup(core, core.resolveProject(project).slug, { full })
+        return json(delta ? { project: p.project, sinceLastSession: p.sinceLastSession, blockers: p.blockers } : p)
       }
 
       case 'list_projects':
