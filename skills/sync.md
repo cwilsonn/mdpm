@@ -1,3 +1,8 @@
+---
+description: Mid-session sync — record finished work in mdpm in one batch and update the session notes, without a full handoff.
+# Summarises the whole conversation into task notes and session notes: the one place a stronger model pays for itself.
+model: opus
+---
 Mid-session sync — record finished work in mdpm in one batch and update the session notes, without a full handoff.
 
 Project: $ARGUMENTS

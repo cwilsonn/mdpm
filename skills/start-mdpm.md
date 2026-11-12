@@ -1,3 +1,8 @@
+---
+description: Start the mdpm dev server if it isn't already running.
+# A thin wrapper over one CLI call: no judgment needed, so no need to pay for a larger model.
+model: haiku
+---
 Start the mdpm dev server if it isn't already running.
 
 Steps:

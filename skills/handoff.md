@@ -1,3 +1,8 @@
+---
+description: Persist the current session's state to mdpm so the next session can pick up cleanly.
+# Summarises the whole conversation into task notes and session notes: the one place a stronger model pays for itself.
+model: opus
+---
 Persist the current session's state to mdpm so the next session can pick up cleanly.
 
 Project: $ARGUMENTS

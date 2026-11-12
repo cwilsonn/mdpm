@@ -92,11 +92,13 @@ Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<n
 
 | Skill | When to use |
 |-------|-------------|
-| `/start-mdpm` | Start dev server via `mdpm start` (idempotent — safe to call if already running) |
-| `/stop-mdpm` | Stop dev server via `mdpm stop` |
+| `/start-mdpm` | Start dev server via `mdpm start` (idempotent — safe to call if already running). Pinned to `model: haiku` in its frontmatter |
+| `/stop-mdpm` | Stop dev server via `mdpm stop`. Pinned to `model: haiku` |
 | `/pickup <project>` | Start of session — loads open tasks, docs, last session notes |
-| `/sync` | Mid-session — sync task statuses + update stale docs |
-| `/handoff` | End of session — writes `session-notes` doc, marks tasks done |
+| `/sync` | Mid-session — sync task statuses + update stale docs. Pinned to `model: opus` |
+| `/handoff` | End of session — writes `session-notes` doc, marks tasks done. Pinned to `model: opus` |
+
+Skills pin a model in frontmatter by the judgment they need: the single-CLI-call wrappers (`start-mdpm`, `stop-mdpm`) use `model: haiku`; `sync` and `handoff`, which condense a whole conversation into task and session notes, use `model: opus`; `pickup` inherits the session model. A skill's `model` applies for that turn only. A test pins this.
 
 <!-- mdpm:work-logging:start -->
 ## Work logging (mdpm)
