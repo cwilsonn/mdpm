@@ -19,8 +19,13 @@ describe('work-logging convention', () => {
     assert.ok(read('CLAUDE.md').includes(template.replaceAll('{{project}}', 'mdpm')), 'CLAUDE.md is out of sync with templates/work-logging.md')
   })
 
+  it('asks for writes at the start and end of a unit of work, not in between', () => {
+    assert.match(template, /leave the task alone/)
+    assert.doesNotMatch(template, /mdpm task note/)
+  })
+
   it('only mentions CLI commands that exist', () => {
-    for (const command of ['task search', 'task list', 'task add', 'task set', 'task note', 'task done', 'task archive']) {
+    for (const command of ['task start', 'task search', 'task list', 'task set', 'task done', 'task batch', 'task link add', 'task archive']) {
       assert.ok(template.includes(`mdpm ${command}`), command)
     }
   })

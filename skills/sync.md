@@ -1,35 +1,23 @@
-Mid-session sync — update task statuses and write a dated session notes snapshot without a full handoff.
+Mid-session sync — record finished work in mdpm in one batch and update the session notes, without a full handoff.
 
 Project: $ARGUMENTS
 
+Tasks are written when a unit of work starts and when it ends, never in between, so this is where finished work gets its status and its one note. Keep the number of calls small: one batch for tasks, one write for docs.
+
 Steps:
-1. Call `ping` to confirm mdpm MCP is reachable. If it fails, output:
-   > ⚠️ mdpm MCP server is unreachable. Check that MDPM_CONTENT_PATH is set correctly.
-   Then stop.
-2. Ensure the mdpm dev server is running: run `mdpm start` (idempotent: a no-op if it is already up).
-   - On exit 0, continue.
-   - On a non-zero exit, output: `> ⚠️ mdpm server did not start: <error from mdpm start>` Then stop.
-3. Call `list_tasks` for the project with status `["todo", "in-progress", "in-review", "blocked"]`.
-4. Call `list_docs` for the project to get current docs.
-5. Review the conversation so far. For each task that has been touched or completed:
-   - State the task slug, title, current status, and proposed new status
-   - Ask for confirmation before writing: "Update <title> from <old> → <new>? (y/n)"
-6. For confirmed task updates, call `update_task`. Confirm each write.
-7. Review docs for the project. If any doc (other than session-notes) is stale or should be updated based on work done this session:
-   - State the doc slug, title, and what should change
-   - Ask for confirmation before writing: "Update doc '<title>'? (y/n)"
-8. For confirmed doc updates, call `upsert_doc` with the updated content.
-9. Determine the current datetime. Write a session snapshot using `upsert_doc` with:
-   - project: the project slug
-   - slug: "<YYYY-MM-DD>-<HHmm>-session-notes" (e.g. "2026-06-09-1430-session-notes") — always a new slug, never overwrite
-   - title: "Session Notes — <YYYY-MM-DD> <HH:MM>"
-   - tags: ["session-notes"]
-   - body: A brief markdown snapshot with sections:
-     ## Progress so far
-     ## Open questions / blockers
-     ## Next steps
-   Always create a new doc — each /sync call produces a new timestamped entry.
-10. Output only:
-    > ✓ Synced. Session notes: http://mdpm.local:3333/projects/<project>/docs/<slug>
-    Then list: tasks updated (count), docs updated (count), open tasks remaining (count).
-    Do NOT print the session-notes body.
+1. Ensure the mdpm server is running: `mdpm start` (idempotent and fast: a no-op if it is already up). On a non-zero exit output `> ⚠️ mdpm server did not start: <error>` and stop. Skip `ping`; this call proves reachability.
+2. Reads need no server. Get the open tasks with `mdpm pickup $ARGUMENTS --json` (capped, one call) rather than listing tasks and docs separately. If the project argument is empty the CLI infers it from the repo.
+3. From the conversation so far, work out which tasks were touched or finished. For each: slug, current status, proposed status, and a note. A note says what was done and why, decisions, how it was verified, and commits/PRs, as pointers rather than copies. Tasks that were started but not finished get their status only (no note).
+4. Show all proposed changes in ONE message as a compact list and ask ONCE: "Apply these N updates? (y / edit)". If the user's request already said what to do (e.g. "/sync and mark X done"), apply it without asking again; confirmation is only for changes the user has not seen.
+5. Apply every confirmed task change with a single call:
+   `mdpm task batch --project $ARGUMENTS` with JSON on stdin, e.g. `[{"op":"update","ref":"<slug>","status":"done","note":"..."},{"op":"create","title":"...","status":"in-progress"}]`.
+   (MCP fallback: the `batch_tasks` tool.) Report only the counts and any failed items.
+6. Docs other than session notes that are stale because of this session: list them in the same message as step 4 and apply confirmed ones with `mdpm doc edit` / `upsert_doc`.
+7. Session notes: ONE doc per session, updated in place. If this session already wrote one (an earlier /sync in this conversation), reuse its slug; otherwise take the current datetime and use slug `<YYYY-MM-DD>-<HHmm>-session-notes`, title `Session Notes — <YYYY-MM-DD> <HH:MM>`, tags `["session-notes"]`. Write it with `upsert_doc` (it creates or replaces by slug) with a brief body:
+   ## Progress so far
+   ## Open questions / blockers
+   ## Next steps
+   Remember the slug in the conversation so /handoff reuses it.
+8. Output only:
+   > ✓ Synced. Session notes: http://mdpm.local:3333/projects/<project>/docs/<slug>
+   Then: tasks updated (count), docs updated (count), open tasks remaining (count). Do NOT print the session-notes body.

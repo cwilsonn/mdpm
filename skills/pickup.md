@@ -7,7 +7,7 @@ Steps:
    - Exit 4: the project doesn't exist in mdpm. Output `> ⚠️ mdpm has no project matching "<project>".` Then stop.
    - Exit 2 (ambiguous or no project): show the CLI's error and stop.
    - `mdpm: command not found`, or any other failure: use the **Fallback** below instead.
-2. Note: reads work without the dev server. Writes (`update_task`, `upsert_doc`, `mdpm task ...`) need it running at http://mdpm.local:3333 (`mdpm status` checks it, `mdpm start` starts it). Warn the user if they plan to use /sync or /handoff this session and it is down.
+2. Note: reads work without the dev server. Writes (`update_task`, `upsert_doc`, `mdpm task ...`) need it running at http://mdpm.local:3333 (`mdpm status` checks it, `mdpm start` starts it). Warn the user if they plan to use /sync or /handoff this session and it is down (they run `mdpm start` themselves, which is fast and idempotent).
 3. Produce a structured briefing in this format, using only what the JSON contains:
 
 ---

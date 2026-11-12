@@ -48,10 +48,10 @@ export function buildSessionContext(ops: Ops, project: string) {
   const section = (title: string, tasks: typeof open, max: number) =>
     tasks.length ? [`${title}${tasks.length > max ? ` (top ${max} of ${tasks.length})` : ''}:`, ...tasks.slice(0, max).map(line)] : []
   return [
-    `This repo is tracked in mdpm as project "${project}". Log your work there as you go (see the Work logging section of CLAUDE.md):`,
-    '1. Before a unit of work, find or create its task (mdpm task search / mdpm task add) and mark it in-progress.',
-    '2. Append notes on decisions, surprises, blockers, and verification (mdpm task note <ref> "...").',
-    '3. Note the commits and PRs; on completion set in-review or done (mdpm task done <ref>).',
+    `This repo is tracked in mdpm as project "${project}". Log your work there (see the Work logging section of CLAUDE.md), cheaply: touch a task when a unit of work starts and when it ends, not in between.`,
+    '1. Start: mdpm task start "<title>" (resumes the open task with that exact title, or creates it; marks it in-progress).',
+    '2. Meanwhile: no per-step notes or status updates.',
+    '3. Finish, once: mdpm task done <ref> --note "what was done and why, decisions, verification, commits/PRs" (or set --status in-review --note ...). Several tasks: mdpm task batch.',
     '',
     ...section('In progress', inProgress, 10),
     ...section('Blocked', blocked, 5),
@@ -106,7 +106,7 @@ export function stopCheck(ops: Ops, input: { sessionId?: string; cwd: string; pr
   if (saved?.warnedAt && now.getTime() - Date.parse(saved.warnedAt) < WARN_EVERY_MS) return undefined
   if (input.sessionId) writeSession(input.sessionId, { ...(saved ?? { startedAt: since, project: input.project }), warnedAt: now.toISOString() })
   const did = [work.changedFiles && `${work.changedFiles} changed file${work.changedFiles === 1 ? '' : 's'}`, work.commits && `${work.commits} commit${work.commits === 1 ? '' : 's'}`].filter(Boolean).join(' and ')
-  return `mdpm: this session left ${did} in project "${input.project}", but no task was created or updated. Log it so the work has an audit trail: mdpm task note <ref> "what and why" (or mdpm task add).`
+  return `mdpm: this session left ${did} in project "${input.project}", but no task was created or updated. Log it so the work has an audit trail: mdpm task start "<title>" if there is no task yet, then mdpm task done <ref> --note "what and why" (one call per task, or mdpm task batch for several).`
 }
 
 // ── Installation (repo-local .claude/settings.local.json) ────────────────────
