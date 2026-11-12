@@ -1,3 +1,8 @@
+---
+description: Stop the mdpm dev server if it is running.
+# A thin wrapper over one CLI call: no judgment needed, so no need to pay for a larger model.
+model: haiku
+---
 Stop the mdpm dev server if it is running.
 
 Steps:
