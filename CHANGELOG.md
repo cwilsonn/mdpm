@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.16.0...mdpm-v0.17.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** the MCP tools ping, create_project, update_project, archive_*/unarchive_*/delete_*, append_task_note, search_tasks and search_docs are removed (use the parameters above or the CLI). The /sync, /start-mdpm and /stop-mdpm skills are removed: run `mdpm skills install` to drop their links. pickup returns less by default and suggestedFocus entries are {slug, status}.
+
+### Refactoring
+
+* **mcp:** trim MCP to 12 tools and skills to pickup and handoff ([8820d34](https://github.com/cwilsonn/mdpm/commit/8820d34003026dbe7b8658f633aee63137addf0c))
+
 ## [0.16.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.15.0...mdpm-v0.16.0) (2026-11-14)
 
 
