@@ -1,11 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Projects', icon: 'i-lucide-notebook' })
 
-const [{ data: projects, refresh, pending: projectsPending }, { data: allTasks }, { data: allDocs }] = await Promise.all([
-  useAsyncData('projects-list', () => $fetch('/api/projects')),
-  useAsyncData('projects-task-counts', () => $fetch('/api/tasks')),
-  useAsyncData('projects-doc-counts', () => $fetch('/api/docs')),
-])
+// Counts come from the server (?withStats=1) instead of downloading every task and doc.
+const { data: projects, refresh, pending: projectsPending } = await useAsyncData('projects-list', () => $fetch('/api/projects', { query: { withStats: '1' } }))
 
 const { removeProject, reorderProjects, archiveProject, unarchiveProject } = useProjects()
 const { tryWithToast } = useApiToast()
@@ -58,42 +55,12 @@ function togglePin(project: ProjectItem) {
   saveOrder()
 }
 
-// Card stats
-const today = new Date().toISOString().split('T')[0]!
-
-const taskCountsByProject = computed(() => {
-  const counts: Record<string, { total: number, done: number, byStatus: Record<string, number> }> = {}
-  for (const t of allTasks.value ?? []) {
-    const pSlug = t.path.split('/')[2]
-    if (!pSlug) continue
-    if (!counts[pSlug]) counts[pSlug] = { total: 0, done: 0, byStatus: {} }
-    counts[pSlug].total++
-    if (t.status === 'done') counts[pSlug].done++
-    const sId = t.status ?? 'todo'
-    counts[pSlug].byStatus[sId] = (counts[pSlug].byStatus[sId] ?? 0) + 1
-  }
-  return counts
-})
-
-const overdueCounts = computed(() => {
-  const counts: Record<string, number> = {}
-  for (const t of allTasks.value ?? []) {
-    if (t.status === 'done' || !t.due || t.due >= today) continue
-    const pSlug = t.path.split('/')[2]
-    if (!pSlug) continue
-    counts[pSlug] = (counts[pSlug] ?? 0) + 1
-  }
-  return counts
-})
-
-const docCountsByProject = computed(() => {
-  const counts: Record<string, number> = {}
-  for (const d of allDocs.value ?? []) {
-    if (!d.project) continue
-    counts[d.project] = (counts[d.project] ?? 0) + 1
-  }
-  return counts
-})
+// Card stats, keyed by project slug
+type Stats = { total: number, done: number, byStatus: Record<string, number>, overdue: number, docs: number }
+const statsBySlug = computed(() => Object.fromEntries((projects.value ?? []).map(p => [slugFromPath(p.path), (p as { stats?: Stats }).stats])))
+const taskCountsByProject = computed(() => Object.fromEntries(Object.entries(statsBySlug.value).filter(([, s]) => s?.total).map(([k, s]) => [k, { total: s!.total, done: s!.done, byStatus: s!.byStatus }])))
+const overdueCounts = computed(() => Object.fromEntries(Object.entries(statsBySlug.value).map(([k, s]) => [k, s?.overdue ?? 0])))
+const docCountsByProject = computed(() => Object.fromEntries(Object.entries(statsBySlug.value).map(([k, s]) => [k, s?.docs ?? 0])))
 
 const deletingProjectTaskCounts = computed(() => {
   if (!deletingProjectDisplay.value) return null

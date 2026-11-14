@@ -1,7 +1,7 @@
-export async function useProjectTasks(keys: { projects: string; tasks: string }) {
+export async function useProjectTasks(keys: { projects: string; tasks: string }, opts: { statuses?: string[] } = {}) {
   const [{ data: projects, refresh: refreshProjects }, { data: tasks, refresh: refreshTasks }] = await Promise.all([
     useAsyncData(keys.projects, () => $fetch('/api/projects')),
-    useAsyncData(keys.tasks, () => $fetch('/api/tasks')),
+    useAsyncData(keys.tasks, () => $fetch('/api/tasks', { query: opts.statuses ? { status: opts.statuses.join(',') } : {} })),
   ])
 
   async function refreshAll() {
