@@ -46,8 +46,21 @@ export default defineNuxtConfig({
       },
     },
     optimizeDeps: {
-      // Discovered late otherwise, which makes Vite reload the page on first visit.
-      include: ['vue-draggable-plus'],
+      include: [
+        // Discovered late otherwise, which makes Vite reload the page on first visit.
+        'vue-draggable-plus',
+        // <MDC> parses markdown in the browser after client-side navigation. @nuxtjs/mdc asks Vite to
+        // pre-bundle its parser deps as `@nuxtjs/mdc > …`, but pnpm doesn't hoist @nuxtjs/mdc (it comes
+        // in through @nuxt/content), so those entries don't resolve and are dropped. CJS-only deps
+        // (`extend` via unified, `debug` via remark-parse > micromark) are then served raw, the import
+        // fails, and the task body renders empty. This is mdc's list plus the rest of its parser's imports.
+        ...[
+          'unified', 'remark-parse', 'remark-gfm', 'remark-emoji', 'remark-mdc', 'remark-rehype',
+          'rehype-raw', 'rehype-external-links', 'rehype-sort-attribute-values', 'rehype-sort-attributes',
+          'mdast-util-to-hast', 'hast-util-to-string', 'micromark-util-sanitize-uri', 'unist-util-visit',
+          'parse5', 'vfile', 'detab', 'github-slugger',
+        ].map(pkg => `@nuxt/content > @nuxtjs/mdc > ${pkg}`),
+      ],
     },
   }
 })
