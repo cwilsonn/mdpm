@@ -10,13 +10,11 @@ const skills = readdirSync(dir).filter(f => f.endsWith('.md')).map(f => ({ name:
 const modelOf = (name: string) => skills.find(s => s.name === name)!.data.model
 
 describe('skill models', () => {
-  it('thin wrappers over a single CLI call run on the small model', () => {
-    assert.equal(modelOf('start-mdpm'), 'haiku')
-    assert.equal(modelOf('stop-mdpm'), 'haiku')
+  it('there are two skills: pickup and handoff', () => {
+    assert.deepEqual(skills.map(s => s.name).sort(), ['handoff', 'pickup'])
   })
 
-  it('skills that summarise the whole conversation into durable notes run on the strong model', () => {
-    assert.equal(modelOf('sync'), 'opus')
+  it('handoff summarises the whole conversation into durable notes, so it runs on the strong model', () => {
     assert.equal(modelOf('handoff'), 'opus')
   })
 

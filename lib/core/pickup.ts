@@ -32,14 +32,16 @@ export function sessionNotesOrder(a: Doc, b: Doc) {
 }
 
 export interface PickupOptions {
-  /** Tasks listed per status before "+N more" (default 8). */
+  /** Tasks listed per status before "+N more" (default 5; todo tasks without summaries). */
   perStatus?: number
-  /** Docs listed besides the high-priority ones (default 4). */
+  /** Docs listed besides the high-priority ones (default 0: the rest are counted in hiddenDocs). */
   docs?: number
-  /** Characters of the last session notes included (default 2000). */
+  /** Characters of the last session notes included (default 1500). */
   notesChars?: number
-  /** Delta entries listed (default 8). */
+  /** Delta entries listed (default 5). */
   deltaEntries?: number
+  /** Blockers listed (default 5; the rest are counted in moreBlockers). */
+  blockers?: number
   /** No caps at all: the briefing as it was before limits existed. */
   full?: boolean
 }
@@ -61,7 +63,7 @@ const firstLine = (text: string, max = 100) => {
 
 export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {}) {
   const cap = (n: number | undefined, fallback: number) => opts.full ? Infinity : (n ?? fallback)
-  const perStatus = cap(opts.perStatus, 8)
+  const perStatus = cap(opts.perStatus, 5)
   const projectInfo = ops.getProject(project)
   const open = ops.listTasks({ project, status: [...OPEN_STATUSES] })
   const byRank = (a: Task, b: Task) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || a.order - b.order
@@ -74,9 +76,10 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
       title: t.title,
       priority: t.priority,
       ...(t.tags.length && { tags: t.tags }),
-      summary: summarize(splitNotes(t.body).spec, SUMMARY_CHARS),
+      // Todo titles carry enough for a briefing; work already under way gets its one-line summary.
+      ...((status !== 'todo' || opts.full) && { summary: summarize(splitNotes(t.body).spec, SUMMARY_CHARS) }),
     }))]
-  })) as Record<typeof OPEN_STATUSES[number], { slug: string; title: string; priority: string; tags?: string[]; summary: string }[]>
+  })) as Record<typeof OPEN_STATUSES[number], { slug: string; title: string; priority: string; tags?: string[]; summary?: string }[]>
 
   const docs = ops.listDocsWithBody({ project })
   const sessionNotes = docs.filter(isSessionNotes).sort(sessionNotesOrder)
@@ -90,12 +93,12 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
   const suggestedFocus = [...focusPool].sort((a, b) => {
     const [ka, kb] = [focusOrder(a), focusOrder(b)]
     return ka[0]! - kb[0]! || ka[1]! - kb[1]! || ka[2]! - kb[2]!
-  }).slice(0, 3).map(t => ({ slug: t.slug, title: t.title, priority: t.priority, status: t.status }))
+  }).slice(0, 3).map(t => ({ slug: t.slug, status: t.status })) // titles are in `tasks`
 
   // What stops work: tasks marked blocked (with the reason from their newest note) and open tasks waiting on
   // an unfinished or missing dependency.
   const graph = buildGraph(ops.listTasks({ includeArchived: true }))
-  const blockers = [
+  const allBlockers = [
     ...open.filter(t => t.status === 'blocked').map((t) => {
       const last = parseNotes(t.body).at(-1)
       return { slug: t.slug, title: t.title, reason: last ? firstLine(last.text) : 'marked blocked' }
@@ -107,6 +110,9 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
     })),
   ]
 
+  // Explicitly blocked tasks come first; a long chain of dependency waits is summarised as a count.
+  const shownBlockers = allBlockers.slice(0, cap(opts.blockers, 5))
+
   const docList = docs.filter(d => !isSessionNotes(d)).map(d => ({
     slug: d.slug,
     title: d.title,
@@ -114,11 +120,11 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
     summary: summarize(d.body, SUMMARY_CHARS),
     highPriority: d.tags.some(t => HIGH_PRIORITY_TAGS.includes(t)),
   }))
-  const otherDocsShown = cap(opts.docs, 4)
+  const otherDocsShown = cap(opts.docs, 0)
   let others = 0
   const shownDocs = docList.filter(d => d.highPriority || ++others <= otherDocsShown)
 
-  const notesChars = cap(opts.notesChars, 2000)
+  const notesChars = cap(opts.notesChars, 1500)
   const notesBody = lastSessionNotes ? truncateChars(lastSessionNotes.body, notesChars) : undefined
 
   // Delta: only what changed since the last handoff. Status changes are not recorded anywhere, so an "updated"
@@ -127,7 +133,7 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
   let sinceLastSession: { since: string; basedOn: string; changes: LogEntry[]; moreChanges: number; docsChanged: { slug: string; title: string }[]; note: string } | null = null
   if (latest && anchor && !Number.isNaN(anchor.getTime())) {
     const entries = buildLog(ops, { project, since: anchor, limit: 10_000 })
-    const shown = entries.slice(0, cap(opts.deltaEntries, 8))
+    const shown = entries.slice(0, cap(opts.deltaEntries, 5))
     sinceLastSession = {
       since: anchor.toISOString(),
       basedOn: latest.slug,
@@ -143,7 +149,8 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
     openTaskCount: open.length,
     tasks,
     ...(Object.keys(hiddenTasks).length && { hiddenTasks }),
-    blockers,
+    blockers: shownBlockers,
+    ...(allBlockers.length > shownBlockers.length && { moreBlockers: allBlockers.length - shownBlockers.length }),
     docCount: docs.length,
     docs: shownDocs,
     ...(shownDocs.length < docList.length && { hiddenDocs: docList.length - shownDocs.length }),

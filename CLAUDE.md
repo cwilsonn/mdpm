@@ -72,7 +72,7 @@ Required env vars (set in shell profile or `.env`):
 - `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and writes are refused when the server reports a different root (`GET /api/health`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
-Tools: `ping`, `pickup`, `list_projects`, `get_project`, `list_tasks`, `get_task`, `create_task`, `update_task`, `list_docs`, `get_doc`, `search_docs`, `upsert_doc`, plus `batch_tasks`, `start_task`, `search_tasks`, `append_task_note`, `create_project`, `update_project` (takes `repo`), and the archive/delete tools
+Tools (12): `pickup`, `list_projects`, `get_project`, `list_tasks` (`query` searches), `get_task`, `start_task`, `create_task`, `update_task` (`note`, `archived`), `batch_tasks`, `list_docs` (`query` searches), `get_doc`, `upsert_doc`. Projects are created with `mdpm init` / `mdpm project create`; deletes are CLI-only. Fewer tools means a smaller `tools/list` (10.5 KB, about 2.9k tokens, down from 21 KB).
 
 ## Payload size
 
@@ -90,13 +90,10 @@ Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<n
 
 | Skill | When to use |
 |-------|-------------|
-| `/start-mdpm` | Start dev server via `mdpm start` (idempotent — safe to call if already running). Pinned to `model: haiku` in its frontmatter |
-| `/stop-mdpm` | Stop dev server via `mdpm stop`. Pinned to `model: haiku` |
-| `/pickup <project>` | Start of session — loads open tasks, docs, last session notes |
-| `/sync` | Mid-session — sync task statuses + update stale docs. Pinned to `model: opus` |
-| `/handoff` | End of session — writes `session-notes` doc, marks tasks done. Pinned to `model: opus` |
+| `/pickup <project>` | Start of session — loads open tasks, blockers, changes since the last handoff, last session notes |
+| `/handoff` | Mid-session and at the end, idempotent — task statuses and notes in one batch, one `session-notes` doc per session updated in place. Pinned to `model: opus` |
 
-Skills pin a model in frontmatter by the judgment they need: the single-CLI-call wrappers (`start-mdpm`, `stop-mdpm`) use `model: haiku`; `sync` and `handoff`, which condense a whole conversation into task and session notes, use `model: opus`; `pickup` inherits the session model. A skill's `model` applies for that turn only. A test pins this.
+`handoff` condenses a whole conversation into task and session notes, so it pins `model: opus` (for that turn only); `pickup` only formats what the CLI returns and inherits the session model. A test pins both, and that these are the only two skills. The server needs no skill: `mdpm start|stop`. The work-logging rules live in the CLAUDE.md block (below); the SessionStart hook adds only the open tasks, and repeats the short rules only in a repo whose CLAUDE.md lacks the block.
 
 <!-- mdpm:work-logging:start -->
 ## Work logging (mdpm)
@@ -105,7 +102,7 @@ This repo is tracked in mdpm as project `mdpm`. Log work there so there is an au
 
 1. **Before starting a unit of work, find or create its task, in one call.** `mdpm task start "<title>" --priority <low|medium|high|urgent> --description "<scope and why>"` resumes the open task with exactly that title or slug, or creates it, and marks it in-progress. To look around first: `mdpm task search "<keywords>"` or `mdpm task list`.
 2. **While working, leave the task alone.** No per-step notes or status updates. The one exception is a real stop: `mdpm task set <ref> --status blocked --note "<why>"`.
-3. **When the unit is finished, write once:** `mdpm task done <ref> --note "<what was done and why, decisions, how it was verified, commits and PRs>"`, or `mdpm task set <ref> --status in-review --note "..."` if it still needs verification. Several tasks at once (end of a session, /sync, /handoff): one `mdpm task batch` call with JSON on stdin. A note points at commits, PRs and files rather than copying them; put PR and ticket URLs in the note.
+3. **When the unit is finished, write once:** `mdpm task done <ref> --note "<what was done and why, decisions, how it was verified, commits and PRs>"`, or `mdpm task set <ref> --status in-review --note "..."` if it still needs verification. Several tasks at once (end of a session, /handoff): one `mdpm task batch` call with JSON on stdin. A note points at commits, PRs and files rather than copying them; put PR and ticket URLs in the note.
 
 Keep it proportionate: one task per unit of work worth reviewing later, not one per typo or formatting tweak. Don't delete tasks to tidy up; archive them (`mdpm task archive <ref>`).
 <!-- mdpm:work-logging:end -->

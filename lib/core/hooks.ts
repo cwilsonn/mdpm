@@ -3,7 +3,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { REPO_ROOT } from './config'
 import type { Ops } from './ops'
-import { excludeLocally, git } from './project'
+import { BLOCK_START } from './init'
+import { excludeLocally, git, gitToplevel } from './project'
 
 // Audit-trail hooks for Claude Code (warn-only):
 //   SessionStart -> inject the work-logging reminder and the project's open tasks (reaches Claude)
@@ -37,7 +38,17 @@ function writeSession(id: string, state: SessionState) {
 
 // ── SessionStart ──────────────────────────────────────────────────────────────
 
-export function buildSessionContext(ops: Ops, project: string) {
+// The rules live in the work-logging block of CLAUDE.md (or CLAUDE.local.md), which Claude Code loads anyway;
+// the hook adds state, the open tasks, and repeats the short rules only where that block is missing.
+export function hasWorkLoggingBlock(cwd: string) {
+  const root = gitToplevel(cwd) ?? cwd
+  return ['CLAUDE.md', 'CLAUDE.local.md'].some((f) => {
+    try { return readFileSync(join(root, f), 'utf8').includes(BLOCK_START) }
+    catch { return false }
+  })
+}
+
+export function buildSessionContext(ops: Ops, project: string, opts: { rules?: boolean } = {}) {
   const open = ops.listTasks({ project, status: ['in-progress', 'blocked', 'todo'] })
   const line = (t: { slug: string; title: string; priority: string }) => `- ${t.slug}: ${t.title} [${t.priority}]`
   const inProgress = open.filter(t => t.status === 'in-progress')
@@ -47,11 +58,16 @@ export function buildSessionContext(ops: Ops, project: string) {
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || a.order - b.order)
   const section = (title: string, tasks: typeof open, max: number) =>
     tasks.length ? [`${title}${tasks.length > max ? ` (top ${max} of ${tasks.length})` : ''}:`, ...tasks.slice(0, max).map(line)] : []
+  const rules = opts.rules === false
+    ? [`This repo is tracked in mdpm as project "${project}"; log work as its Work logging section in CLAUDE.md says.`]
+    : [
+        `This repo is tracked in mdpm as project "${project}". Log your work there, cheaply: touch a task when a unit of work starts and when it ends, not in between.`,
+        '1. Start: mdpm task start "<title>" (resumes the open task with that exact title, or creates it; marks it in-progress).',
+        '2. Meanwhile: no per-step notes or status updates.',
+        '3. Finish, once: mdpm task done <ref> --note "what was done and why, decisions, verification, commits/PRs" (or set --status in-review --note ...). Several tasks: mdpm task batch.',
+      ]
   return [
-    `This repo is tracked in mdpm as project "${project}". Log your work there (see the Work logging section of CLAUDE.md), cheaply: touch a task when a unit of work starts and when it ends, not in between.`,
-    '1. Start: mdpm task start "<title>" (resumes the open task with that exact title, or creates it; marks it in-progress).',
-    '2. Meanwhile: no per-step notes or status updates.',
-    '3. Finish, once: mdpm task done <ref> --note "what was done and why, decisions, verification, commits/PRs" (or set --status in-review --note ...). Several tasks: mdpm task batch.',
+    ...rules,
     '',
     ...section('In progress', inProgress, 10),
     ...section('Blocked', blocked, 5),
@@ -60,9 +76,9 @@ export function buildSessionContext(ops: Ops, project: string) {
   ].join('\n')
 }
 
-export function startSession(ops: Ops, input: { sessionId?: string; project: string }) {
+export function startSession(ops: Ops, input: { sessionId?: string; project: string; cwd?: string }) {
   if (input.sessionId) writeSession(input.sessionId, { startedAt: new Date().toISOString(), project: input.project })
-  return buildSessionContext(ops, input.project)
+  return buildSessionContext(ops, input.project, { rules: !(input.cwd && hasWorkLoggingBlock(input.cwd)) })
 }
 
 // ── Stop ──────────────────────────────────────────────────────────────────────

@@ -22,7 +22,7 @@ export function renderPickup(p: Pickup, opts: { delta?: boolean } = {}) {
   else if (opts.delta) out.push('', 'No previous session notes to compare against.')
 
   if (opts.delta) {
-    if (p.blockers.length) out.push('', '### Blockers', ...p.blockers.map(b => `- \`${b.slug}\`: ${b.reason}`))
+    if (p.blockers.length) out.push('', '### Blockers', ...p.blockers.map(b => `- \`${b.slug}\`: ${b.reason}`), ...(p.moreBlockers ? [`- … ${p.moreBlockers} more`] : []))
     return out.join('\n')
   }
 
@@ -37,7 +37,7 @@ export function renderPickup(p: Pickup, opts: { delta?: boolean } = {}) {
   }
   if (!p.openTaskCount) out.push('', 'No open tasks.')
 
-  if (p.blockers.length) out.push('', '### Blockers', ...p.blockers.map(b => `- \`${b.slug}\`: ${b.reason}`))
+  if (p.blockers.length) out.push('', '### Blockers', ...p.blockers.map(b => `- \`${b.slug}\`: ${b.reason}`), ...('moreBlockers' in p && p.moreBlockers ? [`- … ${p.moreBlockers} more`] : []))
 
   out.push('', `### Docs (${p.docCount})`)
   for (const d of p.docs) out.push(`- ${d.highPriority ? '⭐ ' : ''}${d.title} (\`${d.slug}\`)${d.summary ? `: ${d.summary}` : ''}`)
@@ -53,7 +53,11 @@ export function renderPickup(p: Pickup, opts: { delta?: boolean } = {}) {
   else out.push('No previous session notes found.')
 
   out.push('', '### Suggested Focus', '_Picked by rule: in-progress first, then todo by priority and board order, then in-review._')
-  p.suggestedFocus.forEach((t, i) => out.push(`${i + 1}. \`${t.slug}\`: ${t.title} [${t.status}, ${t.priority}]`))
+  const listed = Object.values(p.tasks).flat()
+  p.suggestedFocus.forEach((f, i) => {
+    const t = listed.find(x => x.slug === f.slug)
+    out.push(`${i + 1}. \`${f.slug}\`: ${t?.title ?? ''} [${f.status}${t ? `, ${t.priority}` : ''}]`)
+  })
   if (!p.suggestedFocus.length) out.push('Nothing open.')
   return out.join('\n')
 }
@@ -71,7 +75,7 @@ export default defineCommand({
     const slug = args.ref ? ctx.core.resolveProject(args.ref).slug : ctx.inferProject()?.slug
     if (!slug) throw new CliError('no project: name one, or run inside a repo registered in mdpm (see `mdpm config show`)', ExitCode.usage)
     const pickup = buildPickup(ctx.core, slug, { full: args.full, ...(args.delta && { deltaEntries: 30 }) })
-    const view = args.delta ? { project: pickup.project, sinceLastSession: pickup.sinceLastSession, blockers: pickup.blockers } : pickup
+    const view = args.delta ? { project: pickup.project, sinceLastSession: pickup.sinceLastSession, blockers: pickup.blockers, ...(pickup.moreBlockers && { moreBlockers: pickup.moreBlockers }) } : pickup
     emit(ctx.json, view, () => renderPickup(pickup, { delta: args.delta }))
   },
 })
