@@ -37,7 +37,7 @@ Works on macOS and Linux. **WSL2 is confirmed working** (Ubuntu on a Windows VM)
 
 ### 1. Prerequisites
 
-- **Node 24** (`.nvmrc`; `nvm install 24`)
+- **Node 24.15 or newer** within 24 (`.nvmrc`; `nvm install 24`); Nuxt 4.6 refuses older 24.x
 - **pnpm 11.22.0**, pinned by `packageManager`: `corepack enable` (bundled with Node 24) or `npm i -g pnpm@11.22.0`
 - **git**, and admin rights once to edit the hosts file
 - Build tools (`build-essential`, `python3` on Debian/Ubuntu; Xcode CLT on macOS) only if `better-sqlite3` has no prebuilt binary for your platform

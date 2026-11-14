@@ -40,14 +40,14 @@ export default defineNuxtConfig({
   },
   vite: {
     server: {
-      hmr: {
-        // `mdpm start` sets MDPM_HOST from the base URL's hostname, so a machine without /etc/hosts access
-    // can use `http://localhost:3333`. Plain `pnpm dev` keeps the default.
-    host: process.env.MDPM_HOST || 'mdpm.local',
+      // The HMR websocket binds the same host as the dev server (see devServer.host above).
+      ws: {
+        host: process.env.MDPM_HOST || 'mdpm.local',
       },
     },
     optimizeDeps: {
-      include: [],
+      // Discovered late otherwise, which makes Vite reload the page on first visit.
+      include: ['vue-draggable-plus'],
     },
   }
 })

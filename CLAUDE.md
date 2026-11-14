@@ -4,7 +4,7 @@ Markdown-based project management tool. Nuxt 4 app that stores projects, tasks, 
 
 ## Setup
 
-**Node 24 required** (`.nvmrc` pins it). `better-sqlite3` is a native module — if you switch Node versions, run `pnpm rebuild better-sqlite3`.
+**Node 24 required, 24.15 or newer** (`.nvmrc` pins the major; Nuxt 4.6 needs ≥ 24.15). `better-sqlite3` is a native module — if you switch Node versions, run `pnpm rebuild better-sqlite3`.
 
 ```sh
 nvm use

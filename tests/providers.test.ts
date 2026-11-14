@@ -46,7 +46,7 @@ describe('provider schema errors', () => {
     ['bad icon', { ...github, icon: 'github' }, /^icon: icon must look like "lucide:link"/m],
     ['bad regex', { ...github, kinds: { change: { ...kind, match: '([unclosed' } } }, /^kinds\.change\.match: must be a valid regular expression/m],
     ['oversized pattern', { ...github, kinds: { change: { ...kind, match: 'a'.repeat(301) } } }, /^kinds\.change\.match:/m],
-    ['unknown kind', { ...github, kinds: { ticket: kind } }, /^kinds\.ticket:/m],
+    ['unknown kind', { ...github, kinds: { ticket: kind } }, /^kinds(\.ticket)?: .*ticket/m],
     ['unknown key', { ...github, extra: 1 }, /Unrecognized key: "extra"/],
     ['wrong version', { ...github, schemaVersion: 2 }, /^schemaVersion:/m],
     ['no kinds', { ...github, kinds: {} }, /at least one kind/],
