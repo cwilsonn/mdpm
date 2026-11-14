@@ -4,7 +4,7 @@ defineProps<{
     status: string
     tags?: string[]
     description?: string
-    githubRepo?: string
+    repo?: string
     archivedAt?: string
   }
 }>()
@@ -34,14 +34,14 @@ defineProps<{
         size="sm"
       />
       <a
-        v-if="project?.githubRepo"
-        :href="`https://github.com/${project.githubRepo}`"
+        v-if="project?.repo"
+        :href="repoHref(project.repo)"
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors"
       >
-        <UIcon name="i-lucide-github" class="size-3.5 shrink-0" />
-        {{ project.githubRepo }}
+        <UIcon name="i-lucide-folder-git-2" class="size-3.5 shrink-0" />
+        {{ repoLabel(project.repo) }}
       </a>
     </div>
     <p v-if="project.description" class="text-sm text-muted">

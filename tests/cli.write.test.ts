@@ -7,38 +7,27 @@ after(scratch.cleanup)
 
 let api: Awaited<ReturnType<typeof mockApi>>
 let failWith: { status: number; body: unknown } | undefined
-let notices: string[] | undefined
 let healthRoot: string | undefined
 before(async () => {
   api = await mockApi(req => req.path === '/api/health'
     ? { body: { ok: true, ...(healthRoot && { contentRoot: healthRoot }) } }
-    : failWith ?? (notices ? { body: { ok: true, slug: 'created-slug', notices } } : {}))
+    : failWith ?? {})
 })
 after(() => api.close())
-beforeEach(() => { api.requests.length = 0; failWith = undefined; healthRoot = undefined; notices = undefined })
+beforeEach(() => { api.requests.length = 0; failWith = undefined; healthRoot = undefined })
 
 const cli = (args: string[], input?: string) =>
   runCli(args, { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url }, input })
 const last = () => api.requests.at(-1)!
 
-describe('notices from the server', () => {
-  it('are printed to stderr, never stdout, so --json output stays clean', async () => {
-    notices = ['githubPRs is deprecated; use links. Removal planned for 0.10.']
-    const r = await cli(['task', 'set', 'parser', '--project', 'alpha', '--github-prs', '5', '--json'])
-    assert.equal(r.code, 0)
-    assert.match(r.stderr, /note: githubPRs is deprecated; use links\. Removal planned for 0\.10\./)
-    assert.doesNotMatch(r.stdout, /deprecated/)
-  })
-})
-
 describe('task writes hit the API', () => {
   it('add posts the fields', async () => {
-    const r = await cli(['task', 'add', 'New thing', '--project', 'alpha', '--priority', 'high', '--tags', 'a,b', '--github-issues', '3,4', '--due', '2026-12-01', '--json'])
+    const r = await cli(['task', 'add', 'New thing', '--project', 'alpha', '--priority', 'high', '--tags', 'a,b', '--due', '2026-12-01', '--json'])
     assert.equal(r.code, 0)
     assert.deepEqual(r.json, { project: 'alpha', slug: 'created-slug' })
     assert.equal(last().method, 'POST')
     assert.equal(last().path, '/api/tasks')
-    assert.deepEqual(last().body, { project: 'alpha', title: 'New thing', priority: 'high', tags: ['a', 'b'], githubIssues: [3, 4], due: '2026-12-01' })
+    assert.deepEqual(last().body, { project: 'alpha', title: 'New thing', priority: 'high', tags: ['a', 'b'], due: '2026-12-01' })
   })
 
   it('add reads the description from stdin with -', async () => {
@@ -97,10 +86,10 @@ describe('task writes hit the API', () => {
 
 describe('project writes hit the API', () => {
   it('create posts the fields', async () => {
-    const r = await cli(['project', 'create', 'New Project', '--tags', 'x', '--github-repo', 'me/new', '--json'])
+    const r = await cli(['project', 'create', 'New Project', '--tags', 'x', '--repo', 'https://github.com/me/new', '--json'])
     assert.equal(r.code, 0)
     assert.equal(last().path, '/api/projects')
-    assert.deepEqual(last().body, { title: 'New Project', tags: ['x'], githubRepo: 'me/new' })
+    assert.deepEqual(last().body, { title: 'New Project', tags: ['x'], repo: 'https://github.com/me/new' })
   })
 
   it('archive patches archivedAt on the resolved project', async () => {
@@ -112,11 +101,11 @@ describe('project writes hit the API', () => {
 
 describe('project set and delete', () => {
   it('set patches only the given fields, with "none" clearing optional ones', async () => {
-    const r = await cli(['project', 'set', 'alp', '--title', 'Alpha 2', '--tags', 'a,b', '--github-repo', 'none', '--default-priority', 'high', '--json'])
+    const r = await cli(['project', 'set', 'alp', '--title', 'Alpha 2', '--tags', 'a,b', '--repo', 'none', '--default-priority', 'high', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual([last().method, last().path], ['PATCH', '/api/projects/alpha'])
-    assert.deepEqual(last().body, { title: 'Alpha 2', tags: ['a', 'b'], githubRepo: null, defaultPriority: 'high' })
-    assert.deepEqual(r.json.updated.sort(), ['defaultPriority', 'githubRepo', 'tags', 'title'])
+    assert.deepEqual(last().body, { title: 'Alpha 2', tags: ['a', 'b'], repo: null, defaultPriority: 'high' })
+    assert.deepEqual(r.json.updated.sort(), ['defaultPriority', 'repo', 'tags', 'title'])
   })
 
   it('set with no fields is a usage error and sends nothing', async () => {

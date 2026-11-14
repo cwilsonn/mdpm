@@ -1,7 +1,6 @@
 import { join } from 'node:path'
 import * as content from '../server/utils/content'
 import { isDemo } from '../server/utils/demo'
-import { applyLinkWrite } from '../server/utils/links-write'
 import { validator } from '../server/utils/validate'
 import { REPO } from './helpers'
 
@@ -14,7 +13,7 @@ g.readValidatedBody = async (event: { body?: unknown }, validate: (b: unknown) =
 g.getRouterParam = (event: { params?: Record<string, string> }, key: string) => event.params?.[key]
 g.getQuery = (event: { query?: unknown }) => event.query ?? {}
 g.createError = (input: { statusCode?: number; message?: string; data?: unknown }) => Object.assign(new Error(input.message), input)
-Object.assign(g, content, { applyLinkWrite, isDemo, validator })
+Object.assign(g, content, { isDemo, validator })
 
 export interface RouteEvent {
   params?: Record<string, string>

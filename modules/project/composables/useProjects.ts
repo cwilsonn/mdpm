@@ -8,7 +8,7 @@ export interface ProjectPayload {
   icon?: string | null
   description?: string
   tags?: string[]
-  githubRepo?: string | null
+  repo?: string | null
   availableStatuses?: string[]
   defaultStatus?: string | null
   defaultPriority?: string | null

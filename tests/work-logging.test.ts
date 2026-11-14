@@ -25,7 +25,7 @@ describe('work-logging convention', () => {
   })
 
   it('only mentions CLI commands that exist', () => {
-    for (const command of ['task start', 'task search', 'task list', 'task set', 'task done', 'task batch', 'task link add', 'task archive']) {
+    for (const command of ['task start', 'task search', 'task list', 'task set', 'task done', 'task batch', 'task archive']) {
       assert.ok(template.includes(`mdpm ${command}`), command)
     }
   })

@@ -8,7 +8,7 @@ export interface InferredProject {
   detail: string
 }
 
-// Reduce a git remote (or a project's stored `githubRepo`) to a host-independent `owner/repo`
+// Reduce a git remote (or a project's stored `repo`) to a host-independent `owner/repo`
 // key so remotes on any host match: GitHub, GitHub Enterprise, GitLab (incl. nested groups),
 // Azure DevOps (https and ssh), Bitbucket, or a plain `owner/repo`. The last two path segments
 // win, with Azure's `_git` and `v3` marker segments dropped first.
@@ -80,27 +80,36 @@ export function readMarker(cwd: string): string | undefined {
 
 export interface InferableProject {
   slug: string
-  // Legacy field; still honoured for content that has not been migrated.
-  githubRepo?: string | null
-  // A project's repository is a link of kind `repo` (any provider, or the generic `git` one).
-  links?: readonly { kind?: unknown; ref?: unknown; url?: unknown }[]
+  // The project's repository URL (any host), compared with the checkout's remote as `owner/repo`.
+  repo?: string | null
 }
 
-// The repos a project is bound to, as host-independent `owner/repo` keys.
-function repoKeys(project: InferableProject) {
-  const refs = [project.githubRepo, ...(project.links ?? []).filter(l => l.kind === 'repo').map(l => l.ref ?? l.url)]
-  return refs.filter((r): r is string => typeof r === 'string' && !!r).map(normalizeRepoRef)
+const repoKey = (project: InferableProject) => project.repo ? normalizeRepoRef(project.repo) : undefined
+
+// A git remote as a web URL to store as a project's `repo`: ssh and scp forms become https, credentials
+// (`user:token@`) and `.git` are dropped. Remotes without a generic web form (Azure DevOps over ssh, local
+// paths) are stored as the bare `owner/repo` key, which inference still matches.
+export function repoUrlFromRemote(remote: string): string {
+  const trimmed = remote.trim()
+  // URL form: https://[user[:token]@]host[:port]/path or ssh://[user@]host[:port]/path. The web URL keeps
+  // an https port but drops an ssh one (it is the ssh daemon's, not the web server's).
+  const url = /^(https?|ssh):\/\/(?:[^@/]+@)?([^/:]+)(?::(\d+))?\/(.+?)(?:\.git)?\/?$/.exec(trimmed)
+  if (url && !url[2]!.startsWith('ssh.dev.azure.com')) return `https://${url[2]}${url[1] !== 'ssh' && url[3] ? `:${url[3]}` : ''}/${url[4]}`
+  // scp form: user@host:path
+  const scp = /^[^@/\s]+@([^:/\s]+):(?!\/\/)(.+?)(?:\.git)?\/?$/.exec(trimmed)
+  if (scp && !scp[1]!.startsWith('ssh.dev.azure.com')) return `https://${scp[1]}/${scp[2]}`
+  return normalizeRepoRef(trimmed)
 }
 
 // Which project does this directory belong to? An explicit `.mdpm` marker wins; then the git remote
-// (any host) matching one of a project's repo links; then the repo (or cwd) directory name matching a slug.
+// (any host) matching a project's `repo`; then the repo (or cwd) directory name matching a slug.
 export function inferProject(cwd: string, projects: InferableProject[]): InferredProject | undefined {
   const marked = readMarker(cwd)
   if (marked && projects.some(p => p.slug === marked)) return { slug: marked, via: 'marker', detail: MARKER_FILE }
   const remote = gitOriginUrl(cwd)
   if (remote) {
     const repo = normalizeRepoRef(remote)
-    const hit = projects.find(p => repoKeys(p).includes(repo))
+    const hit = projects.find(p => repoKey(p) === repo)
     if (hit) return { slug: hit.slug, via: 'git-remote', detail: repo }
   }
   const dirName = basename(gitToplevel(cwd) ?? cwd)

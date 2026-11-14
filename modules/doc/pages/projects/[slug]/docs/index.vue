@@ -2,7 +2,7 @@
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
-interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string; description?: string; tags?: string[]; githubRepo?: string }
+interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string; description?: string; tags?: string[]; repo?: string }
 
 const project = inject<Ref<ProjectHeader>>('project')!
 

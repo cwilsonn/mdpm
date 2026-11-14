@@ -75,7 +75,6 @@ export function createContext(flags: GlobalFlags) {
     get core() {
       return core ??= createCore(resolved().config, {
         ...(resolved().autoStart.value && { onUnreachable: autoStartServer }),
-        onNotice: notice => console.error(`${style.yellow('note:')} ${notice}`),
       })
     },
     // Config only, no content reads: lifecycle must work before the content dir is reachable.

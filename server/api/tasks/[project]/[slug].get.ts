@@ -1,5 +1,3 @@
-import { effectiveLinks } from '../../../../lib/core/github-links'
-import { githubView, projectRepoOf } from '../../../../lib/core/links-compat'
 export default defineEventHandler((event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
@@ -7,10 +5,6 @@ export default defineEventHandler((event) => {
 
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Task not found' })
-
-  const projectFile = readMarkdown(`projects/${project}/index.md`)
-  const githubRepo = projectFile ? projectRepoOf(projectFile.data) : null
-  const gh = githubView(file.data, githubRepo)
 
   return {
     slug,
@@ -23,10 +17,6 @@ export default defineEventHandler((event) => {
     assignees: (file.data.assignees as string[]) ?? [],
     dependencies: (file.data.dependencies as string[]) ?? [],
     due: (file.data.due as string | undefined) ?? undefined,
-    githubIssues: gh.githubIssues,
-    githubPRs: gh.githubPRs,
-    links: effectiveLinks('task', file.data, githubRepo),
-    githubRepo,
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
     completedAt: (file.data.completedAt as string | undefined) ?? undefined,

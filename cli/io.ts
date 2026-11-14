@@ -21,14 +21,6 @@ export function csv(value: unknown) {
   return typeof value === 'string' ? value.split(',').map(s => s.trim()).filter(Boolean) : undefined
 }
 
-export function csvNumbers(value: unknown, flag: string) {
-  return csv(value)?.map((s) => {
-    const n = Number(s)
-    if (!Number.isInteger(n) || n < 1) throw new CliError(`${flag}: '${s}' is not a positive integer`, ExitCode.usage)
-    return n
-  })
-}
-
 export function oneOf<T extends string>(value: unknown, allowed: readonly T[], flag: string): T | undefined {
   if (value === undefined) return undefined
   if (!allowed.includes(value as T)) throw new CliError(`${flag}: '${value}' is not one of ${allowed.join(', ')}`, ExitCode.usage)

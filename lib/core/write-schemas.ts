@@ -10,13 +10,12 @@ const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'must be a slug (lowercase
 const strings = z.array(z.string())
 const PROJECT_STATUSES = ['active', 'on-hold'] as const
 
-// Links are on their way out (see the audit decisions); until then their own validation lives in
-// applyLinkWrite, so the schema only lets them through.
-const legacyLinkFields = {
-  links: z.unknown().optional(),
-  githubIssues: z.array(z.number().int()).nullable().optional(),
-  githubPRs: z.array(z.number().int()).nullable().optional(),
-}
+// A project's repository. The UI renders it as a link, so only http(s) URLs (credentials refused), or the
+// bare `owner/repo` that `mdpm init` stores for remotes without a web URL (Azure over ssh, local paths).
+const repo = z.string().trim().refine(
+  v => /^https?:\/\/[^\s/@]+\/\S+$/.test(v) || /^[\w.-]+\/[\w.-]+$/.test(v),
+  'must be an http(s) repository URL (no credentials) or owner/repo',
+)
 
 // Docs call the markdown `body`, tasks call it `description`. Accept either for tasks, not both.
 function taskText<T extends z.ZodRawShape>(shape: T) {
@@ -44,7 +43,6 @@ export const TaskCreate = taskText({
   due: z.string().optional(),
   dependencies: strings.optional(),
   description: z.string().optional(),
-  ...legacyLinkFields,
   ...noteFields,
 })
 
@@ -60,7 +58,6 @@ export const TaskUpdate = taskText({
   description: z.string().optional(),
   order: z.number().optional(),
   archivedAt: z.string().nullable().optional(),
-  ...legacyLinkFields,
   ...noteFields,
 })
 
@@ -70,8 +67,7 @@ export const ProjectUpdate = z.strictObject({
   icon: z.string().nullable().optional(),
   description: z.string().optional(),
   tags: strings.nullable().optional(),
-  githubRepo: z.string().nullable().optional(),
-  links: z.unknown().optional(),
+  repo: repo.nullable().optional(),
   availableStatuses: z.array(z.enum(TASK_STATUSES)).nullable().optional(),
   defaultStatus: z.enum(TASK_STATUSES).nullable().optional(),
   defaultPriority: z.enum(TASK_PRIORITIES).nullable().optional(),
@@ -81,6 +77,19 @@ export const ProjectUpdate = z.strictObject({
   archivedAt: z.string().nullable().optional(),
 })
 
+export const ProjectCreate = z.strictObject({
+  title: z.string().trim().min(1, 'is required'),
+  status: z.enum(PROJECT_STATUSES).optional(),
+  icon: z.string().optional(),
+  description: z.string().optional(),
+  tags: strings.optional(),
+  repo: repo.optional(),
+  availableStatuses: z.array(z.enum(TASK_STATUSES)).optional(),
+  defaultStatus: z.enum(TASK_STATUSES).optional(),
+  defaultPriority: z.enum(TASK_PRIORITIES).optional(),
+  defaultAssignee: z.string().optional(),
+})
+
 export const DocUpdate = z.strictObject({
   title: z.string().trim().min(1, 'cannot be empty').optional(),
   tags: strings.nullable().optional(),
@@ -88,7 +97,6 @@ export const DocUpdate = z.strictObject({
   order: z.number().optional(),
   body: z.string().optional(),
   archivedAt: z.string().nullable().optional(),
-  links: z.unknown().optional(),
 })
 
 // One line per problem, phrased for a person reading CLI output or a toast.

@@ -2,9 +2,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import type { z } from 'zod'
 import type { TaskCreate, TaskUpdate } from '../../lib/core/write-schemas'
 import { appendNoteToBody } from '../../lib/core/log'
-import { projectRepoOf } from '../../lib/core/links-compat'
 import { isDemo } from './demo'
-import { applyLinkWrite } from './links-write'
 import { assertSafeSlug, contentPath, readMarkdown, slugify, uniqueSlug, writeMarkdown } from './content'
 
 // Task create/update, shared by the single routes and the batch route so they cannot drift apart.
@@ -53,10 +51,9 @@ export function createTaskFile(body: TaskCreateInput) {
     createdAt: new Date().toISOString().split('T')[0],
     order: taskCount,
   }
-  const notices = applyLinkWrite('task', frontmatter, body as unknown as Record<string, unknown>, projectFile ? projectRepoOf(projectFile.data) : null)
   const description = body.note?.trim() ? appendNoteToBody(body.description ?? '', body.note, body.noteAuthor) : (body.description ?? '')
   writeMarkdown(`projects/${body.project}/tasks/${slug}.md`, frontmatter, description)
-  return { slug, id: `${body.project}/${slug}`, status, notices }
+  return { slug, id: `${body.project}/${slug}`, status }
 }
 
 export function updateTaskFile(project: string, slug: string, body: TaskUpdateInput) {
@@ -64,7 +61,7 @@ export function updateTaskFile(project: string, slug: string, body: TaskUpdateIn
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Task not found' })
 
-  const { description, note, noteAuthor, links: _links, githubIssues: _issues, githubPRs: _prs, ...frontmatterFields } = body
+  const { description, note, noteAuthor, ...frontmatterFields } = body
   const newStatus = body.status ?? (file.data.status as string)
   const nowDate = new Date()
   const now = nowDate.toISOString()
@@ -75,8 +72,6 @@ export function updateTaskFile(project: string, slug: string, body: TaskUpdateIn
     if (v === null) { delete updated[k]; continue }
     updated[k] = v
   }
-  const projectFile = readMarkdown(`projects/${project}/index.md`)
-  const notices = applyLinkWrite('task', updated, body as unknown as Record<string, unknown>, projectFile ? projectRepoOf(projectFile.data) : null)
   updated.updatedAt = now
 
   if (newStatus === 'done' && !file.data.completedAt) updated.completedAt = now
@@ -85,5 +80,5 @@ export function updateTaskFile(project: string, slug: string, body: TaskUpdateIn
   let newBody = description !== undefined ? String(description) : file.content
   if (note?.trim()) newBody = appendNoteToBody(newBody, note, noteAuthor, nowDate)
   writeMarkdown(`projects/${project}/tasks/${slug}.md`, updated, newBody)
-  return { id: `${project}/${slug}`, status: newStatus, notices }
+  return { id: `${project}/${slug}`, status: newStatus }
 }

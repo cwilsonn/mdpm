@@ -1,7 +1,5 @@
 import { defineCommand } from 'citty'
-import type { Link } from '../../../lib/core'
 import { createContext, globalArgs } from '../../context'
-import { renderLinks } from '../../links'
 import { CliError, emit, ExitCode } from '../../output'
 
 export default defineCommand({
@@ -25,7 +23,7 @@ export default defineCommand({
         s.bold(project.title),
         s.dim(project.slug),
         `status: ${project.status}${project.archivedAt ? ' (archived)' : ''}${project.tags.length ? `  tags: ${project.tags.join(', ')}` : ''}`,
-        project.links.length && `\n${renderLinks(ctx, project.links as Link[])}\n`,
+        project.repo && `repo: ${project.repo}`,
         `tasks: ${project.taskCount}  docs: ${project.docCount}`,
         `open tasks by status: ${counts}`,
         project.description && `\n${project.description}`,

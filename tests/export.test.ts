@@ -13,7 +13,7 @@ describe('export', () => {
 
   it('builds a self-describing JSON document, leaving out archived items by default', () => {
     const doc = buildExport(core, {}, at)
-    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 2, '2026-10-01T12:00:00.000Z'])
+    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 3, '2026-10-01T12:00:00.000Z'])
     assert.deepEqual(doc.projects.map(p => p.slug).sort(), ['alpha', 'beta'])
     const alpha = doc.projects.find(p => p.slug === 'alpha')!
     assert.ok(!alpha.tasks.some(t => t.slug === 'old-idea'), 'archived task left out')
@@ -35,16 +35,15 @@ describe('export', () => {
   })
 
   it('CSV quotes commas, quotes, and line breaks', () => {
-    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 2, exportedAt: '', standaloneDocs: [], projects: [{
-      slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], links: [], createdAt: '', archivedAt: null, docs: [],
-      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], links: [{ url: 'https://github.com/acme/w/issues/1', provider: 'github', kind: 'issue', ref: 'acme/w#1' }, { provider: 'github', kind: 'change', ref: '#42' }], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma' }],
+    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 3, exportedAt: '', standaloneDocs: [], projects: [{
+      slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], repo: null, createdAt: '', archivedAt: null, docs: [],
+      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma' }],
     }] }
     const csv = toCsv(doc)
     assert.ok(csv.startsWith(`${CSV_COLUMNS.join(',')}\n`))
     assert.ok(csv.includes('"Say ""hi"", then leave"'), 'quotes doubled inside a quoted field')
     assert.ok(csv.includes('"line one\nline two, with comma"'), 'line breaks and commas kept inside quotes')
     assert.ok(csv.includes(',a;b,'), 'list columns joined with ;')
-    assert.ok(csv.includes('https://github.com/acme/w/issues/1;github:change:#42'))
   })
 
   it('markdown groups tasks by status with checkboxes and lists docs', () => {
@@ -92,21 +91,18 @@ describe('export CLI', () => {
   })
 })
 
-describe('links in export', () => {
-  it('exports effective links, so legacy-shaped content exports the same way', () => {
+describe('repo in export', () => {
+  it('exports the project repo URL and no link fields', () => {
     const doc = buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z'))
     // alpha still stores its repo as the legacy githubRepo field
-    assert.deepEqual(doc.projects[0]!.links, [{ url: 'https://github.com/test/alpha', provider: 'github', kind: 'repo', ref: 'test/alpha' }])
-    assert.ok(doc.projects[0]!.tasks.every(t => Array.isArray(t.links)))
+    assert.equal(doc.projects[0]!.repo, 'https://github.com/test/alpha')
+    assert.ok(!('links' in doc.projects[0]!) && !('links' in doc.projects[0]!.tasks[0]!))
     assert.ok(!('githubRepo' in doc.projects[0]!) && !('githubIssues' in doc.projects[0]!.tasks[0]!))
   })
 
-  it('markdown shows the repo and task links; CSV has a links column', () => {
-    const doc = buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z'))
-    doc.projects[0]!.tasks[0]!.links = [{ url: 'https://github.com/test/alpha/pull/3', provider: 'github', kind: 'change', ref: 'test/alpha#3' }, { url: 'https://example.com/spec', title: 'Spec' }]
-    const md = toMarkdown(doc)
-    assert.match(md, /repo: test\/alpha/)
-    assert.match(md, /- links: \[#3\]\(https:\/\/github\.com\/test\/alpha\/pull\/3\), \[Spec\]\(https:\/\/example\.com\/spec\)/)
-    assert.ok(CSV_COLUMNS.includes('links' as never) && !CSV_COLUMNS.includes('github_issues' as never))
+  it('markdown shows the repo; CSV has no links column', () => {
+    const md = toMarkdown(buildExport(core, { project: 'alpha' }, new Date('2026-10-01T12:00:00Z')))
+    assert.match(md, /repo: https:\/\/github\.com\/test\/alpha/)
+    assert.ok(!CSV_COLUMNS.includes('links' as never))
   })
 })

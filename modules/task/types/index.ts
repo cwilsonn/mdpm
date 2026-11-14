@@ -20,9 +20,6 @@ export interface Task {
   updatedAt?: string
   archivedAt?: string
   order?: number
-  githubRepo?: string
-  githubIssues?: number[]
-  githubPRs?: number[]
 }
 
 /** A status column descriptor (shape of a `STATUS_CONFIG` entry, mutable). */

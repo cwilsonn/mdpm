@@ -287,7 +287,7 @@ async function executeDelete() {
                       :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
                       :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
                       :created-at="project.createdAt"
-                      :github-repo="(project as any).githubRepo"
+                      :repo="(project as any).repo"
                     />
                   </div>
                 </div>
@@ -391,7 +391,7 @@ async function executeDelete() {
                       :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
                       :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
                       :created-at="project.createdAt"
-                      :github-repo="(project as any).githubRepo"
+                      :repo="(project as any).repo"
                     />
                   </div>
                 </div>

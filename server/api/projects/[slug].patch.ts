@@ -9,12 +9,11 @@ export default defineEventHandler(async (event) => {
 
   const merged: Record<string, unknown> = { ...file.data }
   for (const [k, v] of Object.entries(body)) {
-    if (v === undefined || k === 'links' || k === 'githubRepo') continue
+    if (v === undefined) continue
     if (v === null) { delete merged[k]; continue }
     merged[k] = v
   }
 
-  const notices = applyLinkWrite('project', merged, body as Record<string, unknown>)
   writeMarkdown(`projects/${slug}/index.md`, { ...merged, updatedAt: new Date().toISOString() }, file.content)
-  return { ok: true, ...(notices.length ? { notices } : {}) }
+  return { ok: true }
 })

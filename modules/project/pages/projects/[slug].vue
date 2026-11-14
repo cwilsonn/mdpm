@@ -10,7 +10,7 @@ interface ProjectDetail {
   defaultStatus?: string
   defaultPriority?: string
   defaultAssignee?: string
-  githubRepo?: string
+  repo?: string
 }
 
 const { data: project, refresh: refreshProject } = await useAsyncData(

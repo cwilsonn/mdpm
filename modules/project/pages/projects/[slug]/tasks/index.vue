@@ -10,7 +10,7 @@ interface ProjectDetail {
   defaultStatus?: string
   defaultPriority?: string
   defaultAssignee?: string
-  githubRepo?: string
+  repo?: string
 }
 
 const project = inject<Ref<ProjectDetail>>('project')!

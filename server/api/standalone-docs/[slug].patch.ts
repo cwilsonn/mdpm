@@ -19,18 +19,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const { body: newBody, links: _links, ...frontmatterFields } = body
+  const { body: newBody, ...frontmatterFields } = body
   const merged: Record<string, unknown> = { ...file.data }
   for (const [k, v] of Object.entries(frontmatterFields)) {
     if (v === undefined) continue
     if (v === null) { delete merged[k]; continue }
     merged[k] = v
   }
-  const notices = applyLinkWrite('doc', merged, body as Record<string, unknown>)
   merged.updatedAt = new Date().toISOString()
 
   writeMarkdown(`docs/${slug}.md`, merged, newBody !== undefined ? String(newBody) : file.content)
-  return { ok: true, ...(notices.length ? { notices } : {}) }
+  return { ok: true }
 })
 
 function wouldCreateCycleStandalone(slug: string, newParent: string): boolean {

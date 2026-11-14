@@ -62,14 +62,14 @@ describe('.mdpm marker', () => {
     const repo = makeRepo('whatever', 'git@gitlab.corp.example:other/thing.git')
     writeFileSync(join(repo, '.mdpm'), 'project: beta\n')
     mkdirSync(join(repo, 'src/deep'), { recursive: true })
-    const projects = [{ slug: 'alpha', githubRepo: 'other/thing' }, { slug: 'beta', githubRepo: null }]
+    const projects = [{ slug: 'alpha', repo: 'https://github.com/other/thing' }, { slug: 'beta', repo: null }]
     assert.deepEqual(inferProject(join(repo, 'src/deep'), projects), { slug: 'beta', via: 'marker', detail: '.mdpm' })
   })
 
   it('is ignored when it names an unknown project', () => {
     const repo = makeRepo('alpha')
     writeFileSync(join(repo, '.mdpm'), 'project: ghost\n')
-    assert.equal(inferProject(repo, [{ slug: 'alpha', githubRepo: null }])?.via, 'directory-name')
+    assert.equal(inferProject(repo, [{ slug: 'alpha', repo: null }])?.via, 'directory-name')
   })
 })
 
@@ -82,26 +82,26 @@ describe('mdpm init', () => {
   const init = (cwd: string, args: string[] = []) => runCli(['init', '--json', ...args], { scratch: scratch.dir, cwd, env: { MDPM_BASE_URL: api.url } })
   const writes = () => api.requests.filter(r => r.method !== 'GET')
 
-  it('creates a project for a GitHub repo, records its repo link, and installs the block', async () => {
+  it('creates a project for a GitHub repo, records its repo URL, and installs the block', async () => {
     const repo = makeRepo('newthing', 'git@github.com:acme/newthing.git')
     const r = await init(repo, ['--title', 'New Thing'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual([r.json.project, r.json.created], ['created-slug', true])
-    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/projects', { title: 'New Thing', links: [{ url: 'https://github.com/acme/newthing', provider: 'github', kind: 'repo', ref: 'acme/newthing' }] }]])
+    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/projects', { title: 'New Thing', repo: 'https://github.com/acme/newthing' }]])
     assert.ok(read(repo, 'CLAUDE.md').includes('project `created-slug`'))
     assert.ok(!existsSync(join(repo, '.mdpm')), 'the remote already finds the project, so no marker')
   })
 
-  it('records any host as a repo link: GitLab by its provider, unclaimed hosts as generic git, and the remote then finds the project', async () => {
+  it('records any host as a web URL (credentials dropped), and the remote then finds the project', async () => {
     const gitlab = makeRepo('app', 'git@gitlab.com:group/sub/app.git')
     assert.equal((await init(gitlab)).code, 0)
-    assert.deepEqual(writes()[0]!.body.links, [{ url: 'https://gitlab.com/group/sub/app', provider: 'gitlab', kind: 'repo', ref: 'group/sub/app' }])
+    assert.equal(writes()[0]!.body.repo, 'https://gitlab.com/group/sub/app')
     api.requests.length = 0
-    const corp = makeRepo('widgets', 'git@gitlab.corp.example:acme/widgets.git')
+    const corp = makeRepo('widgets', 'https://deploy:s3cret@gitlab.corp.example/acme/widgets.git')
     const r = await init(corp)
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(writes()[0]!.body, { title: 'widgets', links: [{ url: 'https://gitlab.corp.example/acme/widgets', provider: 'git', kind: 'repo', ref: 'acme/widgets' }] })
-    assert.ok(!existsSync(join(corp, '.mdpm')), 'the recorded repo link finds the project, so no marker is needed')
+    assert.deepEqual(writes()[0]!.body, { title: 'widgets', repo: 'https://gitlab.corp.example/acme/widgets' })
+    assert.ok(!existsSync(join(corp, '.mdpm')), 'the recorded repo finds the project, so no marker is needed')
   })
 
   it('a repo with no remote still pins itself with an excluded marker', async () => {

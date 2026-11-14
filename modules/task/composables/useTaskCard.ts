@@ -2,7 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 
 // Derived view state shared by the two task presentations, TaskDisplayCard
 // (kanban card) and TaskDisplayLine (list row). Both previously re-declared
-// this identical block of computeds + GitHub URL helpers; they now differ only
+// this identical block of computeds; they now differ only
 // in layout/template.
 export function useTaskCard(task: MaybeRefOrGetter<Task>) {
   const t = computed(() => toValue(task))
@@ -29,21 +29,8 @@ export function useTaskCard(task: MaybeRefOrGetter<Task>) {
     return new Date(t.value.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   })
 
-  const githubRepo = computed(() => t.value.githubRepo)
-  const githubIssues = computed(() => t.value.githubIssues ?? [])
-  const githubPRs = computed(() => t.value.githubPRs ?? [])
-  const hasGithubRefs = computed(() => githubIssues.value.length > 0 || githubPRs.value.length > 0)
-
-  function issueUrl(n: number) {
-    return githubRepo.value ? `https://github.com/${githubRepo.value}/issues/${n}` : null
-  }
-  function prUrl(n: number) {
-    return githubRepo.value ? `https://github.com/${githubRepo.value}/pull/${n}` : null
-  }
-
   return {
     dueInfo, tags, assignees, depCount, status, priority,
     isDone, isAiInProgress, completedLabel,
-    githubRepo, githubIssues, githubPRs, hasGithubRefs, issueUrl, prUrl,
   }
 }

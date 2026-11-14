@@ -14,7 +14,7 @@ const emit = defineEmits<{
 
 const {
   dueInfo, assignees, depCount, status, priority, isDone, isAiInProgress,
-  completedLabel, githubIssues, githubPRs, issueUrl, prUrl,
+  completedLabel,
 } = useTaskCard(() => props.task)
 </script>
 
@@ -77,7 +77,7 @@ const {
         </div>
       </template>
       <template v-else>
-        <!-- Active: due + priority + github refs + assignees + deps -->
+        <!-- Active: due + priority + assignees + deps -->
         <span
           v-if="dueInfo"
           class="text-xs hidden sm:block shrink-0 tabular-nums"
@@ -91,40 +91,6 @@ const {
           variant="subtle"
           size="sm"
         />
-        <template v-for="n in githubIssues.slice(0, 2)" :key="`i-${n}`">
-          <a
-            v-if="issueUrl(n)"
-            :href="issueUrl(n)!"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hidden sm:flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors shrink-0"
-            @click.stop
-          >
-            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
-            #{{ n }}
-          </a>
-          <span v-else class="hidden sm:flex items-center gap-0.5 text-xs text-muted shrink-0">
-            <UIcon name="i-lucide-circle-dot" class="size-3 shrink-0" />
-            #{{ n }}
-          </span>
-        </template>
-        <template v-for="n in githubPRs.slice(0, 2)" :key="`p-${n}`">
-          <a
-            v-if="prUrl(n)"
-            :href="prUrl(n)!"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hidden sm:flex items-center gap-0.5 text-xs text-muted hover:text-primary transition-colors shrink-0"
-            @click.stop
-          >
-            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
-            #{{ n }}
-          </a>
-          <span v-else class="hidden sm:flex items-center gap-0.5 text-xs text-muted shrink-0">
-            <UIcon name="i-lucide-git-pull-request" class="size-3 shrink-0" />
-            #{{ n }}
-          </span>
-        </template>
         <div v-if="assignees.length" class="hidden md:flex -space-x-1">
           <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
             <UAvatar :alt="a" size="2xs" />
