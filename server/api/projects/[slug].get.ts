@@ -1,5 +1,4 @@
-import { effectiveLinks } from '../../../lib/core/github-links'
-import { projectRepoOf } from '../../../lib/core/links-compat'
+import { repoOf } from '../../../lib/core/read'
 const ALL_TASK_STATUSES = ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold']
 
 export default defineEventHandler((event) => {
@@ -22,8 +21,7 @@ export default defineEventHandler((event) => {
     defaultStatus: (file.data.defaultStatus as string | undefined) ?? undefined,
     defaultPriority: (file.data.defaultPriority as string | undefined) ?? undefined,
     defaultAssignee: (file.data.defaultAssignee as string | undefined) ?? undefined,
-    githubRepo: projectRepoOf(file.data) ?? undefined,
-    links: effectiveLinks('project', file.data, null),
+    repo: repoOf(file.data) ?? undefined,
     archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
   }
 })

@@ -19,7 +19,8 @@ describe('readers', () => {
   it('counts tasks and docs per project', () => {
     const alpha = core.getProject('alpha')
     assert.equal(alpha.taskCount, 8)
-    assert.equal(alpha.githubRepo, 'test/alpha')
+    // alpha still stores the legacy githubRepo; it reads as a repo URL until `mdpm migrate` runs
+    assert.equal(alpha.repo, 'https://github.com/test/alpha')
   })
 
   it('throws NotFoundError for an unknown project', () => {
@@ -169,7 +170,7 @@ describe('config', () => {
 })
 
 describe('project inference', () => {
-  const projects = [{ slug: 'alpha', githubRepo: 'Test/Alpha' }, { slug: 'beta', githubRepo: null }]
+  const projects = [{ slug: 'alpha', repo: 'https://github.com/Test/Alpha' }, { slug: 'beta', repo: null }]
 
   it('normalizes ssh, https and plain repo references', () => {
     for (const ref of ['git@github.com:test/alpha.git', 'https://github.com/test/alpha', 'https://github.com/test/alpha.git/', 'test/alpha', '  Test/Alpha  ']) {
@@ -198,15 +199,15 @@ describe('project inference', () => {
     assert.equal(normalizeRepoRef('https://git.corp.com/test/alpha?ref=main'), 'test/alpha')
   })
 
-  it('matches the remote against repo links of any provider (and the legacy field)', () => {
+  it('matches the remote against each project\'s repo URL, on any host', () => {
     const scratch = scratchDir()
     after(scratch.cleanup)
     const byLinks = [
-      { slug: 'gl', links: [{ kind: 'repo', provider: 'gitlab', ref: 'group/sub/app' }] },
-      { slug: 'az', links: [{ kind: 'repo', provider: 'git', ref: 'v3/org/proj/repo' }] },
-      { slug: 'plain', links: [{ kind: 'repo', url: 'https://git.example.com/team/svc' }] },
-      { slug: 'not-a-repo', links: [{ kind: 'issue', ref: 'team/svc#1' }] },
-      { slug: 'legacy', githubRepo: 'Test/Legacy' },
+      { slug: 'gl', repo: 'https://gitlab.com/group/sub/app' },
+      { slug: 'az', repo: 'proj/repo' },
+      { slug: 'plain', repo: 'https://git.example.com/team/svc' },
+      { slug: 'none', repo: null },
+      { slug: 'legacy', repo: 'https://github.com/Test/Legacy' },
     ]
     const at = (name: string, remote: string) => {
       const dir = join(scratch.dir, name)
@@ -219,7 +220,7 @@ describe('project inference', () => {
     assert.equal(at('r2', 'git@ssh.dev.azure.com:v3/org/proj/repo')?.slug, 'az')
     assert.equal(at('r3', 'https://token@git.example.com/team/svc.git')?.slug, 'plain')
     assert.equal(at('r4', 'git@github.com:test/legacy.git')?.slug, 'legacy')
-    assert.equal(at('r5', 'git@github.com:team/svc.git')?.slug, 'plain', 'host-independent, as before; a non-repo link never binds')
+    assert.equal(at('r5', 'git@github.com:team/svc.git')?.slug, 'plain', 'host-independent, as before')
     assert.equal(at('zz-unmatched', 'git@github.com:nobody/nothing.git'), undefined)
   })
 

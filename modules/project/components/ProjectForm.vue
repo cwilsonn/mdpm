@@ -7,7 +7,7 @@ const props = defineProps<{
     icon?: string
     description?: string
     tags?: string[]
-    githubRepo?: string
+    repo?: string
     availableStatuses?: string[]
     defaultStatus?: string
     defaultPriority?: string
@@ -32,7 +32,7 @@ const form = reactive({
   icon: props.project?.icon ?? '',
   description: props.project?.description ?? '',
   tags: [...(props.project?.tags ?? [])] as string[],
-  githubRepo: props.project?.githubRepo ?? '',
+  repo: props.project?.repo ?? '',
   availableStatuses: [...(props.project?.availableStatuses ?? ['todo', 'in-progress', 'done'])] as StatusId[],
   defaultStatus: (props.project?.defaultStatus ?? undefined) as StatusId | undefined,
   defaultPriority: (props.project?.defaultPriority ?? undefined) as PriorityId | undefined,
@@ -67,7 +67,8 @@ const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoS
       icon: form.icon || null,
       description: form.description || undefined,
       tags: form.tags,
-      githubRepo: form.githubRepo || null,
+      // Autosave runs while typing: send the repo only once it is a whole URL (or empty, to clear it).
+      ...(!form.repo.trim() ? { repo: null } : isRepo(form.repo) ? { repo: form.repo.trim() } : {}),
       availableStatuses: form.availableStatuses,
       defaultStatus: form.defaultStatus || null,
       defaultPriority: form.defaultPriority || null,
@@ -89,7 +90,7 @@ watch(() => form.description, () => scheduleSave())
 watch(() => form.status, () => flushSave())
 watch(() => form.icon, () => flushSave())
 watch(() => form.tags, () => flushSave(), { deep: true })
-watch(() => form.githubRepo, () => scheduleSave())
+watch(() => form.repo, () => scheduleSave())
 watch(() => form.availableStatuses, () => flushSave(), { deep: true })
 watch(() => form.defaultStatus, () => flushSave())
 watch(() => form.defaultPriority, () => flushSave())
@@ -115,7 +116,7 @@ async function create() {
       icon: form.icon || undefined,
       description: form.description || undefined,
       tags: form.tags,
-      githubRepo: form.githubRepo || undefined,
+      ...(isRepo(form.repo) && { repo: form.repo.trim() }),
       availableStatuses: form.availableStatuses,
       defaultStatus: form.defaultStatus || undefined,
       defaultPriority: form.defaultPriority || undefined,
@@ -194,10 +195,10 @@ async function create() {
           />
         </UFormField>
 
-        <UFormField label="GitHub Repo" hint="owner/repo">
+        <UFormField label="Repository" hint="URL">
           <UInput
-            v-model="form.githubRepo"
-            placeholder="e.g. anthropics/claude-code"
+            v-model="form.repo"
+            placeholder="e.g. https://github.com/owner/repo"
             class="w-full"
           />
         </UFormField>

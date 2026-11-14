@@ -1,5 +1,4 @@
-import { effectiveLinks } from '../../../lib/core/github-links'
-import { projectRepoOf } from '../../../lib/core/links-compat'
+import { repoOf } from '../../../lib/core/read'
 import { existsSync, readdirSync } from 'node:fs'
 
 export default defineEventHandler(() => {
@@ -20,8 +19,7 @@ export default defineEventHandler(() => {
         icon: (file.data.icon as string | undefined) ?? undefined,
         description: (file.data.description as string | undefined) ?? undefined,
         tags: (file.data.tags as string[]) ?? [],
-        githubRepo: projectRepoOf(file.data) ?? undefined,
-        links: effectiveLinks('project', file.data, null),
+        repo: repoOf(file.data) ?? undefined,
         createdAt: (file.data.createdAt as string) ?? '',
         updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
         pinned: (file.data.pinned as boolean | undefined) ?? false,

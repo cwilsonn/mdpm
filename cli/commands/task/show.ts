@@ -1,7 +1,6 @@
 import { defineCommand } from 'citty'
-import { shapeTask, type Link } from '../../../lib/core'
+import { shapeTask } from '../../../lib/core'
 import { createContext, globalArgs } from '../../context'
-import { renderLinks } from '../../links'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, refArg, resolveRef } from './shared'
 
@@ -32,7 +31,7 @@ export default defineCommand({
         task.dependencies.length && `depends on: ${task.dependencies.join(', ')}`,
         task.archivedAt && 'archived',
       ].filter(Boolean).join('  ')
-      return [s.bold(task.title), s.dim(`${task.project}/${task.slug}`), meta, ...(task.links.length ? ['', renderLinks(ctx, task.links as Link[])] : []), ...(task.body ? ['', task.body] : []), ...(task.truncated ? ['', s.dim(`(${task.olderNotes ? `${task.olderNotes} older notes hidden; ` : ''}shortened: --full for everything)`)] : [])].join('\n')
+      return [s.bold(task.title), s.dim(`${task.project}/${task.slug}`), meta, ...(task.body ? ['', task.body] : []), ...(task.truncated ? ['', s.dim(`(${task.olderNotes ? `${task.olderNotes} older notes hidden; ` : ''}shortened: --full for everything)`)] : [])].join('\n')
     })
   },
 })

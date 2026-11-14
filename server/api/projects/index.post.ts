@@ -1,25 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs'
+import { ProjectCreate } from '../../../lib/core/write-schemas'
 
 const PROJECT_LIMIT = 10
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{
-    title: string
-    status?: string
-    icon?: string
-    description?: string
-    tags?: string[]
-    githubRepo?: string
-    links?: unknown
-    availableStatuses?: string[]
-    defaultStatus?: string
-    defaultPriority?: string
-    defaultAssignee?: string
-  }>(event)
-
-  if (!body.title?.trim()) {
-    throw createError({ statusCode: 400, message: 'Title is required' })
-  }
+  const body = await readValidatedBody(event, validator(ProjectCreate))
 
   const projectsDir = contentPath('projects')
   const projectCount = existsSync(projectsDir)
@@ -40,6 +25,7 @@ export default defineEventHandler(async (event) => {
     ...(body.icon ? { icon: body.icon } : {}),
     ...(body.description ? { description: body.description } : {}),
     tags: body.tags ?? [],
+    ...(body.repo ? { repo: body.repo } : {}),
     pinnedOrder: projectCount,
     availableStatuses: body.availableStatuses ?? ['todo', 'in-progress', 'done'],
     ...(body.defaultStatus ? { defaultStatus: body.defaultStatus } : {}),
@@ -47,8 +33,7 @@ export default defineEventHandler(async (event) => {
     ...(body.defaultAssignee ? { defaultAssignee: body.defaultAssignee } : {}),
     createdAt: new Date().toISOString().split('T')[0],
   }
-  const notices = applyLinkWrite('project', frontmatter, body as Record<string, unknown>)
   writeMarkdown(`projects/${slug}/index.md`, frontmatter)
 
-  return { slug, ...(notices.length ? { notices } : {}) }
+  return { slug }
 })

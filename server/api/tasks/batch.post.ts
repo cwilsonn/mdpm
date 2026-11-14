@@ -21,14 +21,14 @@ export default defineEventHandler(async (event) => {
       if (item.op === 'create') {
         const { op: _, ...input } = item
         const r = createTaskFile(checkCreate(input))
-        return { index, ok: true, id: r.id, status: r.status, ...(r.notices.length ? { notices: r.notices } : {}) }
+        return { index, ok: true, id: r.id, status: r.status }
       }
       if (item.op === 'update' || item.op === 'note') {
         const { op, project, slug, ...fields } = item
         if (!project || !slug) throw createError({ statusCode: 400, message: `${op} needs project and slug` })
         if (op === 'note' && !(item as { note?: string }).note?.trim()) throw createError({ statusCode: 400, message: 'note is empty' })
         const r = updateTaskFile(project, slug, checkUpdate(fields))
-        return { index, ok: true, id: r.id, status: r.status, ...(r.notices.length ? { notices: r.notices } : {}) }
+        return { index, ok: true, id: r.id, status: r.status }
       }
       throw createError({ statusCode: 400, message: `Unknown op: ${String((item as { op?: unknown }).op)}` })
     }

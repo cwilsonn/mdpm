@@ -13,8 +13,6 @@ export interface TaskPayload {
   assignees?: string[]
   due?: string
   dependencies?: string[]
-  githubIssues?: number[]
-  githubPRs?: number[]
   description?: string
   archivedAt?: string | null
 }

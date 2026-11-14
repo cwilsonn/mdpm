@@ -11,7 +11,7 @@ import { CliError, ExitCode } from './output'
 // async-failures.jsonl (see `mdpm status`). Read-after-write is not guaranteed: the write may not have landed yet.
 
 const SUPPORTED = new Set(['task set', 'task done', 'task note', 'task start', 'task add', 'task batch', 'task archive', 'task unarchive'])
-const VALUE_FLAGS = new Set(['project', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'link', 'github-issues', 'github-prs', 'description', 'note', 'author', 'title', 'file', 'where', 'content-path', 'url'])
+const VALUE_FLAGS = new Set(['project', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'description', 'note', 'author', 'title', 'file', 'where', 'content-path', 'url'])
 export const ASYNC_CHILD_ENV = 'MDPM_ASYNC_CHILD'
 
 // Positional words and flag values from raw argv (citty parses later, in the child; this only needs enough to name the target).

@@ -31,7 +31,7 @@ export default defineCommand({
       const lines = [`${mark} ${s.state}: ${s.url}`]
       if (s.pid) lines.push(`  pid ${s.pid}, up ${formatUptime(s.uptimeSeconds ?? 0)}${s.managed ? `, log: ${s.logFile}` : ' (started outside mdpm; pid from nuxt.lock)'}`)
       else if (s.running) lines.push('  pid unknown (not started by mdpm, no Nuxt lock); stop it manually')
-      if (content?.pendingMigration) lines.push(`  ${ctx.style.yellow('!')} ${content.pendingMigration} file(s) use legacy GitHub fields; run \`mdpm migrate\``)
+      if (content?.pendingMigration) lines.push(`  ${ctx.style.yellow('!')} ${content.pendingMigration} file(s) still carry link fields; run \`mdpm migrate\``)
       if (asyncFailures.length) {
         lines.push(`  ${ctx.style.yellow('!')} ${asyncFailures.length} fire-and-forget write${asyncFailures.length === 1 ? '' : 's'} failed${args['ack-async'] ? ' (cleared)' : ' (mdpm status --ack-async clears them)'}:`)
         for (const f of asyncFailures.slice(-5)) lines.push(`    ${f.at.slice(0, 16).replace('T', ' ')} ${f.what}: ${f.error.split('\n')[0]}`)

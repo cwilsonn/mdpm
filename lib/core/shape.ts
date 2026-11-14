@@ -15,7 +15,7 @@ export const DEFAULT_LIMIT = 20
 /** Hard cap on one body returned by a read; the rest is one explicit flag away. */
 export const DEFAULT_MAX_CHARS = 8000
 
-/** Fields a task list row carries unless asked for more. No body, no links: those are what `show` is for. */
+/** Fields a task list row carries unless asked for more. No body: that is what `show` is for. */
 export const TASK_LIST_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'updatedAt'] as const
 export const DOC_LIST_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'updatedAt'] as const
 
@@ -121,8 +121,8 @@ export function shapeDoc<T extends { body: string }>(doc: T, opts: { maxChars?: 
 }
 
 /** Every field a task list row may carry (`--fields`). `summary` and `noteCount` are derived from the body. */
-export const TASK_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'links', 'githubIssues', 'githubPRs', 'githubRepo', 'createdAt', 'updatedAt', 'archivedAt', 'order', 'summary', 'noteCount', 'match'] as const
-export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'createdAt', 'updatedAt', 'archivedAt', 'links', 'excerpt', 'summary'] as const
+export const TASK_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'createdAt', 'updatedAt', 'archivedAt', 'order', 'summary', 'noteCount', 'match'] as const
+export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'createdAt', 'updatedAt', 'archivedAt', 'excerpt', 'summary'] as const
 
 // A task as a list row: everything but the body, plus derived `summary` (first prose line of the spec),
 // `noteCount`, and, for a search, `match` (the first line containing the query).

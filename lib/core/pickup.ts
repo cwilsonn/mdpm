@@ -139,7 +139,7 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
   }
 
   return {
-    project: { slug: projectInfo.slug, title: projectInfo.title, githubRepo: projectInfo.githubRepo, links: projectInfo.links },
+    project: { slug: projectInfo.slug, title: projectInfo.title, repo: projectInfo.repo },
     openTaskCount: open.length,
     tasks,
     ...(Object.keys(hiddenTasks).length && { hiddenTasks }),
