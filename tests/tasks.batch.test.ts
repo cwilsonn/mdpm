@@ -5,7 +5,7 @@ import { after, beforeEach, describe, it } from 'node:test'
 import matter from 'gray-matter'
 import { createCore } from '../lib/core'
 import { rejects, route } from './route-harness'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -98,85 +98,59 @@ describe('POST /api/tasks/batch', () => {
 })
 
 describe('batchTasks and startTask (core)', () => {
-  // Reads come from the real files; writes go to a mock API that records them.
-  async function withCore<T>(fn: (core: ReturnType<typeof createCore>, api: Awaited<ReturnType<typeof mockApi>>) => Promise<T>) {
-    const api = await mockApi((req) => {
-      if (req.path === '/api/health') return { body: { ok: true } }
-      if (req.path === '/api/tasks/batch') return { body: { ok: req.body.ops.length, failed: 0, results: req.body.ops.map((_: unknown, i: number) => ({ index: i, ok: true, id: 'x', status: 'done' })) } }
-      return req.method === 'POST' ? { body: { slug: 'brand-new', id: 'p/brand-new', status: 'in-progress' } } : { body: { ok: true } }
-    })
-    try {
-      return await fn(createCore({ contentPath: root, baseUrl: api.url }), api)
-    }
-    finally {
-      await api.close()
-    }
-  }
+  // Reads and writes both go to the files; the base URL is unroutable, so nothing may need a server.
+  const core = () => createCore({ contentPath: root, baseUrl: 'http://127.0.0.1:1' })
 
-  it('resolves refs from the files and sends one request of ids', async () => {
-    await withCore(async (core, api) => {
-      const r = await core.batchTasks('p', [
-        { op: 'update', ref: 'one', status: 'done', note: 'ok', author: 'Sam' },
-        { op: 'note', ref: 'two', note: 'n' },
-        { op: 'create', title: 'New' },
-      ])
-      assert.equal(r.ok, 3)
-      const sent = api.requests.filter(q => q.path === '/api/tasks/batch')
-      assert.equal(sent.length, 1)
-      assert.deepEqual(sent[0]!.body.ops[0], { op: 'update', project: 'p', slug: 'one', status: 'done', note: 'ok', noteAuthor: 'Sam' })
-      assert.deepEqual(sent[0]!.body.ops[2], { op: 'create', project: 'p', title: 'New' })
-    })
+  it('resolves refs from the files and writes each item', async () => {
+    const r = await core().batchTasks('p', [
+      { op: 'update', ref: 'one', status: 'done', note: 'ok', author: 'Sam' },
+      { op: 'note', ref: 'two', note: 'n' },
+      { op: 'create', title: 'New' },
+    ])
+    assert.deepEqual(r.results.map(x => [x.ok, x.id, x.status]), [[true, 'p/one', 'done'], [true, 'p/two', 'in-progress'], [true, 'p/new', 'todo']])
+    assert.equal(read('projects/p/tasks/one.md').data.status, 'done')
+    assert.match(read('projects/p/tasks/one.md').content.trim(), /by Sam\n\nok$/)
+    assert.match(read('projects/p/tasks/two.md').content.trim(), /\n\nn$/)
+    assert.equal(read('projects/p/tasks/new.md').data.title, 'New')
   })
 
-  it('reports an unresolvable ref per item without sending it, keeping the rest', async () => {
-    await withCore(async (core, api) => {
-      const r = await core.batchTasks('p', [{ op: 'update', ref: 'zzz', status: 'done' }, { op: 'update', ref: 'one', status: 'done' }])
-      assert.deepEqual([r.ok, r.failed], [1, 1])
-      assert.match(r.results[0]!.error!, /No task matches 'zzz'/)
-      assert.equal(api.requests.find(q => q.path === '/api/tasks/batch')!.body.ops.length, 1)
-    })
+  it('reports an unresolvable ref per item without writing it, keeping the rest', async () => {
+    const r = await core().batchTasks('p', [{ op: 'update', ref: 'zzz', status: 'done' }, { op: 'update', ref: 'one', status: 'done' }])
+    assert.deepEqual([r.ok, r.failed], [1, 1])
+    assert.match(r.results[0]!.error!, /No task matches 'zzz'/)
+    assert.equal(read('projects/p/tasks/one.md').data.status, 'done')
   })
 
   it('startTask resumes an exact match and creates otherwise', async () => {
-    await withCore(async (core, api) => {
-      const resumed = await core.startTask('p', 'One')
-      assert.deepEqual(resumed, { id: 'p/one', slug: 'one', status: 'in-progress', created: false, was: 'todo' })
-      assert.deepEqual(api.requests.at(-1)!.body, { status: 'in-progress' })
-      const already = await core.startTask('p', 'two')
-      assert.equal(already.was, 'in-progress')
-      assert.equal(api.requests.filter(q => q.method === 'PATCH').length, 1, 'no write when already in progress')
-      const created = await core.startTask('p', 'On', { priority: 'high' })
-      assert.equal(created.created, true, 'a fragment is not a match')
-      assert.deepEqual(api.requests.at(-1)!.body, { title: 'On', priority: 'high', status: 'in-progress', project: 'p' })
-    })
+    const resumed = await core().startTask('p', 'One')
+    assert.deepEqual(resumed, { id: 'p/one', slug: 'one', status: 'in-progress', created: false, was: 'todo' })
+    assert.equal(read('projects/p/tasks/one.md').data.status, 'in-progress')
+    const before = readFileSync(join(root, 'projects/p/tasks/two.md'), 'utf8')
+    const already = await core().startTask('p', 'two')
+    assert.equal(already.was, 'in-progress')
+    assert.equal(readFileSync(join(root, 'projects/p/tasks/two.md'), 'utf8'), before, 'no write when already in progress')
+    const created = await core().startTask('p', 'On', { priority: 'high' })
+    assert.equal(created.created, true, 'a fragment is not a match')
+    assert.deepEqual([read('projects/p/tasks/on.md').data.status, read('projects/p/tasks/on.md').data.priority], ['in-progress', 'high'])
   })
 
   it('startTask does not resume a done task', async () => {
     put('projects/p/tasks/shipped.md', task('Shipped', 'done'))
-    await withCore(async (core) => {
-      assert.equal((await core.startTask('p', 'Shipped')).created, true)
-    })
+    assert.equal((await core().startTask('p', 'Shipped')).created, true)
   })
 })
 
 describe('CLI', () => {
-  it('task batch reads JSON from stdin and posts one batch', async () => {
-    const api = await mockApi((req) => req.path === '/api/health' ? { body: { ok: true } } : { body: { ok: 2, failed: 0, results: [{ index: 0, ok: true, id: 'p/one', status: 'done' }, { index: 1, ok: true, id: 'p/two', status: 'in-progress' }] } })
-    try {
-      const r = await runCli(['task', 'batch', '--project', 'p', '--json'], {
-        scratch: scratch.dir,
-        env: { MDPM_CONTENT_PATH: root, MDPM_BASE_URL: api.url, MDPM_AUTHOR: 'Sam' },
-        input: JSON.stringify([{ op: 'update', ref: 'one', status: 'done', note: 'fin' }, { op: 'note', ref: 'two', note: 'mid' }]),
-      })
-      assert.equal(r.code, 0, r.stderr)
-      assert.equal(r.json.ok, 2)
-      const sent = api.requests.filter(q => q.path === '/api/tasks/batch')
-      assert.equal(sent.length, 1)
-      assert.equal(sent[0]!.body.ops[0].noteAuthor, 'Sam')
-    }
-    finally {
-      await api.close()
-    }
+  it('task batch reads JSON from stdin and writes every op', async () => {
+    const r = await runCli(['task', 'batch', '--project', 'p', '--json'], {
+      scratch: scratch.dir,
+      env: { MDPM_CONTENT_PATH: root, MDPM_AUTHOR: 'Sam' },
+      input: JSON.stringify([{ op: 'update', ref: 'one', status: 'done', note: 'fin' }, { op: 'note', ref: 'two', note: 'mid' }]),
+    })
+    assert.equal(r.code, 0, r.stderr)
+    assert.equal(r.json.ok, 2)
+    assert.match(read('projects/p/tasks/one.md').content.trim(), /by Sam\n\nfin$/)
+    assert.match(read('projects/p/tasks/two.md').content.trim(), /by Sam\n\nmid$/)
   })
 
   it('task batch rejects bad JSON and bad statuses before sending anything', async () => {
@@ -185,29 +159,38 @@ describe('CLI', () => {
     assert.equal((await runCli(['task', 'batch', '--project', 'p'], { scratch: scratch.dir, env, input: '[{"op":"update","ref":"one","status":"bogus"}]' })).code, 2)
   })
 
-  it('task done --note sends status and note in one write', async () => {
-    const api = await mockApi((req) => req.path === '/api/health' ? { body: { ok: true } } : {})
-    try {
-      const r = await runCli(['task', 'done', 'one', '--project', 'p', '--note', 'verified', '--author', 'Sam', '--json'], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root, MDPM_BASE_URL: api.url } })
-      assert.equal(r.code, 0, r.stderr)
-      assert.deepEqual(r.json, { id: 'p/one', status: 'done', noted: true })
-      assert.deepEqual(api.requests.filter(q => q.method === 'PATCH').map(q => q.body), [{ status: 'done', note: 'verified', noteAuthor: 'Sam' }])
-    }
-    finally {
-      await api.close()
-    }
+  it('task done --note writes status and note together', async () => {
+    const r = await runCli(['task', 'done', 'one', '--project', 'p', '--note', 'verified', '--author', 'Sam', '--json'], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root } })
+    assert.equal(r.code, 0, r.stderr)
+    assert.deepEqual(r.json, { id: 'p/one', status: 'done', noted: true })
+    const f = read('projects/p/tasks/one.md')
+    assert.equal(f.data.status, 'done')
+    assert.match(f.content.trim(), /by Sam\n\nverified$/)
   })
 
   it('task start creates and starts in one write', async () => {
-    const api = await mockApi((req) => req.path === '/api/health' ? { body: { ok: true } } : { body: { slug: 'new-thing', id: 'p/new-thing', status: 'in-progress' } })
-    try {
-      const r = await runCli(['task', 'start', 'New thing', '--project', 'p', '--priority', 'high', '--json'], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root, MDPM_BASE_URL: api.url } })
-      assert.equal(r.code, 0, r.stderr)
-      assert.deepEqual(r.json, { id: 'p/new-thing', slug: 'new-thing', status: 'in-progress', created: true })
-      assert.equal(api.requests.filter(q => q.method === 'POST').length, 1)
-    }
-    finally {
-      await api.close()
-    }
+    const r = await runCli(['task', 'start', 'New thing', '--project', 'p', '--priority', 'high', '--json'], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root } })
+    assert.equal(r.code, 0, r.stderr)
+    assert.deepEqual(r.json, { id: 'p/new-thing', slug: 'new-thing', status: 'in-progress', created: true })
+    assert.equal(read('projects/p/tasks/new-thing.md').data.status, 'in-progress')
+  })
+})
+
+describe('concurrent writers', () => {
+  it('notes appended by several processes at once are all kept', async () => {
+    const env = { MDPM_CONTENT_PATH: root }
+    const runs = await Promise.all(Array.from({ length: 6 }, (_, i) =>
+      runCli(['task', 'note', 'one', `note ${i}`, '--project', 'p'], { scratch: scratch.dir, env })))
+    assert.deepEqual(runs.map(r => r.code), [0, 0, 0, 0, 0, 0], runs.map(r => r.stderr).join('\n'))
+    const body = read('projects/p/tasks/one.md').content
+    for (let i = 0; i < 6; i++) assert.match(body, new RegExp(`\\n\\nnote ${i}(\\n|$)`))
+  })
+
+  it('creates racing for one title get distinct slugs', async () => {
+    const env = { MDPM_CONTENT_PATH: root }
+    const runs = await Promise.all(Array.from({ length: 4 }, () =>
+      runCli(['task', 'add', 'Same title', '--project', 'p', '--json'], { scratch: scratch.dir, env })))
+    assert.deepEqual(runs.map(r => r.code), [0, 0, 0, 0], runs.map(r => r.stderr).join('\n'))
+    assert.deepEqual(runs.map(r => r.json.slug).sort(), ['same-title', 'same-title-2', 'same-title-3', 'same-title-4'])
   })
 })

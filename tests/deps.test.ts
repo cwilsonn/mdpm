@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { after, before, describe, it } from 'node:test'
+import { after, beforeEach, describe, it } from 'node:test'
 import { blockedTasks, blockersOf, buildGraph, readyTasks, tree, wouldCreateCycle, type DepTask } from '../lib/core'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { changedContent, readContent, resetContent, runCli, scratchDir, snapshotContent } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -141,29 +141,27 @@ describe('task ready / blocked / graph (CLI)', () => {
 })
 
 describe('--dependencies on add and set', () => {
-  let api: Awaited<ReturnType<typeof mockApi>>
-  before(async () => { api = await mockApi() })
-  after(() => api.close())
-  const cli = (args: string[]) => runCli(['task', ...args], { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url } })
-  const last = () => api.requests.filter(r => r.method !== 'GET').at(-1)!
+  beforeEach(() => { resetContent(scratch.dir) })
+  const cli = (args: string[]) => runCli(['task', ...args], { scratch: scratch.dir })
+  const deps = (slug: string) => readContent(scratch.dir, `projects/alpha/tasks/${slug}.md`)!.data.dependencies
 
   it('set resolves fragments, uses project/slug across projects, and stores bare slugs within a project', async () => {
     const r = await cli(['set', 'write-docs', '--project', 'alpha', '--dependencies', 'parser,beta/beta-task'])
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(last().body, { dependencies: ['write-parser', 'beta/beta-task'] })
+    assert.deepEqual(deps('write-docs'), ['write-parser', 'beta/beta-task'])
   })
 
   it('set --dependencies none clears them', async () => {
     await cli(['set', 'write-tests', '--project', 'alpha', '--dependencies', 'none'])
-    assert.deepEqual(last().body, { dependencies: [] })
+    assert.deepEqual(deps('write-tests'), [])
   })
 
-  it('refuses a dependency that would create a cycle, naming the path, and sends nothing', async () => {
-    const before = api.requests.length
+  it('refuses a dependency that would create a cycle, naming the path, and writes nothing', async () => {
+    const before = snapshotContent(scratch.dir)
     const r = await cli(['set', 'write-parser', '--project', 'alpha', '--dependencies', 'write-tests'])
     assert.equal(r.code, 2)
     assert.match(r.stderr, /dependency cycle: alpha\/write-parser → alpha\/write-tests → alpha\/write-parser/)
-    assert.equal(api.requests.length, before)
+    assert.deepEqual(changedContent(scratch.dir, before), [])
   })
 
   it('refuses a self-dependency and an unknown task', async () => {
@@ -174,6 +172,6 @@ describe('--dependencies on add and set', () => {
   it('add accepts --dependencies too', async () => {
     const r = await cli(['add', 'Follow-up', '--project', 'alpha', '--dependencies', 'ship-v1'])
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(last().body.dependencies, ['ship-v1'])
+    assert.deepEqual(deps('follow-up'), ['ship-v1'])
   })
 })

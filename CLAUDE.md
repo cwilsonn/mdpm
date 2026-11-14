@@ -44,7 +44,9 @@ Collections defined in `content.config.ts`: `projects`, `tasks`, `docs`.
 
 ## API Routes
 
-**Request guard.** `server/middleware/request-guard.ts` (rules in `server/utils/request-guard.ts`) runs before every route and page: the `Host` must be loopback, `mdpm.local`, the `MDPM_BASE_URL`/`MDPM_HOST` host, or listed in `MDPM_ALLOWED_HOSTS` (blocks DNS rebinding); mutations from a foreign `Origin` are refused; API POSTs must be `application/json` (blocks cross-site simple requests, which h3's `readBody` would otherwise parse). Write bodies are validated with the zod schemas in `lib/core/write-schemas.ts` via `readValidatedBody(event, validator(Schema))`: unknown keys are refused (they used to be stored as frontmatter), statuses and priorities must be known, and tasks accept `body` as an alias for `description`. Every path segment from a param, query or body goes through `assertSafeSlug`.
+**Request guard.** `server/middleware/request-guard.ts` (rules in `server/utils/request-guard.ts`) runs before every route and page: the `Host` must be loopback, `mdpm.local`, the `MDPM_BASE_URL`/`MDPM_HOST` host, or listed in `MDPM_ALLOWED_HOSTS` (blocks DNS rebinding); mutations from a foreign `Origin` are refused; API POSTs must be `application/json` (blocks cross-site simple requests, which h3's `readBody` would otherwise parse). Every path segment from a param, query or body goes through `assertSafeSlug`.
+
+**Writes.** All content writes live in `lib/core/write.ts` (`createWriter(contentRoot, { limits })`), used directly by the CLI and MCP server (through `lib/core/ops.ts`) and by the write routes, which are thin wrappers (`server/utils/writer.ts` maps its typed errors to 400/404/409/429 and passes the demo caps only under `isDemo()`). Bodies are validated with the zod schemas in `lib/core/write-schemas.ts`: unknown keys are refused (they used to be stored as frontmatter), statuses and priorities must be known, and tasks accept `body` as an alias for `description`. Several processes may write at once, so a file is replaced by temp-file-and-rename, a read-modify-write (update, note, reorder) holds a short `O_EXCL` lockfile (`.<name>.lock`, broken after 10 s, waited on for 3 s), and a create claims its slug exclusively. Temp and lock files are dot-files not ending in `.md`.
 
 ### Tasks
 - `GET /api/tasks` — all tasks (filter: `?project=`, `?status=`, `?priority=`, `?tags=`)
@@ -64,12 +66,12 @@ Collections defined in `content.config.ts`: `projects`, `tasks`, `docs`.
 Location: `mcp/index.ts` (runs via `tsx`, no build step).
 
 **Read tools** query markdown files directly — no dev server needed.  
-**Write tools** call the Nuxt HTTP API — dev server must be running.
+**Write tools** write the files too, through `lib/core/write.ts` — no dev server needed either.
 
 Registered globally: `~/.claude.json` under `mcpServers.mdpm`.
 
 Required env vars (set in shell profile or `.env`):
-- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and writes are refused when the server reports a different root (`GET /api/health`)
+- `MDPM_CONTENT_PATH` — absolute path to `content/` dir (e.g. `/Users/cody/dev/projects/mdpm/content`). Honored by the web app/API too (`server/utils/content.ts`); `mdpm start` passes the CLI's resolved value to the server, and `mdpm ping` flags a server that reports a different root (`GET /api/health`)
 - `MDPM_BASE_URL` — base URL of running Nuxt app (default: `http://mdpm.local:3333`)
 
 Tools (12): `pickup`, `list_projects`, `get_project`, `list_tasks` (`query` searches), `get_task`, `start_task`, `create_task`, `update_task` (`note`, `archived`), `batch_tasks`, `list_docs` (`query` searches), `get_doc`, `upsert_doc`. Projects are created with `mdpm init` / `mdpm project create`; deletes are CLI-only. Fewer tools means a smaller `tools/list` (10.5 KB, about 2.9k tokens, down from 21 KB).

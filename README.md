@@ -192,7 +192,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 
 Lets Claude Code read and write mdpm data from any project you're working on. Registered in step 6 above.
 
-Read tools query the markdown files directly and work without the dev server. Write tools go through the server, which must be running unless auto-start is on.
+Read and write tools both work on the markdown files directly, so neither needs the dev server.
 
 **Tools (12):** `pickup` · `list_projects` · `get_project` · `list_tasks` (with `query` to search) · `get_task` · `start_task` · `create_task` · `update_task` (also `note` and `archived`) · `batch_tasks` · `list_docs` (with `query` to search) · `get_doc` · `upsert_doc`. Projects are created with `mdpm init` or `mdpm project create`; deleting is CLI-only.
 

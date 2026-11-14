@@ -2,9 +2,9 @@ import { strict as assert } from 'node:assert'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { after, beforeEach, describe, it } from 'node:test'
 import { inferProject, parseMarker, renderWorkLogging, upsertWorkLoggingBlock } from '../lib/core'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { changedContent, readContent, resetContent, runCli, scratchDir, snapshotContent } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -74,42 +74,42 @@ describe('.mdpm marker', () => {
 })
 
 describe('mdpm init', () => {
-  let api: Awaited<ReturnType<typeof mockApi>>
-  before(async () => { api = await mockApi() })
-  after(() => api.close())
-  beforeEach(() => { api.requests.length = 0 })
+  let before: Map<string, string>
+  beforeEach(() => { resetContent(scratch.dir); before = snapshotContent(scratch.dir) })
 
-  const init = (cwd: string, args: string[] = []) => runCli(['init', '--json', ...args], { scratch: scratch.dir, cwd, env: { MDPM_BASE_URL: api.url } })
-  const writes = () => api.requests.filter(r => r.method !== 'GET')
+  const init = (cwd: string, args: string[] = []) => runCli(['init', '--json', ...args], { scratch: scratch.dir, cwd })
+  const writes = () => changedContent(scratch.dir, before)
+  const project = (slug: string) => readContent(scratch.dir, `projects/${slug}/index.md`)?.data
 
   it('creates a project for a GitHub repo, records its repo URL, and installs the block', async () => {
     const repo = makeRepo('newthing', 'git@github.com:acme/newthing.git')
     const r = await init(repo, ['--title', 'New Thing'])
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual([r.json.project, r.json.created], ['created-slug', true])
-    assert.deepEqual(writes().map(w => [w.method, w.path, w.body]), [['POST', '/api/projects', { title: 'New Thing', repo: 'https://github.com/acme/newthing' }]])
-    assert.ok(read(repo, 'CLAUDE.md').includes('project `created-slug`'))
+    assert.deepEqual([r.json.project, r.json.created], ['new-thing', true])
+    assert.deepEqual(writes(), ['projects/new-thing/index.md'])
+    assert.deepEqual([project('new-thing')!.title, project('new-thing')!.repo], ['New Thing', 'https://github.com/acme/newthing'])
+    assert.ok(read(repo, 'CLAUDE.md').includes('project `new-thing`'))
     assert.ok(!existsSync(join(repo, '.mdpm')), 'the remote already finds the project, so no marker')
   })
 
   it('records any host as a web URL (credentials dropped), and the remote then finds the project', async () => {
     const gitlab = makeRepo('app', 'git@gitlab.com:group/sub/app.git')
     assert.equal((await init(gitlab)).code, 0)
-    assert.equal(writes()[0]!.body.repo, 'https://gitlab.com/group/sub/app')
-    api.requests.length = 0
+    assert.equal(project('app')!.repo, 'https://gitlab.com/group/sub/app')
     const corp = makeRepo('widgets', 'https://deploy:s3cret@gitlab.corp.example/acme/widgets.git')
     const r = await init(corp)
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(writes()[0]!.body, { title: 'widgets', repo: 'https://gitlab.corp.example/acme/widgets' })
+    assert.deepEqual([project('widgets')!.title, project('widgets')!.repo], ['widgets', 'https://gitlab.corp.example/acme/widgets'])
     assert.ok(!existsSync(join(corp, '.mdpm')), 'the recorded repo finds the project, so no marker is needed')
   })
 
   it('a repo with no remote still pins itself with an excluded marker', async () => {
+    // Titled unlike its directory, so neither the remote nor the directory name would find it.
     const repo = makeRepo('widgets')
-    const r = await init(repo, ['--title', 'Widgets'])
+    const r = await init(repo, ['--title', 'Gadgets'])
     assert.equal(r.code, 0, r.stderr)
-    assert.deepEqual(writes()[0]!.body, { title: 'Widgets' })
-    assert.match(read(repo, '.mdpm'), /^project: created-slug$/m)
+    assert.equal(project('gadgets')!.repo, undefined)
+    assert.match(read(repo, '.mdpm'), /^project: gadgets$/m)
     assert.ok(excludes(repo).includes('.mdpm'))
     const status = execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' })
     assert.doesNotMatch(status, /\.mdpm/, 'the marker must not show up as an untracked file')
@@ -120,7 +120,7 @@ describe('mdpm init', () => {
     const r = await init(repo)
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual([r.json.project, r.json.created], ['alpha', false])
-    assert.equal(writes().length, 0)
+    assert.deepEqual(writes(), [])
     assert.ok(!existsSync(join(repo, '.mdpm')))
   })
 
@@ -133,7 +133,7 @@ describe('mdpm init', () => {
     const second = await init(repo, ['--project', 'alpha'])
     assert.deepEqual(second.json.steps.map((s: any) => s.action), ['linked', 'skipped', 'unchanged'])
     assert.deepEqual([read(repo, 'CLAUDE.md'), read(repo, '.mdpm')], before)
-    assert.equal(writes().length, 0)
+    assert.deepEqual(writes(), [])
   })
 
   it('keeps existing CLAUDE.md content and refreshes only the marked block', async () => {
@@ -164,12 +164,12 @@ describe('mdpm init', () => {
     assert.ok(!existsSync(join(repo, 'CLAUDE.md')) && !existsSync(join(repo, '.mdpm')))
   })
 
-  it('--dry-run reports the plan and writes and sends nothing', async () => {
+  it('--dry-run reports the plan and writes nothing', async () => {
     const repo = makeRepo('dryrun', 'git@gitlab.corp.example:acme/dryrun.git')
     const r = await init(repo, ['--dry-run'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(r.json.steps.map((s: any) => s.action), ['would-create', 'would-write', 'would-create'])
-    assert.equal(api.requests.length, 0)
+    assert.deepEqual(writes(), [])
     assert.ok(!existsSync(join(repo, 'CLAUDE.md')) && !existsSync(join(repo, '.mdpm')))
   })
 
