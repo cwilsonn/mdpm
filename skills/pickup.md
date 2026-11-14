@@ -3,11 +3,11 @@ Load context for the given project from mdpm and produce a structured session br
 Project: $ARGUMENTS
 
 Steps:
-1. Run `mdpm pickup $ARGUMENTS --json` (if no project was given, the CLI infers it from the current repo). One call returns everything, capped: open tasks grouped by status (8 per status, "+N more" beyond), blockers, what changed since the last handoff, docs, the latest session notes (2000 chars), and a rule-based focus suggestion. Use `mdpm pickup $ARGUMENTS --delta` for only the changes since the last handoff, `--full` to lift the caps.
+1. Run `mdpm pickup $ARGUMENTS --json` (if no project was given, the CLI infers it from the current repo). One call returns everything, capped: open tasks grouped by status (5 per status, "+N more" beyond; summaries for work under way), blockers (5, "moreBlockers" beyond), what changed since the last handoff (5 entries), the high-priority docs, the latest session notes (1500 chars), and a rule-based focus suggestion (slugs; titles are in `tasks`). Use `mdpm pickup $ARGUMENTS --delta` for only the changes since the last handoff, `--full` to lift the caps.
    - Exit 4: the project doesn't exist in mdpm. Output `> ⚠️ mdpm has no project matching "<project>".` Then stop.
    - Exit 2 (ambiguous or no project): show the CLI's error and stop.
    - `mdpm: command not found`, or any other failure: use the **Fallback** below instead.
-2. Note: reads work without the dev server. Writes (`update_task`, `upsert_doc`, `mdpm task ...`) need it running at http://mdpm.local:3333 (`mdpm status` checks it, `mdpm start` starts it). Warn the user if they plan to use /sync or /handoff this session and it is down (they run `mdpm start` themselves, which is fast and idempotent).
+2. Reads need no server; writes start it on demand (`/handoff` runs `mdpm start`).
 3. Produce a structured briefing in this format, using only what the JSON contains:
 
 ---
@@ -39,9 +39,4 @@ Ask: "What would you like to work on?"
 
 Keep the briefing factual. Do not embellish or add tasks that aren't in mdpm.
 
-Fallback (MCP only, when the CLI is unavailable):
-1. Call the `ping` tool. If it fails, output:
-   > ⚠️ mdpm MCP server is unreachable. Check that MDPM_CONTENT_PATH is set correctly.
-   Then stop.
-2. Call the `pickup` tool with the project slug. It returns the same JSON as the CLI, capped, and picks the newest session notes itself.
-3. Produce the same briefing as above from the result.
+Fallback (when the CLI is unavailable): call the MCP `pickup` tool with the project slug. It returns the same JSON, capped. If that fails too, output `> ⚠️ mdpm is unreachable from this session.` and stop.

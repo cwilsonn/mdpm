@@ -46,9 +46,9 @@ describe('pickup caps', () => {
 
   it('cuts the last session notes and reports the full length; full keeps them whole', () => {
     const p = buildPickup(core, 'alpha')
-    assert.equal(p.lastSessionNotes!.body.length, 2000)
+    assert.equal(p.lastSessionNotes!.body.length, 1500)
     assert.equal(p.lastSessionNotes!.truncated, true)
-    assert.ok(p.lastSessionNotes!.totalChars! > 2000)
+    assert.ok(p.lastSessionNotes!.totalChars! > 1500)
     assert.equal(buildPickup(core, 'alpha', { full: true }).lastSessionNotes!.truncated, undefined)
   })
 

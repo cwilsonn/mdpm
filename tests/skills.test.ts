@@ -17,7 +17,7 @@ const cli = (args: string[], env: Record<string, string> = {}) => runCli(args, {
 describe('skills core', () => {
   it('reports every skill missing for an empty target', () => {
     const all = states(target)
-    assert.ok(Object.keys(all).length >= 5)
+    assert.deepEqual(Object.keys(all).sort(), ['handoff.md', 'pickup.md'])
     assert.ok(Object.values(all).every(s => s === 'missing'))
   })
 
@@ -38,19 +38,19 @@ describe('skills core', () => {
   it('does not clobber a regular file or a foreign symlink without force', () => {
     mkdirSync(target, { recursive: true })
     writeFileSync(join(target, 'pickup.md'), 'my edits')
-    symlinkSync('/etc/hosts', join(target, 'sync.md'))
+    symlinkSync('/etc/hosts', join(target, 'handoff.md'))
     const results = installSkills(target)
-    assert.deepEqual(results.filter(r => r.action === 'skipped').map(r => r.name).sort(), ['pickup.md', 'sync.md'])
+    assert.deepEqual(results.filter(r => r.action === 'skipped').map(r => r.name).sort(), ['handoff.md', 'pickup.md'])
     assert.equal(readFileSync(join(target, 'pickup.md'), 'utf8'), 'my edits')
-    assert.equal(readlinkSync(join(target, 'sync.md')), '/etc/hosts')
-    assert.deepEqual([states(target)['pickup.md'], states(target)['sync.md']], ['conflict', 'foreign'])
+    assert.equal(readlinkSync(join(target, 'handoff.md')), '/etc/hosts')
+    assert.deepEqual([states(target)['pickup.md'], states(target)['handoff.md']], ['conflict', 'foreign'])
   })
 
   it('--force moves a real file aside and replaces a foreign symlink', () => {
     mkdirSync(target, { recursive: true })
     writeFileSync(join(target, 'pickup.md'), 'my edits')
     writeFileSync(join(target, 'pickup.md.bak'), 'older backup')
-    symlinkSync('/etc/hosts', join(target, 'sync.md'))
+    symlinkSync('/etc/hosts', join(target, 'handoff.md'))
     installSkills(target, { force: true })
     assert.equal(readFileSync(join(target, 'pickup.md.bak1'), 'utf8'), 'my edits', 'never overwrites an existing backup')
     assert.equal(readFileSync(join(target, 'pickup.md.bak'), 'utf8'), 'older backup')
@@ -59,13 +59,13 @@ describe('skills core', () => {
 
   it('uninstall removes only our links', () => {
     installSkills(target)
-    rmSync(join(target, 'sync.md'))
-    writeFileSync(join(target, 'sync.md'), 'not ours')
+    rmSync(join(target, 'handoff.md'))
+    writeFileSync(join(target, 'handoff.md'), 'not ours')
     writeFileSync(join(target, 'unrelated.md'), 'keep')
     const removed = uninstallSkills(target).filter(r => r.action === 'removed').map(r => r.name)
     assert.ok(removed.includes('pickup.md'))
-    assert.ok(!removed.includes('sync.md'))
-    assert.equal(readFileSync(join(target, 'sync.md'), 'utf8'), 'not ours')
+    assert.ok(!removed.includes('handoff.md'))
+    assert.equal(readFileSync(join(target, 'handoff.md'), 'utf8'), 'not ours')
     assert.ok(existsSync(join(target, 'unrelated.md')))
     assert.ok(!existsSync(join(target, 'pickup.md')))
   })
@@ -126,7 +126,7 @@ describe('skills CLI', () => {
 
   it('ships the documented skills from this checkout', () => {
     const names = skillsStatus(target).map(s => s.name)
-    for (const name of ['handoff.md', 'pickup.md', 'start-mdpm.md', 'stop-mdpm.md', 'sync.md']) assert.ok(names.includes(name), name)
+    assert.deepEqual(names.sort(), ['handoff.md', 'pickup.md'])
     assert.equal(skillsSourceDir(), join(REPO, 'skills'))
   })
 })
