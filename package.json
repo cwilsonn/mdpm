@@ -20,28 +20,24 @@
     "ngrok": "ngrok http 3333"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.102",
-    "@nuxt/content": "^3.14.0",
-    "@nuxt/ui": "^4.6.1",
-    "@tiptap/pm": "^3.26.0",
-    "@tiptap/starter-kit": "^3.26.0",
-    "@tiptap/vue-3": "^3.26.0",
-    "@vueuse/core": "^14.3.0",
-    "better-sqlite3": "^12.10.0",
+    "@iconify-json/lucide": "^1.2.154",
+    "@nuxt/content": "^3.16.2",
+    "@nuxt/ui": "^4.12.0",
+    "@vueuse/core": "^15.0.0",
+    "better-sqlite3": "^13.1.1",
     "citty": "^0.2.2",
     "fflate": "^0.8.3",
     "gray-matter": "^4.0.3",
-    "nuxt": "^4.4.2",
-    "tailwindcss": "^4.3.0",
+    "nuxt": "^4.6.4",
+    "tailwindcss": "^4.3.5",
     "vue-draggable-plus": "^0.6.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.102",
-    "@modelcontextprotocol/sdk": "^1.12.1",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.19.0",
-    "tsx": "^4.19.4",
-    "typescript": "^5.0.0"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

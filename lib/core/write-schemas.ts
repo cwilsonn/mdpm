@@ -25,7 +25,7 @@ function taskText<T extends z.ZodRawShape>(shape: T) {
     const { body, ...rest } = input as Record<string, unknown>
     if (rest.description !== undefined) return { ...rest, body }
     return { ...rest, description: body }
-  }, z.object(shape).strict())
+  }, z.strictObject(shape))
 }
 
 const noteFields = {
@@ -64,7 +64,7 @@ export const TaskUpdate = taskText({
   ...noteFields,
 })
 
-export const ProjectUpdate = z.object({
+export const ProjectUpdate = z.strictObject({
   title: z.string().trim().min(1, 'cannot be empty').optional(),
   status: z.enum(PROJECT_STATUSES).optional(),
   icon: z.string().nullable().optional(),
@@ -79,9 +79,9 @@ export const ProjectUpdate = z.object({
   pinned: z.boolean().nullable().optional(),
   pinnedOrder: z.number().nullable().optional(),
   archivedAt: z.string().nullable().optional(),
-}).strict()
+})
 
-export const DocUpdate = z.object({
+export const DocUpdate = z.strictObject({
   title: z.string().trim().min(1, 'cannot be empty').optional(),
   tags: strings.nullable().optional(),
   parent: slug.nullable().optional(),
@@ -89,10 +89,10 @@ export const DocUpdate = z.object({
   body: z.string().optional(),
   archivedAt: z.string().nullable().optional(),
   links: z.unknown().optional(),
-}).strict()
+})
 
 // One line per problem, phrased for a person reading CLI output or a toast.
-export function formatIssues(issues: z.ZodIssue[]): string {
+export function formatIssues(issues: z.core.$ZodIssue[]): string {
   return issues.map((issue) => {
     if (issue.code === 'unrecognized_keys') {
       return `unknown field${issue.keys.length > 1 ? 's' : ''}: ${issue.keys.join(', ')}`

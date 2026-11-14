@@ -69,21 +69,14 @@
     "kinds": {
       "type": "object",
       "propertyNames": {
-        "anyOf": [
-          {
-            "type": "string",
-            "enum": [
-              "issue",
-              "change",
-              "doc",
-              "message",
-              "repo",
-              "url"
-            ]
-          },
-          {
-            "not": {}
-          }
+        "type": "string",
+        "enum": [
+          "issue",
+          "change",
+          "doc",
+          "message",
+          "repo",
+          "url"
         ]
       },
       "additionalProperties": {
