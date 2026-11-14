@@ -184,8 +184,8 @@ Project pages use route-linked tabs via `AppPageBase`:
 
 ## Seed / Reset Safety
 
-Seed plugin (`server/plugins/seed.ts`) and hourly reset task (`server/tasks/reset.ts`) are **production-only** — both guard on `process.env.NODE_ENV === 'production'`. Running `pnpm dev` locally will never seed or reset data.
+Demo mode is the public sandbox's behaviour: the seed plugin (`server/plugins/seed.ts`) wipes and re-seeds content at boot, the hourly reset task (`server/tasks/reset.ts`) does the same, creation is capped (projects, tasks, docs), and `/api/health` hides the content root. All of it is gated by `isDemo()` (`server/utils/demo.ts`): **`MDPM_DEMO=1` only**, read at runtime. Never gate server behaviour on `NODE_ENV`: the production build inlines it, which once made a local `pnpm build && pnpm start` wipe `content/projects` at boot. A test (`tests/demo-mode.test.ts`) fails if `server/` or `nuxt.config.ts` mention `process.env.NODE_ENV`. Without `MDPM_DEMO=1`, neither `pnpm dev` nor a built server ever seeds, resets, or caps.
 
 ## Deployment
 
-Railway. Persistent volume at `/app/content`. Start command: `node .output/server/index.mjs`. Required env: `NODE_ENV=production`.
+Railway. Persistent volume at `/app/content`. Start command: `node .output/server/index.mjs`. Required env: `MDPM_DEMO=1` (hourly wipe and re-seed, creation caps; without it the deployment behaves like a local install and keeps its data).

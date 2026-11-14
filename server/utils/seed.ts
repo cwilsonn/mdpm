@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { contentPath, slugify, writeMarkdown } from './content'
 
 interface SeedTask {
   title: string
