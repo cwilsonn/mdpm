@@ -78,10 +78,15 @@ const description = ref('')
 const descriptionLoading = ref(false)
 const authorNames = ref<string[]>([])
 
-const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoSave, cleanupAutoSave } = useAutoSave(
+// The updatedAt the form's content is based on, from the load and then from each save's answer. Sent with every
+// save so the server refuses (409) instead of overwriting a note or edit that landed while the form was open.
+// undefined until the task has been loaded: autosave doesn't start without it.
+const baseUpdatedAt = ref<string | null | undefined>(undefined)
+
+const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    await updateTask(props.projectSlug, slugFromPath(props.task!.path), {
+    const res = await updateTask(props.projectSlug, slugFromPath(props.task!.path), {
       title: form.title,
       status: form.status,
       priority: form.priority,
@@ -90,9 +95,47 @@ const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoS
       due: form.due || undefined,
       dependencies: form.dependencies,
       description: description.value,
+      expectedUpdatedAt: baseUpdatedAt.value,
     })
+    if (res.updatedAt) baseUpdatedAt.value = res.updatedAt
   },
 )
+
+type RawTask = Omit<Task, 'updatedAt'> & { body: string, updatedAt: string | null }
+
+// Load (or reload) the task: form fields, body, and the base for the conflict check.
+async function loadTask() {
+  const raw = await $fetch<RawTask>(`/api/tasks/${props.projectSlug}/${slugFromPath(props.task!.path)}`)
+  Object.assign(form, {
+    title: raw.title,
+    status: raw.status,
+    priority: raw.priority,
+    tags: [...(raw.tags ?? [])],
+    assignees: [...(raw.assignees ?? [])],
+    due: raw.due ?? '',
+    dependencies: [...(raw.dependencies ?? [])],
+  })
+  description.value = raw.body ?? ''
+  baseUpdatedAt.value = raw.updatedAt ?? null
+}
+
+const reloading = ref(false)
+
+async function reloadAfterConflict() {
+  reloading.value = true
+  try {
+    await loadTask()
+    // Let the field watchers run (and no-op, autosave is still stopped) before saving again.
+    await nextTick()
+    resolveConflict()
+  }
+  catch {
+    saveError.value = 'Reload failed; try again'
+  }
+  finally {
+    reloading.value = false
+  }
+}
 
 onMounted(async () => {
   listAuthors().then((data) => {
@@ -104,14 +147,16 @@ onMounted(async () => {
   })
 
   if (isEdit.value && props.task) {
-    const tSlug = slugFromPath(props.task.path)
     descriptionLoading.value = true
     try {
-      const raw = await $fetch<{ body: string }>(`/api/tasks/${props.projectSlug}/${tSlug}`)
-      description.value = raw.body ?? ''
+      await loadTask()
       await nextTick()
     }
-    catch {}
+    catch {
+      // Without a base, a save could overwrite newer content: stay read-only rather than autosave blind.
+      saveError.value = 'Could not load the task; changes here will not be saved'
+      return
+    }
     finally {
       descriptionLoading.value = false
     }
@@ -359,6 +404,17 @@ async function create() {
           <template v-else-if="savedAt">Saved {{ savedAgo }}</template>
           <template v-else>Changes save automatically</template>
         </span>
+        <UButton
+          v-if="conflict"
+          label="Reload"
+          icon="i-lucide-refresh-cw"
+          color="error"
+          variant="soft"
+          size="xs"
+          class="shrink-0"
+          :loading="reloading"
+          @click="reloadAfterConflict"
+        />
         <UButton
           :label="isArchived ? 'Unarchive' : 'Archive'"
           :icon="isArchived ? 'i-lucide-archive-restore' : 'i-lucide-archive'"

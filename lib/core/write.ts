@@ -2,7 +2,7 @@ import { closeSync, existsSync, linkSync, mkdirSync, openSync, readdirSync, read
 import { basename, dirname, join, resolve } from 'node:path'
 import matter from 'gray-matter'
 import type { z } from 'zod'
-import { LimitError, NotFoundError, ValidationError, WriteBusyError } from './errors'
+import { ConflictError, LimitError, NotFoundError, ValidationError, WriteBusyError } from './errors'
 import { appendNoteToBody } from './log'
 import { slugify, uniqueSlug } from './slug'
 import { DocUpdate, formatIssues, ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate } from './write-schemas'
@@ -177,6 +177,32 @@ function mergeFields(data: Record<string, unknown>, fields: Record<string, unkno
 
 const today = () => new Date().toISOString().split('T')[0]
 
+/** A file's `updatedAt` as an ISO string, or null. gray-matter turns an unquoted timestamp into a Date. */
+function updatedAtOf(data: Record<string, unknown>): string | null {
+  const v = data.updatedAt
+  if (v instanceof Date) return v.toISOString()
+  return typeof v === 'string' && v ? v : null
+}
+
+/**
+ * The `updatedAt` for a write: now, but always later than the stamp it replaces. Two writes in the same
+ * millisecond would otherwise share a stamp, and an editor's stale base would still match.
+ */
+function nextStamp(data: Record<string, unknown>): Date {
+  const prev = Date.parse(updatedAtOf(data) ?? '')
+  const now = Date.now()
+  return new Date(Number.isNaN(prev) || now > prev ? now : prev + 1)
+}
+
+/** Refuse an update made against an older version of the file. Call inside the file lock. */
+function assertFresh(data: Record<string, unknown>, expected: string | null | undefined, what: string) {
+  if (expected === undefined) return
+  const actual = updatedAtOf(data)
+  if (actual !== expected) {
+    throw new ConflictError(`${what} changed since it was loaded (now updated ${actual ?? 'never'}); reload to get the latest`)
+  }
+}
+
 // ── Writer ──────────────────────────────────────────────────────────────────
 
 export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
@@ -266,9 +292,10 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
     assertSafeSlug(project, slug)
     const body = parseInput(TaskUpdate, input)
     return modify(`projects/${project}/tasks/${slug}.md`, 'Task not found', (file) => {
-      const { description, note, noteAuthor, ...fields } = body
+      const { description, note, noteAuthor, expectedUpdatedAt, ...fields } = body
+      assertFresh(file.data, expectedUpdatedAt, 'Task')
       const status = body.status ?? (file.data.status as string)
-      const nowDate = new Date()
+      const nowDate = nextStamp(file.data)
       const now = nowDate.toISOString()
       const data = mergeFields(file.data, fields)
       data.updatedAt = now
@@ -276,7 +303,8 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       else if (status !== 'done') delete data.completedAt
       let text = description !== undefined ? String(description) : file.content
       if (note?.trim()) text = appendNoteToBody(text, note, noteAuthor, nowDate)
-      return { data, body: text, result: { ok: true as const, id: `${project}/${slug}`, status } }
+      // Only an editor doing optimistic concurrency needs the new stamp (to send back next time); CLI/MCP answers stay small.
+      return { data, body: text, result: { ok: true as const, id: `${project}/${slug}`, status, ...(expectedUpdatedAt !== undefined && { updatedAt: now }) } }
     })!
   }
 
@@ -474,13 +502,14 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       if (wouldCreateDocCycle(project, slug, body.parent)) throw new ValidationError('Setting this parent would create a cycle')
     }
 
-    modify(docRel(project, slug), 'Doc not found', (file) => {
-      const { body: text, ...fields } = body
+    const updatedAt = modify(docRel(project, slug), 'Doc not found', (file) => {
+      const { body: text, expectedUpdatedAt, ...fields } = body
+      assertFresh(file.data, expectedUpdatedAt, 'Doc')
       const data = mergeFields(file.data, fields)
-      data.updatedAt = new Date().toISOString()
-      return { data, body: text !== undefined ? String(text) : file.content, result: undefined }
+      data.updatedAt = nextStamp(file.data).toISOString()
+      return { data, body: text !== undefined ? String(text) : file.content, result: data.updatedAt as string }
     })
-    return { ok: true }
+    return { ok: true, ...(body.expectedUpdatedAt !== undefined && { updatedAt }) }
   }
 
   function deleteDoc(project: string | null | undefined, slug: string) {

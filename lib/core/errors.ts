@@ -25,3 +25,8 @@ export class LimitError extends Error {
 export class WriteBusyError extends Error {
   override name = 'WriteBusyError'
 }
+
+// The file changed after the caller read it (its `updatedAt` no longer matches `expectedUpdatedAt`).
+export class ConflictError extends Error {
+  override name = 'ConflictError'
+}

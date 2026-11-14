@@ -18,7 +18,8 @@ export default defineEventHandler((event) => {
     dependencies: (file.data.dependencies as string[]) ?? [],
     due: (file.data.due as string | undefined) ?? undefined,
     createdAt: (file.data.createdAt as string) ?? '',
-    updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
+    // null, not undefined: JSON drops undefined, and an editor needs the value to send back as expectedUpdatedAt.
+    updatedAt: file.data.updatedAt instanceof Date ? file.data.updatedAt.toISOString() : (file.data.updatedAt as string | undefined) ?? null,
     completedAt: (file.data.completedAt as string | undefined) ?? undefined,
     order: (file.data.order as number) ?? 0,
     body: file.content,
