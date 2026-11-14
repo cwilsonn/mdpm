@@ -1,14 +1,13 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { csv, editText, textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 import { docScope, scopeArgs } from './shared'
 
 export default defineCommand({
-  meta: { name: 'edit', description: 'Edit a doc: opens $EDITOR on its body, or set fields with flags (writes via the server)' },
+  meta: { name: 'edit', description: 'Edit a doc: opens $EDITOR on its body, or set fields with flags' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...scopeArgs,
     ref: { type: 'positional', description: 'Doc slug or unique fragment of slug/title', required: true },
     title: { type: 'string' },

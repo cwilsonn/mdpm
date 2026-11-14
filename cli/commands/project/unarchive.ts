@@ -1,12 +1,11 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { emit } from '../../output'
 
 export default defineCommand({
   meta: { name: 'unarchive', description: 'Restore an archived project' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ref: { type: 'positional', description: 'Project slug or unique fragment of slug/title', required: true },
   },
   async run({ args }) {

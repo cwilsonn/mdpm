@@ -130,7 +130,7 @@ describe('config and project inference', () => {
     const { json } = await cli(['config', 'show', '--json'])
     assert.equal(json.contentPath.source, 'env')
     assert.equal(json.baseUrl.source, 'env')
-    assert.equal(json.autoStart.value, false)
+    assert.equal(json.autoStart, undefined)
   })
 
   it('flags beat env', async () => {

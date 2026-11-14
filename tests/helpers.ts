@@ -79,7 +79,7 @@ export function isolatedEnv(scratch: string, extra: Record<string, string | unde
     MDPM_CONTENT_PATH: scratchContent(scratch),
     MDPM_CONFIG: join(scratch, 'no-such-config.json'),
     MDPM_STATE_DIR: join(scratch, 'state'),
-    // Unroutable on purpose: a test that forgets to point at a server fails fast with exit 3.
+    // Unroutable on purpose: nothing in the CLI should need a server; ping and status see it as down at once.
     MDPM_BASE_URL: 'http://127.0.0.1:1',
     NO_COLOR: '1',
     ...extra,

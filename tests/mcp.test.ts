@@ -173,15 +173,9 @@ describe('MCP server through core', () => {
     assert.equal(task('brand-new-thing')!.data.status, 'in-progress')
   })
 
-  it('async writes return the id at once and the write follows; create pins the predicted slug', async () => {
+  it('ignores the removed async flag and writes at once', async () => {
     const upd = await tool('update_task', { project: 'alpha', slug: 'ship-v1', status: 'blocked', async: true })
-    assert.deepEqual(upd.json, { queued: true, id: 'alpha/ship-v1' })
-    const created = await tool('create_task', { project: 'alpha', title: 'Write parser', async: true })
-    assert.deepEqual(created.json, { queued: true, id: 'alpha/write-parser-2' })
-    await new Promise(r => setTimeout(r, 300))
+    assert.ok(!upd.isError, upd.text)
     assert.equal(task('ship-v1')!.data.status, 'blocked')
-    assert.equal(task('write-parser-2')!.data.title, 'Write parser')
-    const missing = await tool('update_task', { project: 'alpha', slug: 'nope', status: 'done', async: true })
-    assert.ok(missing.isError, 'an unknown task fails at once, even when async')
   })
 })

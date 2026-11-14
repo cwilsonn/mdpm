@@ -7,8 +7,7 @@ Steps:
    - Exit 4: the project doesn't exist in mdpm. Output `> ⚠️ mdpm has no project matching "<project>".` Then stop.
    - Exit 2 (ambiguous or no project): show the CLI's error and stop.
    - `mdpm: command not found`, or any other failure: use the **Fallback** below instead.
-2. Reads need no server; writes start it on demand (`/handoff` runs `mdpm start`).
-3. Produce a structured briefing in this format, using only what the JSON contains:
+2. Produce a structured briefing in this format, using only what the JSON contains:
 
 ---
 ## Session Briefing: <project>

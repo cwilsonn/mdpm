@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { resolveAuthor } from '../../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { textOrStdin } from '../../io'
 import { emit } from '../../output'
 import { bulkArgs, optionalRefArg, projectArgs, runBulk, selectTargets } from './shared'
@@ -9,7 +9,6 @@ export default defineCommand({
   meta: { name: 'done', description: 'Mark a task done (shorthand for `task set <ref> --status done`)' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...optionalRefArg,

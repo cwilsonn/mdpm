@@ -1,5 +1,5 @@
 // Stand-in for the Nuxt dev server in tests: listens on --port and answers every request with
-// JSON, so lifecycle and auto-start can be exercised without starting Nuxt. `STARTUP_DELAY_MS`
+// JSON, so the lifecycle commands can be exercised without starting Nuxt. `STARTUP_DELAY_MS`
 // delays listening to simulate a slow start; `FAKE_SERVER_STATUS` forces an HTTP status (e.g. 400). GET /api/health reports the
 // MDPM_CONTENT_PATH the server was started with, like the real endpoint.
 import { createServer } from 'node:http'

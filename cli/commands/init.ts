@@ -1,13 +1,12 @@
 import { defineCommand } from 'citty'
 import { initRepo } from '../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../context'
+import { createContext, globalArgs } from '../context'
 import { emit, table } from '../output'
 
 export default defineCommand({
   meta: { name: 'init', description: 'Register the current repo with mdpm: project, optional .mdpm marker, work-logging block in CLAUDE.md' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     project: { type: 'string', description: 'Link to this existing project instead of inferring or creating one' },
     title: { type: 'string', description: 'Title for a new project (default: the repo directory name)' },
     description: { type: 'string', description: 'Description for a new project' },

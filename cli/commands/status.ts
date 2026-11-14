@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { existsSync } from 'node:fs'
-import { clearAsyncFailures, readAsyncFailures, schemaStatus } from '../../lib/core'
+import { schemaStatus } from '../../lib/core'
 import { createContext, globalArgs, parsePort, portArg } from '../context'
 import { emit, ExitCode } from '../output'
 
@@ -12,8 +12,8 @@ function formatUptime(seconds: number) {
 }
 
 export default defineCommand({
-  meta: { name: 'status', description: 'Report whether the server is running (exit 3 when it is not)' },
-  args: { ...globalArgs, ...portArg, 'ack-async': { type: 'boolean', description: 'Clear the recorded failures of fire-and-forget (--async) writes after reading them', default: false } },
+  meta: { name: 'status', description: 'Report whether the server is running (exit 1 when it is not)' },
+  args: { ...globalArgs, ...portArg },
   async run({ args }) {
     const ctx = createContext(args)
     const s = await ctx.lifecycle.status(parsePort(args.port))
@@ -24,21 +24,15 @@ export default defineCommand({
       if (existsSync(root)) content = { pendingMigration: schemaStatus(root).pendingFiles }
     }
     catch {}
-    const asyncFailures = readAsyncFailures()
-    if (args['ack-async']) clearAsyncFailures()
-    emit(ctx.json, { ...s, ...(content && { content }), ...(asyncFailures.length && { asyncFailures }) }, () => {
+    emit(ctx.json, { ...s, ...(content && { content }) }, () => {
       const mark = s.running ? ctx.style.green('✓') : ctx.style.yellow('!')
       const lines = [`${mark} ${s.state}: ${s.url}`]
       if (s.pid) lines.push(`  pid ${s.pid}, up ${formatUptime(s.uptimeSeconds ?? 0)}${s.managed ? `, log: ${s.logFile}` : ' (started outside mdpm; pid from nuxt.lock)'}`)
       else if (s.running) lines.push('  pid unknown (not started by mdpm, no Nuxt lock); stop it manually')
       if (content?.pendingMigration) lines.push(`  ${ctx.style.yellow('!')} ${content.pendingMigration} file(s) still carry link fields; run \`mdpm migrate\``)
-      if (asyncFailures.length) {
-        lines.push(`  ${ctx.style.yellow('!')} ${asyncFailures.length} fire-and-forget write${asyncFailures.length === 1 ? '' : 's'} failed${args['ack-async'] ? ' (cleared)' : ' (mdpm status --ack-async clears them)'}:`)
-        for (const f of asyncFailures.slice(-5)) lines.push(`    ${f.at.slice(0, 16).replace('T', ' ')} ${f.what}: ${f.error.split('\n')[0]}`)
-      }
       return lines.join('\n')
     })
-    // Scripts can gate on `mdpm status`; a down server maps to the "unreachable" exit code.
-    if (!s.running) process.exitCode = ExitCode.unreachable
+    // Scripts can gate on `mdpm status`.
+    if (!s.running) process.exitCode = ExitCode.error
   },
 })

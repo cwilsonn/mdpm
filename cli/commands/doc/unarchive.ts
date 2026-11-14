@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { emit } from '../../output'
 import { docScope, scopeArgs } from './shared'
 
@@ -7,7 +7,6 @@ export default defineCommand({
   meta: { name: 'unarchive', description: 'Restore an archived doc' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...scopeArgs,
     ref: { type: 'positional', description: 'Doc slug or unique fragment of slug/title', required: true },
   },
