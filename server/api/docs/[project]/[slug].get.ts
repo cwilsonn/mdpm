@@ -11,7 +11,7 @@ export default defineEventHandler((event) => {
     tags: (file.data.tags as string[]) ?? [],
     parent: (file.data.parent as string | undefined) ?? null,
     createdAt: (file.data.createdAt as string) ?? '',
-    updatedAt: (file.data.updatedAt as string) ?? undefined,
+    updatedAt: file.data.updatedAt instanceof Date ? file.data.updatedAt.toISOString() : (file.data.updatedAt as string | undefined) ?? null,
     archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
     body: file.content,
   }

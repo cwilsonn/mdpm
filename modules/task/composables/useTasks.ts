@@ -15,6 +15,8 @@ export interface TaskPayload {
   dependencies?: string[]
   description?: string
   archivedAt?: string | null
+  /** The updatedAt this edit is based on; the server answers 409 if the task changed since. */
+  expectedUpdatedAt?: string | null
 }
 
 export function useTasks() {
@@ -23,7 +25,7 @@ export function useTasks() {
   }
 
   function updateTask(project: string, slug: string, body: TaskPayload) {
-    return $fetch(`/api/tasks/${project}/${slug}`, { method: 'PATCH', body })
+    return $fetch<{ ok: true, id: string, status: string, updatedAt?: string }>(`/api/tasks/${project}/${slug}`, { method: 'PATCH', body })
   }
 
   function removeTask(project: string, slug: string) {

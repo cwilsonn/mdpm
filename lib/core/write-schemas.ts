@@ -27,6 +27,10 @@ function taskText<T extends z.ZodRawShape>(shape: T) {
   }, z.strictObject(shape))
 }
 
+// Optimistic concurrency for editors that send a whole body back: the `updatedAt` they loaded (null when the
+// file never had one). A mismatch means someone else wrote in between, and the update is refused (409).
+const expectedUpdatedAt = z.string().nullable().optional()
+
 const noteFields = {
   note: z.string().optional(),
   noteAuthor: z.string().optional(),
@@ -58,6 +62,7 @@ export const TaskUpdate = taskText({
   description: z.string().optional(),
   order: z.number().optional(),
   archivedAt: z.string().nullable().optional(),
+  expectedUpdatedAt,
   ...noteFields,
 })
 
@@ -97,6 +102,7 @@ export const DocUpdate = z.strictObject({
   order: z.number().optional(),
   body: z.string().optional(),
   archivedAt: z.string().nullable().optional(),
+  expectedUpdatedAt,
 })
 
 // One line per problem, phrased for a person reading CLI output or a toast.

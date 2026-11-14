@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 
 import { join } from 'node:path'
 import { after, beforeEach, describe, it } from 'node:test'
 import matter from 'gray-matter'
-import { LimitError, NotFoundError, ValidationError, WriteBusyError } from '../lib/core/errors'
+import { ConflictError, LimitError, NotFoundError, ValidationError, WriteBusyError } from '../lib/core/errors'
 import { atomicWrite, createWriter, renderMarkdown, withFileLock } from '../lib/core/write'
 import { scratchDir } from './helpers'
 
@@ -88,5 +88,60 @@ describe('writer', () => {
     assert.deepEqual(w.upsertDoc('p', { slug: 'notes', title: 'Notes', body: 'v1' }), { slug: 'notes' })
     assert.deepEqual(w.upsertDoc('p', { slug: 'notes', title: 'Notes', body: 'v2' }), { ok: true, slug: 'notes' })
     assert.equal(read('projects/p/docs/notes.md').content.trim(), 'v2')
+  })
+})
+
+// An editor that sends a whole body back (the task form's autosave) must not overwrite a note appended meanwhile.
+describe('stale updates (expectedUpdatedAt)', () => {
+  it('refuses an update against an older version and keeps the note that landed in between', () => {
+    const w = createWriter(root)
+    const first = w.updateTask('p', 'one', { title: 'One', expectedUpdatedAt: null })
+    assert.ok(first.updatedAt, 'an editor gets the new stamp back')
+    w.updateTask('p', 'one', { note: 'from an agent', noteAuthor: 'claude' })
+    assert.throws(() => w.updateTask('p', 'one', { description: 'Body as the form saw it', expectedUpdatedAt: first.updatedAt }), ConflictError)
+    assert.match(read('projects/p/tasks/one.md').content, /from an agent/)
+  })
+
+  it('accepts a matching base, chains on the returned stamp, and never stores the field', () => {
+    const w = createWriter(root)
+    const a = w.updateTask('p', 'one', { description: 'v1', expectedUpdatedAt: null })
+    const b = w.updateTask('p', 'one', { description: 'v2', expectedUpdatedAt: a.updatedAt })
+    assert.notEqual(b.updatedAt, undefined)
+    const f = read('projects/p/tasks/one.md')
+    assert.equal(f.content.trim(), 'v2')
+    assert.equal(f.data.expectedUpdatedAt, undefined)
+    assert.equal(f.data.updatedAt, b.updatedAt)
+  })
+
+  it('gives every write a later stamp, even within the same millisecond', () => {
+    const w = createWriter(root)
+    const stamps = Array.from({ length: 20 }, () => w.updateTask('p', 'one', { status: 'todo', expectedUpdatedAt: read('projects/p/tasks/one.md').data.updatedAt ?? null }).updatedAt!)
+    assert.equal(new Set(stamps).size, stamps.length)
+    assert.deepEqual([...stamps].sort(), stamps)
+  })
+
+  it('null matches a file that was never updated, and nothing else', () => {
+    const w = createWriter(root)
+    w.updateTask('p', 'one', { status: 'done' })
+    assert.throws(() => w.updateTask('p', 'one', { title: 'x', expectedUpdatedAt: null }), ConflictError)
+  })
+
+  it('compares an unquoted (Date-parsed) updatedAt as its ISO string', () => {
+    put('projects/p/tasks/one.md', '---\ntitle: One\nstatus: todo\nupdatedAt: 2026-11-01T10:00:00.000Z\n---\nBody.\n')
+    const w = createWriter(root)
+    assert.doesNotThrow(() => w.updateTask('p', 'one', { title: 'x', expectedUpdatedAt: '2026-11-01T10:00:00.000Z' }))
+  })
+
+  it('leaves answers unchanged for callers that do not ask', () => {
+    assert.deepEqual(createWriter(root).updateTask('p', 'one', { status: 'done' }), { ok: true, id: 'p/one', status: 'done' })
+  })
+
+  it('applies to docs too', () => {
+    put('projects/p/docs/d.md', "---\ntitle: D\nupdatedAt: '2026-11-01T10:00:00.000Z'\n---\nText.\n")
+    const w = createWriter(root)
+    assert.throws(() => w.updateDoc('p', 'd', { body: 'mine', expectedUpdatedAt: '2026-10-01T00:00:00.000Z' }), ConflictError)
+    const r = w.updateDoc('p', 'd', { body: 'mine', expectedUpdatedAt: '2026-11-01T10:00:00.000Z' })
+    assert.ok(r.updatedAt)
+    assert.equal(read('projects/p/docs/d.md').data.expectedUpdatedAt, undefined)
   })
 })
