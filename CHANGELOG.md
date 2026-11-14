@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.17.1...mdpm-v0.18.0) (2026-11-14)
+
+
+### Features
+
+* **core:** write content files directly from lib/core, no server needed ([7475370](https://github.com/cwilsonn/mdpm/commit/7475370063e903d3e49ecc7e3049a489e1c2455c))
+
 ## [0.17.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.17.0...mdpm-v0.17.1) (2026-11-14)
 
 
