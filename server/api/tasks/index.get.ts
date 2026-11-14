@@ -4,6 +4,8 @@ export default defineEventHandler((event) => {
   const query = getQuery(event)
   const projectFilter = query.project as string | undefined
   if (projectFilter) assertSafeSlug(projectFilter)
+  // ?status=todo,in-progress: only those statuses (the inbox never shows done tasks, the bulk of all tasks).
+  const statuses = typeof query.status === 'string' && query.status ? query.status.split(',') : undefined
 
   const projectsDir = contentPath('projects')
   if (!existsSync(projectsDir)) return []
@@ -22,6 +24,7 @@ export default defineEventHandler((event) => {
       const slug = f.replace('.md', '')
       const file = readMarkdown(`projects/${projectSlug}/tasks/${slug}.md`)
       if (!file) continue
+      if (statuses && !statuses.includes((file.data.status as string) ?? 'todo')) continue
       results.push({
         slug,
         path: `/projects/${projectSlug}/tasks/${slug}`,

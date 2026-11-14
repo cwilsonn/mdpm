@@ -2,11 +2,18 @@
 const open = ref(false)
 const searchTerm = ref('')
 
-const { data: tasks } = await useAsyncData('search-tasks', () => $fetch('/api/tasks'))
-const { data: projects } = await useAsyncData('search-projects', () => $fetch('/api/projects'))
-const { data: allDocs } = await useAsyncData('search-docs', () => $fetch<{
+// The palette lives in the layout, so anything it awaits delays every page and is serialised into every
+// page's payload. Load its data in the browser, the first time it opens, and refresh on later opens.
+const lazy = { server: false, immediate: false } as const
+const { data: tasks, execute: loadTasks } = useAsyncData('search-tasks', () => $fetch('/api/tasks'), lazy)
+const { data: projects, execute: loadProjects } = useAsyncData('search-projects', () => $fetch('/api/projects'), lazy)
+const { data: allDocs, execute: loadDocs } = useAsyncData('search-docs', () => $fetch<{
   slug: string; project: string | null; title: string; excerpt: string
-}[]>('/api/docs'))
+}[]>('/api/docs'), lazy)
+
+watch(open, (isOpen) => {
+  if (isOpen) void Promise.all([loadTasks(), loadProjects(), loadDocs()])
+})
 
 type DocResult = { slug: string; project: string | null; title: string; excerpt: string }
 
