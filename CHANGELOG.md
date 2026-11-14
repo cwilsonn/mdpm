@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.15.0...mdpm-v0.16.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** link fields and the legacy githubRepo, githubIssues and githubPRs fields are no longer read or accepted (the API answers 400). Run `mdpm migrate --apply` once per content directory. Removed: `mdpm links`, `mdpm providers`, `task|project|doc link`, `--link`, `--linked`, `--github-*`, `project --github-repo` (use `--repo`), and the MCP tools add_link, remove_link and resolve_link (create_project and update_project take `repo`).
+
+### Refactoring
+
+* **core:** drop providers and link fields; links live in the body ([62d4337](https://github.com/cwilsonn/mdpm/commit/62d4337f4c30366e49464c81cf9b54e105da3400))
+
 ## [0.15.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.14.1...mdpm-v0.15.0) (2026-11-14)
 
 
