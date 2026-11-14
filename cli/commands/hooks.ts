@@ -30,10 +30,10 @@ async function runHook(args: Record<string, unknown>, body: (ctx: ReturnType<typ
 }
 
 const sessionStart = defineCommand({
-  meta: { name: 'session-start', description: 'Claude Code SessionStart hook: inject the work-logging reminder and open tasks (no-op outside registered repos)' },
+  meta: { name: 'session-start', description: 'Claude Code SessionStart hook: inject the open tasks (and the work-logging rules where CLAUDE.md lacks them); no-op outside registered repos' },
   args: { ...globalArgs },
-  run: ({ args }) => runHook(args, (ctx, input, project) => {
-    const additionalContext = startSession(ctx.core, { sessionId: input.session_id, project })
+  run: ({ args }) => runHook(args, (ctx, input, project, cwd) => {
+    const additionalContext = startSession(ctx.core, { sessionId: input.session_id, project, cwd })
     console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } }))
   }),
 })

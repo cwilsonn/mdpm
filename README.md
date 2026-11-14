@@ -167,7 +167,7 @@ Not verified: a corporate proxy or private registry (set `pnpm config set regist
 | `mdpm init` | Register the current repo: link or create its project, pin it with a `.mdpm` marker when needed, install the work-logging block into `CLAUDE.md` |
 | `mdpm log` | Recent activity, newest first: task notes (with author) plus tasks created or updated. Filters: `--project`/`--all`, `--since 2d` (or a date), `--author`, `--limit` |
 | `mdpm export` | Data out: JSON (full fidelity), CSV (tasks), markdown (readable). See below |
-| `mdpm pickup [project]` | Session briefing, capped: open tasks (8 per status), blockers, what changed since the last handoff, docs, latest session notes (2000 chars), suggested focus. `--delta` prints only the changes and blockers; `--full` lifts every cap |
+| `mdpm pickup [project]` | Session briefing, capped: open tasks (5 per status), blockers (5), what changed since the last handoff (5), high-priority docs, latest session notes (1500 chars), suggested focus. `--delta` prints only the changes and blockers; `--full` lifts every cap |
 | `mdpm notes compact` | Keep the newest 5 (`--keep N`) session-notes docs and roll older ones into a single `notes-rollup` doc of short digests, archiving (never deleting) the originals. Dry run unless `--apply`; `mdpm doc unarchive <slug>` restores one. `pickup` suggests it past 10 docs |
 | `mdpm usage` | Response sizes per CLI command and MCP tool (name and size only, never content), heaviest first; `--since 7d`. Set `MDPM_USAGE_LOG=0` to stop logging |
 | `mdpm config show` | Resolved settings and where each came from |
@@ -194,7 +194,7 @@ Lets Claude Code read and write mdpm data from any project you're working on. Re
 
 Read tools query the markdown files directly and work without the dev server. Write tools go through the server, which must be running unless auto-start is on.
 
-**Tools (27):** `ping` · `pickup` · `batch_tasks` · `start_task` · `list_projects` · `get_project` · `create_project` · `update_project` · `archive_project` · `unarchive_project` · `delete_project` · `list_tasks` · `get_task` · `search_tasks` · `create_task` · `update_task` · `append_task_note` · `archive_task` · `unarchive_task` · `delete_task` · `list_docs` · `get_doc` · `search_docs` · `upsert_doc` · `archive_doc` · `unarchive_doc` · `delete_doc`
+**Tools (12):** `pickup` · `list_projects` · `get_project` · `list_tasks` (with `query` to search) · `get_task` · `start_task` · `create_task` · `update_task` (also `note` and `archived`) · `batch_tasks` · `list_docs` (with `query` to search) · `get_doc` · `upsert_doc`. Projects are created with `mdpm init` or `mdpm project create`; deleting is CLI-only.
 
 CLI vs MCP: the CLI is the first-class interface and works the same for you and for agents (`--json`); the MCP server is the native tool surface inside Claude Code. Both go through the same core library.
 
@@ -204,13 +204,10 @@ Global skills in `skills/`, symlinked into `~/.claude/commands/`. They run throu
 
 | Skill | When |
 |---|---|
-| `/pickup [project]` | Start of session: briefing with open tasks, docs, last session notes |
-| `/sync [project]` | Mid-session: update task statuses and write a notes snapshot |
-| `/handoff [project]` | End of session: update task statuses and write a dated `session-notes` doc |
-| `/start-mdpm` | Start the dev server (`mdpm start`) |
-| `/stop-mdpm` | Stop the dev server (`mdpm stop`) |
+| `/pickup [project]` | Start of session: briefing with open tasks, blockers, changes since the last handoff, last session notes |
+| `/handoff [project]` | Whenever a chunk of work is done, and at the end: task statuses and notes in one batch, plus one `session-notes` doc per session, updated in place |
 
-Each `/handoff` writes a new doc named `YYYY-MM-DD-HHmm-session-notes`; `/pickup` loads the newest by the date in the slug.
+A session's notes live in one doc named `YYYY-MM-DD-HHmm-session-notes`; `/pickup` loads the newest by the date in the slug. After pulling a version that removed a skill, run `mdpm skills install` to drop its stale link.
 
 ## Development
 

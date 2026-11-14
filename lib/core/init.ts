@@ -6,7 +6,7 @@ import type { Ops } from './ops'
 import { installHooks } from './hooks'
 import { excludeLocally, gitOriginUrl, gitToplevel, inferProject, MARKER_FILE, readMarker, repoUrlFromRemote } from './project'
 
-const BLOCK_START = '<!-- mdpm:work-logging:start -->'
+export const BLOCK_START = '<!-- mdpm:work-logging:start -->'
 const BLOCK_END = '<!-- mdpm:work-logging:end -->'
 
 export type BlockAction = 'created' | 'appended' | 'updated' | 'unchanged'
