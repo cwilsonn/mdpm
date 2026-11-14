@@ -145,6 +145,7 @@ To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, `
 | `stop` says the server wasn't started by `mdpm start` | Something else holds the port; stop it yourself |
 | `better-sqlite3` build or binding error | Install build tools, then `pnpm rebuild better-sqlite3` (also after switching Node versions) |
 | Exit code 3 on writes | The server is down: `mdpm start`, or `--auto-start` |
+| `403 Host "…" is not served here` | The server only answers loopback names, `mdpm.local`, and the `MDPM_BASE_URL` host. Use one of those, or add the name to `MDPM_ALLOWED_HOSTS` (comma-separated; a deployment's public hostname goes here too) |
 | Port 3333 busy | `mdpm start --port 3344` and set `MDPM_BASE_URL=http://mdpm.local:3344` |
 
 Not verified: a corporate proxy or private registry (set `pnpm config set registry <url>` as needed), fully offline use, and uninstall.

@@ -1,4 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs'
+import type { z } from 'zod'
+import type { TaskCreate, TaskUpdate } from '../../lib/core/write-schemas'
 import { appendNoteToBody } from '../../lib/core/log'
 import { projectRepoOf } from '../../lib/core/links-compat'
 import { isDemo } from './demo'
@@ -10,43 +12,9 @@ import { assertSafeSlug, contentPath, readMarkdown, slugify, uniqueSlug, writeMa
 
 const TASK_LIMIT_PER_PROJECT = 20
 
-export interface TaskCreateInput {
-  project: string
-  title: string
-  slug?: string
-  status?: string
-  priority?: string
-  tags?: string[]
-  assignees?: string[]
-  due?: string
-  dependencies?: string[]
-  githubIssues?: number[]
-  githubPRs?: number[]
-  links?: unknown
-  description?: string
-  /** A first note appended after the description. */
-  note?: string
-  noteAuthor?: string
-}
-
-export interface TaskUpdateInput {
-  title?: string
-  status?: string
-  priority?: string
-  tags?: string[]
-  assignees?: string[]
-  due?: string | null
-  dependencies?: string[]
-  githubIssues?: number[]
-  githubPRs?: number[]
-  links?: unknown
-  description?: string
-  order?: number
-  archivedAt?: string | null
-  /** Appended to the body as a timestamped note, on the server, so concurrent writers cannot lose each other's. */
-  note?: string
-  noteAuthor?: string
-}
+// Input shapes come from the shared write schemas, so the routes' validation and these functions agree.
+export type TaskCreateInput = z.infer<typeof TaskCreate>
+export type TaskUpdateInput = z.infer<typeof TaskUpdate>
 
 export function createTaskFile(body: TaskCreateInput) {
   if (!body.project) throw createError({ statusCode: 400, message: 'Project is required' })

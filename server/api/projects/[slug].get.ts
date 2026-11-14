@@ -4,6 +4,7 @@ const ALL_TASK_STATUSES = ['todo', 'in-progress', 'in-review', 'done', 'blocked'
 
 export default defineEventHandler((event) => {
   const slug = getRouterParam(event, 'slug')!
+  assertSafeSlug(slug)
   const file = readMarkdown(`projects/${slug}/index.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Project not found' })
 

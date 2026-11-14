@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import * as content from '../server/utils/content'
 import { isDemo } from '../server/utils/demo'
 import { applyLinkWrite } from '../server/utils/links-write'
+import { validator } from '../server/utils/validate'
 import { REPO } from './helpers'
 
 // Runs the real Nitro route modules in-process. Nitro auto-imports these globals in server code;
@@ -9,10 +10,11 @@ import { REPO } from './helpers'
 const g = globalThis as Record<string, unknown>
 g.defineEventHandler = (fn: unknown) => fn
 g.readBody = async (event: { body?: unknown }) => event.body
+g.readValidatedBody = async (event: { body?: unknown }, validate: (b: unknown) => unknown) => validate(event.body)
 g.getRouterParam = (event: { params?: Record<string, string> }, key: string) => event.params?.[key]
 g.getQuery = (event: { query?: unknown }) => event.query ?? {}
 g.createError = (input: { statusCode?: number; message?: string; data?: unknown }) => Object.assign(new Error(input.message), input)
-Object.assign(g, content, { applyLinkWrite, isDemo })
+Object.assign(g, content, { applyLinkWrite, isDemo, validator })
 
 export interface RouteEvent {
   params?: Record<string, string>

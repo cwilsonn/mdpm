@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from 'node:fs'
 export default defineEventHandler((event) => {
   const query = getQuery(event)
   const projectFilter = query.project as string | undefined
+  if (projectFilter) assertSafeSlug(projectFilter)
   const standaloneOnly = query.standalone === 'true'
 
   const results: {

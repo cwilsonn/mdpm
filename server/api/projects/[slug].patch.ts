@@ -1,23 +1,8 @@
-
+import { ProjectUpdate } from '../../../lib/core/write-schemas'
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')!
   assertSafeSlug(slug)
-  const body = await readBody<{
-    title?: string
-    status?: string
-    icon?: string | null
-    description?: string
-    tags?: string[]
-    githubRepo?: string | null
-    links?: unknown
-    availableStatuses?: string[]
-    defaultStatus?: string | null
-    defaultPriority?: string | null
-    defaultAssignee?: string | null
-    pinned?: boolean | null
-    pinnedOrder?: number | null
-    archivedAt?: string | null
-  }>(event)
+  const body = await readValidatedBody(event, validator(ProjectUpdate))
 
   const file = readMarkdown(`projects/${slug}/index.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Project not found' })

@@ -1,9 +1,10 @@
+import { DocUpdate } from '../../../lib/core/write-schemas'
 import { existsSync } from 'node:fs'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')!
   assertSafeSlug(slug)
-  const body = await readBody<{ title?: string; tags?: string[]; parent?: string | null; order?: number; body?: string; archivedAt?: string | null; links?: unknown }>(event)
+  const body = await readValidatedBody(event, validator(DocUpdate))
 
   const file = readMarkdown(`docs/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Doc not found' })
