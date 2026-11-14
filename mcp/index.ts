@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, readAsyncFailures, recordAsyncFailure, recordUsage, REPO_ROOT, schemaStatus, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordAsyncFailure, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
 import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
@@ -57,11 +57,6 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
-      name: 'ping',
-      description: 'Check that the mdpm MCP server is reachable and return basic stats.',
-      inputSchema: { type: 'object', properties: {} },
-    },
-    {
       name: 'pickup',
       description: 'One-call session briefing for a project: open tasks (capped per status), blockers, what changed since the last handoff, docs, the latest session notes (capped) and a suggested focus. Prefer this over assembling list_tasks + list_docs + get_doc. delta=true returns only the changes since the last handoff plus blockers.',
       inputSchema: {
@@ -95,12 +90,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: `List tasks as a compact page (default ${DEFAULT_LIMIT} rows, summary columns only: no bodies). Optionally filtered by project or status. Omit project for all projects. Archived tasks are excluded unless includeArchived is set. Use get_task for one task's body; fields ["summary"] adds a one-line digest.`,
+      description: `List or search tasks as a compact page (default ${DEFAULT_LIMIT} rows, summary columns only: no bodies). Filter by project and status; query searches titles and bodies and adds a match column. Archived tasks are excluded unless includeArchived is set. get_task returns one task's body.`,
       inputSchema: {
         type: 'object',
         properties: {
           ...LIST_PROPS,
           project: { type: 'string', description: 'Project slug. Omit for all projects.' },
+          query: { type: 'string', description: 'Full-text search over titles and bodies.' },
           status: {
             type: 'array',
             items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
@@ -147,7 +143,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'update_task',
-      description: 'Update fields on an existing task.',
+      description: 'Update an existing task: fields, a note (appended with a timestamp, same write), or archived.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -163,6 +159,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           description: { type: 'string', description: 'Markdown body. Put related links (PRs, tickets) in a "## Links" list in the body.' },
           note: { type: 'string', description: 'Appended as a timestamped note in the same write (status + note in one call).' },
           noteAuthor: { type: 'string', description: 'Author of the note; defaults to $MDPM_AUTHOR, else "claude".' },
+          archived: { type: 'boolean', description: 'true archives the task, false restores it.' },
         },
         required: ['project', 'slug'],
       },
@@ -218,12 +215,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_docs',
-      description: `List docs as a compact page (default ${DEFAULT_LIMIT} rows, no bodies; fields ["summary"] adds a one-line digest). Pass project to scope to a project. Omit both for all docs including standalone. Archived docs (and children of archived folders) are excluded unless includeArchived is set.`,
+      description: `List or search docs as a compact page (default ${DEFAULT_LIMIT} rows, no bodies). Pass project to scope to a project; omit it for all docs including standalone. query searches titles and bodies. Archived docs are excluded unless includeArchived is set.`,
       inputSchema: {
         type: 'object',
         properties: {
           ...LIST_PROPS,
           project: { type: 'string', description: 'Project slug. Omit for all docs (project + standalone).' },
+          query: { type: 'string', description: 'Full-text search over titles and bodies.' },
           standalone: { type: 'boolean', description: 'Set true to list only standalone (non-project) docs.' },
           includeArchived: { type: 'boolean', description: 'Include archived docs and descendants of archived folders. Defaults to false.' },
         },
@@ -241,191 +239,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           offset: { type: 'number', description: 'Start the body at this character (continue a cut body).' },
         },
         required: ['slug'],
-      },
-    },
-    {
-      name: 'search_docs',
-      description: 'Full-text search across doc titles and bodies.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          query: { type: 'string' },
-          project: { type: 'string', description: 'Scope to a project. Omit for all (including standalone).' },
-        },
-        required: ['query'],
-      },
-    },
-    {
-      name: 'create_project',
-      description: 'Create a new project. Use when tracking a new repo/effort in mdpm for the first time; pass repo (its URL) so checkouts of it are matched to the project. Follow up with the onboard skill to scaffold architecture/context docs.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          description: { type: 'string' },
-          icon: { type: 'string' },
-          status: { type: 'string', description: 'Project status. Defaults to "active".' },
-          tags: { type: 'array', items: { type: 'string' } },
-          repo: { type: 'string', description: 'Repository URL, e.g. "https://github.com/owner/name".' },
-          availableStatuses: { type: 'array', items: { type: 'string' } },
-          defaultStatus: { type: 'string' },
-          defaultPriority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
-          defaultAssignee: { type: 'string' },
-        },
-        required: ['title'],
-      },
-    },
-    {
-      name: 'update_project',
-      description: 'Update fields on an existing project. Pass null for icon, repo, defaultStatus, defaultPriority, or defaultAssignee to clear them.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          slug: { type: 'string' },
-          title: { type: 'string' },
-          description: { type: 'string' },
-          icon: { type: ['string', 'null'] },
-          status: { type: 'string', description: 'Project status, e.g. "active" or "on-hold".' },
-          tags: { type: 'array', items: { type: 'string' } },
-          repo: { type: ['string', 'null'], description: 'Repository URL, e.g. "https://github.com/owner/name".' },
-          availableStatuses: { type: 'array', items: { type: 'string' } },
-          defaultStatus: { type: ['string', 'null'] },
-          defaultPriority: { type: ['string', 'null'], enum: ['low', 'medium', 'high', 'urgent', null] },
-          defaultAssignee: { type: ['string', 'null'] },
-        },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'archive_project',
-      description: 'Archive a project (hidden from list_projects unless includeArchived is set). Reversible with unarchive_project.',
-      inputSchema: {
-        type: 'object',
-        properties: { slug: { type: 'string' } },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'unarchive_project',
-      description: 'Restore an archived project.',
-      inputSchema: {
-        type: 'object',
-        properties: { slug: { type: 'string' } },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'delete_project',
-      description: 'Permanently delete a project and ALL of its tasks and docs. Irreversible; prefer archive_project unless the user explicitly asked to delete.',
-      inputSchema: {
-        type: 'object',
-        properties: { slug: { type: 'string' } },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'archive_task',
-      description: 'Archive a task (hidden from list_tasks unless includeArchived is set). Reversible with unarchive_task.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string' },
-          slug: { type: 'string' },
-        },
-        required: ['project', 'slug'],
-      },
-    },
-    {
-      name: 'unarchive_task',
-      description: 'Restore an archived task.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string' },
-          slug: { type: 'string' },
-        },
-        required: ['project', 'slug'],
-      },
-    },
-    {
-      name: 'archive_doc',
-      description: 'Archive a doc (hidden from list_docs unless includeArchived is set). Reversible with unarchive_doc.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string', description: 'Project slug. Omit for a standalone doc.' },
-          slug: { type: 'string' },
-        },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'unarchive_doc',
-      description: 'Restore an archived doc.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string', description: 'Project slug. Omit for a standalone doc.' },
-          slug: { type: 'string' },
-        },
-        required: ['slug'],
-      },
-    },
-    {
-      name: 'delete_task',
-      description: 'Permanently delete a task.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string' },
-          slug: { type: 'string' },
-        },
-        required: ['project', 'slug'],
-      },
-    },
-    {
-      name: 'delete_doc',
-      description: 'Permanently delete a doc.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          project: { type: 'string' },
-          slug: { type: 'string' },
-        },
-        required: ['project', 'slug'],
-      },
-    },
-    {
-      name: 'search_tasks',
-      description: 'Full-text search across task titles and bodies, optionally scoped to a project. Returns a compact page with a `match` column (the first matching line), not bodies.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          ...LIST_PROPS,
-          query: { type: 'string' },
-          project: { type: 'string', description: 'Scope to a project. Omit for all projects.' },
-          status: {
-            type: 'array',
-            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
-            description: 'Filter by status values.',
-          },
-        },
-        required: ['query'],
-      },
-    },
-    {
-      name: 'append_task_note',
-      description: 'Append a timestamped note to a task description without overwriting existing content.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          async: ASYNC_PROP,
-          project: { type: 'string' },
-          slug: { type: 'string' },
-          note: { type: 'string', description: 'Markdown note to append' },
-          author: { type: 'string', description: 'Who is writing the note. Defaults to $MDPM_AUTHOR, else "claude".' },
-        },
-        required: ['project', 'slug', 'note'],
       },
     },
     {
@@ -467,23 +280,10 @@ async function callTool(name: string, args: Record<string, unknown>) {
 
   try {
     switch (name) {
-      case 'ping': {
-        const projects = core.listProjects({ includeArchived: true })
-        return json({
-          ok: true,
-          contentPath: core.config.contentPath,
-          baseUrl: core.config.baseUrl,
-          projectCount: projects.length,
-          projects: projects.map(p => p.slug),
-          pendingMigration: schemaStatus(core.config.contentPath).pendingFiles,
-          ...(readAsyncFailures().length && { asyncFailures: readAsyncFailures().length }),
-        }, true)
-      }
-
       case 'pickup': {
         const { project, delta, full } = args as { project: string; delta?: boolean; full?: boolean }
         const p = buildPickup(core, core.resolveProject(project).slug, { full })
-        return json(delta ? { project: p.project, sinceLastSession: p.sinceLastSession, blockers: p.blockers } : p)
+        return json(delta ? { project: p.project, sinceLastSession: p.sinceLastSession, blockers: p.blockers, ...(p.moreBlockers && { moreBlockers: p.moreBlockers }) } : p)
       }
 
       case 'list_projects':
@@ -493,9 +293,10 @@ async function callTool(name: string, args: Record<string, unknown>) {
         return json(core.getProject((args as { slug: string }).slug), true)
 
       case 'list_tasks': {
-        const { limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listTasks>[0] & ListArgs
-        const tasks = core.listTasks(rest)
-        return text(listResult(tasks.map(t => taskRow(t)), { limit, offset, fields, format }, TASK_FIELDS, TASK_LIST_FIELDS))
+        const { query, limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listTasks>[0] & { query?: string } & ListArgs
+        const q = query?.trim().toLowerCase()
+        const tasks = core.listTasks(rest).filter(t => !q || t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q))
+        return text(listResult(tasks.map(t => taskRow(t, q)), { limit, offset, fields, format }, TASK_FIELDS, q ? [...TASK_LIST_FIELDS, 'match'] : TASK_LIST_FIELDS))
       }
 
       case 'get_task': {
@@ -514,7 +315,8 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'update_task': {
-        const { project, slug, async: later, ...rest } = args as { project: string; slug: string; async?: boolean; [k: string]: unknown }
+        const { project, slug, async: later, archived, ...fields } = args as { project: string; slug: string; async?: boolean; archived?: boolean; [k: string]: unknown }
+        const rest = archived === undefined ? fields : { ...fields, archivedAt: archived ? new Date().toISOString() : null }
         if (later) {
           core.getTask(project, slug)
           inBackground('update_task', core.updateTask(project, slug, withNoteAuthor(rest)))
@@ -544,76 +346,16 @@ async function callTool(name: string, args: Record<string, unknown>) {
         return json(await core.startTask(project, title, fields))
       }
 
-      case 'create_project':
-        return json(await core.createProject(args))
-
-      case 'update_project': {
-        const { slug, ...fields } = args as { slug: string } & Record<string, unknown>
-        return json(await core.updateProject(slug, fields))
-      }
-
-      case 'archive_project':
-      case 'unarchive_project': {
-        const { slug } = args as { slug: string }
-        return json(await core.archiveProject(slug, name === 'archive_project'))
-      }
-
-      case 'delete_project': {
-        const { slug } = args as { slug: string }
-        return json(await core.deleteProject(slug))
-      }
-
-      case 'archive_task':
-      case 'unarchive_task': {
-        const { project, slug } = args as { project: string; slug: string }
-        return json(await core.archiveTask(project, slug, name === 'archive_task'))
-      }
-
-      case 'archive_doc':
-      case 'unarchive_doc': {
-        const { project, slug } = args as { project?: string; slug: string }
-        return json(await core.archiveDoc({ project, slug }, name === 'archive_doc'))
-      }
-
-      case 'delete_task': {
-        const { project, slug } = args as { project: string; slug: string }
-        return json(await core.deleteTask(project, slug))
-      }
-
-      case 'delete_doc': {
-        const { project, slug } = args as { project: string; slug: string }
-        return json(await core.deleteDoc(project, slug))
-      }
-
-      case 'search_tasks': {
-        const { query, project, status, limit, offset, fields, format } = args as unknown as { query: string; project?: string; status?: string[] } & ListArgs
-        return text(listResult(core.searchTasks(query, project, status).map(t => taskRow(t, query)), { limit, offset, fields, format }, TASK_FIELDS, ['project', 'slug', 'title', 'status', 'priority', 'match']))
-      }
-
-      case 'append_task_note': {
-        const { project, slug, note, author, async: later } = args as { project: string; slug: string; note: string; author?: string; async?: boolean }
-        const who = author?.trim() || process.env.MDPM_AUTHOR || 'claude'
-        if (later) {
-          core.getTask(project, slug)
-          inBackground('append_task_note', core.appendTaskNote(project, slug, note, who))
-          return json({ queued: true, id: `${project}/${slug}` })
-        }
-        return json(await core.appendTaskNote(project, slug, note, who))
-      }
-
       case 'list_docs': {
-        const { limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listDocs>[0] & ListArgs
-        return text(listResult(core.listDocsWithBody(rest).map(d => docRow(d)), { limit, offset, fields, format }, DOC_FIELDS, DOC_LIST_FIELDS))
+        const { query, limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listDocs>[0] & { query?: string } & ListArgs
+        const q = query?.trim().toLowerCase()
+        const docs = core.listDocsWithBody(rest).filter(d => !q || d.title.toLowerCase().includes(q) || d.body.toLowerCase().includes(q))
+        return text(listResult(docs.map(d => docRow(d)), { limit, offset, fields, format }, DOC_FIELDS, DOC_LIST_FIELDS))
       }
 
       case 'get_doc': {
         const { project, slug, maxChars, offset } = args as { project?: string; slug: string; maxChars?: number; offset?: number }
         return json(shapeDoc(core.getDoc(slug, project), { maxChars, offset }))
-      }
-
-      case 'search_docs': {
-        const { query, project } = args as { query: string; project?: string }
-        return json(core.searchDocs(query, project), true)
       }
 
       case 'upsert_doc':

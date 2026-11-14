@@ -69,15 +69,9 @@ describe('MCP server through core', () => {
     assert.deepEqual(serverInfo, { name: 'mdpm', version: pkg.version })
   })
 
-  it('lists its tools', async () => {
-    const res = await rpc('tools/list')
-    const names = res.result.tools.map((t: any) => t.name)
-    for (const name of ['ping', 'list_tasks', 'create_task', 'update_task', 'search_docs', 'append_task_note']) assert.ok(names.includes(name), name)
-  })
-
-  it('ping reads the fixture content', async () => {
-    const { json } = await tool('ping')
-    assert.deepEqual(json.projects.sort(), ['alpha', 'beta', 'gamma'])
+  it('lists exactly its twelve tools', async () => {
+    const names = (await rpc('tools/list')).result.tools.map((t: any) => t.name).sort()
+    assert.deepEqual(names, ['batch_tasks', 'create_task', 'get_doc', 'get_project', 'get_task', 'list_docs', 'list_projects', 'list_tasks', 'pickup', 'start_task', 'update_task', 'upsert_doc'])
   })
 
   it('list_tasks filters like the CLI', async () => {
@@ -107,10 +101,11 @@ describe('MCP server through core', () => {
     assert.match(bad.text, /unknown field/)
   })
 
-  it('search_tasks returns a match column instead of bodies', async () => {
-    const { text } = await tool('search_tasks', { query: 'parser', project: 'alpha' })
-    assert.match(text, /\bmatch\b/)
+  it('list_tasks with a query searches and adds a match column instead of bodies', async () => {
+    const { text } = await tool('list_tasks', { query: 'parser', project: 'alpha' })
+    assert.match(text.split('\n')[1]!, /\bmatch\b/)
     assert.match(text, /write-parser/)
+    assert.doesNotMatch(text, /ship-v1/)
   })
 
   it('get_doc caps the body and says how to continue', async () => {
@@ -128,9 +123,10 @@ describe('MCP server through core', () => {
     assert.match((await tool('get_doc', { project: 'alpha', slug: 'architecture' })).json.body, /Stack/)
   })
 
-  it('search_docs finds standalone docs', async () => {
-    const { json } = await tool('search_docs', { query: 'onboarding' })
-    assert.deepEqual(json.map((d: any) => d.slug), ['standalone-guide'])
+  it('list_docs with a query finds standalone docs', async () => {
+    const { text } = await tool('list_docs', { query: 'onboarding' })
+    assert.match(text, /^# total=1 /)
+    assert.match(text, /standalone-guide/)
   })
 
   it('reports not-found as a tool error', async () => {
@@ -147,63 +143,23 @@ describe('MCP server through core', () => {
     assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['PATCH', '/api/tasks/alpha/write-parser'])
   })
 
-  it('append_task_note keeps the existing body and credits the author', async () => {
-    await tool('append_task_note', { project: 'alpha', slug: 'write-parser', note: 'mcp note' })
-    assert.match(api.requests.at(-1)!.body.description, /Implement the parser[\s\S]*_ by claude\n\nmcp note$/)
-    await tool('append_task_note', { project: 'alpha', slug: 'write-parser', note: 'second', author: 'Sam' })
-    assert.match(api.requests.at(-1)!.body.description, /_ by Sam\n\nsecond$/)
-  })
-
-  it('lists the archive, update, and delete tools added for CLI parity', async () => {
-    const names = (await rpc('tools/list')).result.tools.map((t: any) => t.name)
-    for (const name of ['update_project', 'archive_project', 'unarchive_project', 'delete_project', 'archive_task', 'unarchive_task', 'archive_doc', 'unarchive_doc']) {
-      assert.ok(names.includes(name), name)
-    }
-  })
-
-  it('update_project patches fields, including null to clear', async () => {
-    await tool('update_project', { slug: 'alpha', title: 'Alpha 2', repo: null, tags: ['x'] })
-    const w = api.requests.at(-1)!
-    assert.deepEqual([w.method, w.path, w.body], ['PATCH', '/api/projects/alpha', { title: 'Alpha 2', repo: null, tags: ['x'] }])
-  })
-
-  it('archives and restores projects, tasks, and docs', async () => {
-    await tool('archive_project', { slug: 'beta' })
-    assert.deepEqual([api.requests.at(-1)!.path, typeof api.requests.at(-1)!.body.archivedAt], ['/api/projects/beta', 'string'])
-    await tool('unarchive_project', { slug: 'beta' })
-    assert.deepEqual(api.requests.at(-1)!.body, { archivedAt: null })
-
-    await tool('archive_task', { project: 'alpha', slug: 'write-parser' })
+  it('update_task archives and restores, and appends a credited note', async () => {
+    await tool('update_task', { project: 'alpha', slug: 'write-parser', archived: true })
     assert.deepEqual([api.requests.at(-1)!.path, typeof api.requests.at(-1)!.body.archivedAt], ['/api/tasks/alpha/write-parser', 'string'])
-    await tool('unarchive_task', { project: 'alpha', slug: 'old-idea' })
+    await tool('update_task', { project: 'alpha', slug: 'old-idea', archived: false })
     assert.deepEqual(api.requests.at(-1)!.body, { archivedAt: null })
-
-    await tool('archive_doc', { project: 'alpha', slug: 'architecture' })
-    assert.equal(api.requests.at(-1)!.path, '/api/docs/alpha/architecture')
-    await tool('unarchive_doc', { slug: 'standalone-guide' })
-    assert.deepEqual([api.requests.at(-1)!.path, api.requests.at(-1)!.body], ['/api/standalone-docs/standalone-guide', { archivedAt: null }])
+    await tool('update_task', { project: 'alpha', slug: 'write-parser', note: 'second', noteAuthor: 'Sam' })
+    assert.deepEqual(api.requests.at(-1)!.body, { note: 'second', noteAuthor: 'Sam' })
   })
 
-  it('delete_project and standalone delete_doc hit the right routes', async () => {
-    await tool('delete_project', { slug: 'gamma' })
-    assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['DELETE', '/api/projects/gamma'])
-    await tool('delete_doc', { slug: 'standalone-guide' })
-    assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['DELETE', '/api/standalone-docs/standalone-guide'])
-  })
-
-  it('has no link tools or link fields; projects take a repo URL', async () => {
+  it('has no project-write, delete, link or ping tools', async () => {
     const tools = (await rpc('tools/list')).result.tools
     const byName = Object.fromEntries(tools.map((t: any) => [t.name, t]))
-    for (const name of ['add_link', 'remove_link', 'resolve_link']) assert.ok(!byName[name], name)
-    for (const name of ['create_task', 'update_task', 'create_project', 'update_project']) {
+    for (const name of ['ping', 'create_project', 'update_project', 'delete_task', 'delete_doc', 'archive_task', 'append_task_note', 'search_tasks', 'search_docs', 'add_link']) assert.ok(!byName[name], name)
+    for (const name of ['create_task', 'update_task']) {
       const props = byName[name].inputSchema.properties
-      assert.ok(!props.links && !props.githubPRs && !props.githubIssues && !props.githubRepo, `${name} has no link fields`)
+      assert.ok(!props.links && !props.githubPRs && !props.githubIssues, `${name} has no link fields`)
     }
-    assert.ok(byName.create_project.inputSchema.properties.repo && byName.update_project.inputSchema.properties.repo)
-    assert.ok(!byName.list_tasks.inputSchema.properties.linked)
-    api.requests.length = 0
-    await tool('create_project', { title: 'R', repo: 'https://github.com/acme/r' })
-    assert.equal(api.requests.find(r => r.method === 'POST')!.body.repo, 'https://github.com/acme/r')
   })
 
   it('batch_tasks resolves refs and sends one request; update_task credits note authors', async () => {

@@ -39,6 +39,15 @@ describe('SessionStart hook', () => {
     assert.ok(!out.additionalContext.includes('old-idea'), 'archived tasks are not listed')
   })
 
+  it('leaves the rules to CLAUDE.md when its work-logging block is there, keeping just the tasks', async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, 'CLAUDE.md'), '# Repo\n\n<!-- mdpm:work-logging:start -->\nrules\n<!-- mdpm:work-logging:end -->\n')
+    const out = JSON.parse((await hook('session-start', repo)).stdout).hookSpecificOutput.additionalContext
+    assert.match(out, /project "alpha"; log work as its Work logging section in CLAUDE\.md says/)
+    assert.doesNotMatch(out, /mdpm task start/)
+    assert.match(out, /In progress:\n- write-parser/)
+  })
+
   it('says nothing and exits 0 outside registered repos', async () => {
     const dir = join(scratch.dir, 'not-a-project')
     mkdirSync(dir)

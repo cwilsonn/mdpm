@@ -51,7 +51,7 @@ describe('planCompaction', () => {
   })
 
   it('the rollup is a regular doc to pickup, not session notes, and leaves the session count alone', () => {
-    const p = buildPickup(core, 'p')
+    const p = buildPickup(core, 'p', { docs: 10 })
     assert.equal(p.sessionNotesCount, 7)
     assert.ok(p.docs.some(d => d.slug === 'notes-rollup'))
     assert.equal(p.compactionHint, undefined)
