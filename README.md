@@ -38,7 +38,7 @@ Works on macOS and Linux. **WSL2 is confirmed working** (Ubuntu on a Windows VM)
 ### 1. Prerequisites
 
 - **Node 24.15 or newer** within 24 (`.nvmrc`; `nvm install 24`); Nuxt 4.6 refuses older 24.x
-- **pnpm 11.22.0**, pinned by `packageManager`: `corepack enable` (bundled with Node 24) or `npm i -g pnpm@11.22.0`
+- **pnpm 12.18.0**, pinned by `packageManager`: `corepack enable` (bundled with Node 24) or `npm i -g pnpm@12.18.0`. An older pnpm switches to the pinned version by itself
 - **git**, and admin rights once to edit the hosts file
 - Build tools (`build-essential`, `python3` on Debian/Ubuntu; Xcode CLT on macOS) only if `better-sqlite3` has no prebuilt binary for your platform
 - Claude Code, optional, for the MCP server and skills
@@ -63,7 +63,7 @@ On **WSL2**, the name also has to resolve on the Windows side if you want `mdpm.
 
 ### 4. Install the CLI
 
-pnpm 11 refuses global installs until its global bin directory is on `PATH`:
+pnpm refuses global installs until its global bin directory is on `PATH`:
 
 ```bash
 pnpm setup                         # then open a new terminal
