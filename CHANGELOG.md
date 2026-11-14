@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.19.0...mdpm-v0.20.0) (2026-11-14)
+
+
+### Features
+
+* **ui:** refuse stale task edits with 409 instead of overwriting newer notes ([05e84de](https://github.com/cwilsonn/mdpm/commit/05e84de75dab0087b9107ed6fde8eb76e7eba742))
+
 ## [0.19.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.18.0...mdpm-v0.19.0) (2026-11-14)
 
 
