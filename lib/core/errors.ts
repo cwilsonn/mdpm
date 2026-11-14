@@ -19,3 +19,17 @@ export class AmbiguousError extends Error {
 export class ContentRootMismatchError extends Error {
   override name = 'ContentRootMismatchError'
 }
+
+// Write errors. The server maps them to 400 / 429 / 409; the CLI and MCP print the message.
+
+export class ValidationError extends Error {
+  override name = 'ValidationError'
+}
+
+export class LimitError extends Error {
+  override name = 'LimitError'
+}
+
+export class WriteBusyError extends Error {
+  override name = 'WriteBusyError'
+}

@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { buildLog, createCore, parseNotes, parseSince, resolveAuthor } from '../lib/core'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { readContent, runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -148,18 +148,13 @@ describe('mdpm log CLI', () => {
 
 describe('authors on written notes', () => {
   it('task note stamps the resolved author, with --author winning', async () => {
-    const api = await mockApi()
-    try {
-      const run = (args: string[], env: Record<string, string>) => runCli(['task', 'note', 'write-parser', 'a note', '--project', 'alpha', ...args], { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url, CLAUDECODE: '', ...env } })
-      await run([], { MDPM_AUTHOR: 'EnvAuthor' })
-      assert.match(api.requests.at(-1)!.body.description, /_ by EnvAuthor\n\na note$/)
-      await run(['--author', 'Flagged'], { MDPM_AUTHOR: 'EnvAuthor' })
-      assert.match(api.requests.at(-1)!.body.description, /_ by Flagged\n\na note$/)
-      await run([], { CLAUDECODE: '1', MDPM_AUTHOR: '' })
-      assert.match(api.requests.at(-1)!.body.description, /_ by claude\n\na note$/)
-    }
-    finally {
-      await api.close()
-    }
+    const run = (args: string[], env: Record<string, string>) => runCli(['task', 'note', 'write-parser', 'a note', '--project', 'alpha', ...args], { scratch: scratch.dir, env: { CLAUDECODE: '', ...env } })
+    const body = () => readContent(scratch.dir, 'projects/alpha/tasks/write-parser.md')!.body
+    await run([], { MDPM_AUTHOR: 'EnvAuthor' })
+    assert.match(body(), /_ by EnvAuthor\n\na note$/)
+    await run(['--author', 'Flagged'], { MDPM_AUTHOR: 'EnvAuthor' })
+    assert.match(body(), /_ by Flagged\n\na note$/)
+    await run([], { CLAUDECODE: '1', MDPM_AUTHOR: '' })
+    assert.match(body(), /_ by claude\n\na note$/)
   })
 })

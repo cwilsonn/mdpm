@@ -3,14 +3,14 @@ import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { FIXTURE_CONTENT, isolatedEnv, mockApi, REPO, scratchDir } from './helpers'
+import { isolatedEnv, readContent, REPO, scratchDir } from './helpers'
 
-// Drives the real MCP server over stdio, so the read path (files) and write path (HTTP API)
-// are checked through the shared core, exactly as Claude Code would call them.
+// Drives the real MCP server over stdio, so reads and writes (both on the files, no server) are checked
+// through the shared core, exactly as Claude Code would call them. Content is a scratch copy of the fixtures.
 const scratch = scratchDir()
 after(scratch.cleanup)
 
-let api: Awaited<ReturnType<typeof mockApi>>
+const task = (slug: string) => readContent(scratch.dir, `projects/alpha/tasks/${slug}.md`)
 let child: ReturnType<typeof spawn>
 let nextId = 1
 let serverInfo: { name: string; version: string }
@@ -34,12 +34,9 @@ async function tool(name: string, args: Record<string, unknown> = {}) {
 }
 
 before(async () => {
-  api = await mockApi(req => req.path === '/api/tasks/batch'
-    ? { body: { ok: req.body.ops.length, failed: 0, results: req.body.ops.map((_: unknown, index: number) => ({ index, ok: true, id: 'alpha/write-parser', status: 'done' })) } }
-    : {})
   child = spawn('node', ['--import', 'tsx', join(REPO, 'mcp/index.ts')], {
     cwd: REPO,
-    env: isolatedEnv(scratch.dir, { MDPM_CONTENT_PATH: FIXTURE_CONTENT, MDPM_BASE_URL: api.url }) as NodeJS.ProcessEnv,
+    env: isolatedEnv(scratch.dir) as NodeJS.ProcessEnv,
     stdio: ['pipe', 'pipe', 'inherit'],
   })
   let buf = ''
@@ -58,9 +55,8 @@ before(async () => {
   child.stdin!.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`)
 })
 
-after(async () => {
+after(() => {
   child.kill()
-  await api.close()
 })
 
 describe('MCP server through core', () => {
@@ -135,21 +131,20 @@ describe('MCP server through core', () => {
     assert.match(r.text, /not found/i)
   })
 
-  it('create_task and update_task go through the HTTP API', async () => {
-    api.requests.length = 0
-    assert.deepEqual((await tool('create_task', { project: 'alpha', title: 'From MCP', priority: 'low' })).json, { slug: 'created-slug' })
-    assert.deepEqual(api.requests.at(-1), { method: 'POST', path: '/api/tasks', body: { project: 'alpha', title: 'From MCP', priority: 'low' } })
-    await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done' })
-    assert.deepEqual([api.requests.at(-1)!.method, api.requests.at(-1)!.path], ['PATCH', '/api/tasks/alpha/write-parser'])
+  it('create_task and update_task write the files, with no server', async () => {
+    assert.deepEqual((await tool('create_task', { project: 'alpha', title: 'From MCP', priority: 'low' })).json, { slug: 'from-mcp', id: 'alpha/from-mcp', status: 'todo' })
+    assert.equal(task('from-mcp')!.data.priority, 'low')
+    assert.deepEqual((await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done' })).json, { ok: true, id: 'alpha/write-parser', status: 'done' })
+    assert.equal(task('write-parser')!.data.status, 'done')
   })
 
   it('update_task archives and restores, and appends a credited note', async () => {
     await tool('update_task', { project: 'alpha', slug: 'write-parser', archived: true })
-    assert.deepEqual([api.requests.at(-1)!.path, typeof api.requests.at(-1)!.body.archivedAt], ['/api/tasks/alpha/write-parser', 'string'])
+    assert.equal(typeof task('write-parser')!.data.archivedAt, 'string')
     await tool('update_task', { project: 'alpha', slug: 'old-idea', archived: false })
-    assert.deepEqual(api.requests.at(-1)!.body, { archivedAt: null })
+    assert.equal(task('old-idea')!.data.archivedAt, undefined)
     await tool('update_task', { project: 'alpha', slug: 'write-parser', note: 'second', noteAuthor: 'Sam' })
-    assert.deepEqual(api.requests.at(-1)!.body, { note: 'second', noteAuthor: 'Sam' })
+    assert.match(task('write-parser')!.body, /\*\*Note\*\* _\([^)]+\)_ by Sam\n\nsecond$/)
   })
 
   it('has no project-write, delete, link or ping tools', async () => {
@@ -162,35 +157,30 @@ describe('MCP server through core', () => {
     }
   })
 
-  it('batch_tasks resolves refs and sends one request; update_task credits note authors', async () => {
-    api.requests.length = 0
-    const batch = await tool('batch_tasks', { project: 'alpha', ops: [{ op: 'update', ref: 'write-parser', status: 'done', note: 'finished' }] })
+  it('batch_tasks resolves refs and writes them; update_task credits note authors', async () => {
+    const batch = await tool('batch_tasks', { project: 'alpha', ops: [{ op: 'update', ref: 'write-tests', status: 'done', note: 'finished' }] })
     assert.equal(batch.isError, false)
-    assert.equal(batch.json.ok, 1)
-    const batches = api.requests.filter(r => r.path === '/api/tasks/batch')
-    assert.equal(batches.length, 1)
-    assert.deepEqual(batches[0]!.body.ops, [{ op: 'update', project: 'alpha', slug: 'write-parser', status: 'done', note: 'finished', noteAuthor: 'claude' }])
-    await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done', note: 'n' })
-    assert.deepEqual(api.requests.at(-1)!.body, { status: 'done', note: 'n', noteAuthor: 'claude' })
+    assert.deepEqual(batch.json, { ok: 1, failed: 0, results: [{ index: 0, ok: true, id: 'alpha/write-tests', status: 'done' }] })
+    assert.equal(task('write-tests')!.data.status, 'done')
+    assert.match(task('write-tests')!.body, /by claude\n\nfinished$/)
+    await tool('update_task', { project: 'alpha', slug: 'write-tests', note: 'n' })
+    assert.match(task('write-tests')!.body, /by claude\n\nn$/)
   })
 
   it('start_task creates an unknown task directly in-progress', async () => {
-    api.requests.length = 0
-    await tool('start_task', { project: 'alpha', title: 'Brand new thing' })
-    assert.deepEqual(api.requests.filter(r => r.method === 'POST').map(r => r.body), [{ project: 'alpha', title: 'Brand new thing', status: 'in-progress' }])
+    const r = await tool('start_task', { project: 'alpha', title: 'Brand new thing' })
+    assert.deepEqual(r.json, { id: 'alpha/brand-new-thing', slug: 'brand-new-thing', status: 'in-progress', created: true })
+    assert.equal(task('brand-new-thing')!.data.status, 'in-progress')
   })
 
   it('async writes return the id at once and the write follows; create pins the predicted slug', async () => {
-    api.requests.length = 0
-    const upd = await tool('update_task', { project: 'alpha', slug: 'write-parser', status: 'done', async: true })
-    assert.deepEqual(upd.json, { queued: true, id: 'alpha/write-parser' })
+    const upd = await tool('update_task', { project: 'alpha', slug: 'ship-v1', status: 'blocked', async: true })
+    assert.deepEqual(upd.json, { queued: true, id: 'alpha/ship-v1' })
     const created = await tool('create_task', { project: 'alpha', title: 'Write parser', async: true })
     assert.deepEqual(created.json, { queued: true, id: 'alpha/write-parser-2' })
-    const start = await tool('start_task', { project: 'alpha', title: 'write-parser', async: true })
-    assert.deepEqual(start.json, { queued: true, id: 'alpha/write-parser', status: 'in-progress' })
     await new Promise(r => setTimeout(r, 300))
-    assert.deepEqual(api.requests.filter(r => r.method === 'PATCH').map(r => r.body).slice(0, 1), [{ status: 'done' }])
-    assert.equal(api.requests.find(r => r.method === 'POST')!.body.slug, 'write-parser-2')
+    assert.equal(task('ship-v1')!.data.status, 'blocked')
+    assert.equal(task('write-parser-2')!.data.title, 'Write parser')
     const missing = await tool('update_task', { project: 'alpha', slug: 'nope', status: 'done', async: true })
     assert.ok(missing.isError, 'an unknown task fails at once, even when async')
   })

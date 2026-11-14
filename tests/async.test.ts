@@ -1,25 +1,23 @@
 import { strict as assert } from 'node:assert'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
 
 const root = join(scratch.dir, 'content')
 const put = (rel: string, text: string) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text) }
-let api: Awaited<ReturnType<typeof mockApi>>
+const read = (rel: string) => readFileSync(join(root, rel), 'utf8')
 
-before(async () => {
+before(() => {
   put('projects/p/index.md', '---\ntitle: P\n---\n')
   put('projects/p/tasks/one.md', "---\ntitle: One\nstatus: todo\npriority: medium\ncreatedAt: '2026-10-01'\norder: 0\n---\nBody\n")
-  api = await mockApi(req => req.path === '/api/health' ? { body: { ok: true } } : req.path === '/api/tasks/batch' ? { body: { ok: 1, failed: 0, results: [{ index: 0, ok: true, id: 'p/one', status: 'todo' }] } } : req.method === 'POST' && req.path === '/api/tasks' ? { body: { slug: req.body.slug ?? 'x', id: 'p/x', status: req.body.status } } : {})
 })
-after(() => api.close())
 
 const cli = (args: string[], env: Record<string, string> = {}, input?: string) =>
-  runCli(args, { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root, MDPM_BASE_URL: api.url, ...env }, input })
+  runCli(args, { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root, ...env }, input })
 
 async function waitFor(check: () => boolean, ms = 8000) {
   const end = Date.now() + ms
@@ -29,25 +27,22 @@ async function waitFor(check: () => boolean, ms = 8000) {
   }
   return false
 }
-const patches = () => api.requests.filter(r => r.method === 'PATCH')
-
 describe('--async', () => {
   it('prints the resolved id at once and the write lands in the background', async () => {
     const r = await cli(['task', 'done', 'one', '--project', 'p', '--note', 'fin', '--async', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(r.json, { queued: 'p/one' })
-    assert.ok(await waitFor(() => patches().length === 1), 'the detached copy performs the write')
-    assert.deepEqual(patches()[0]!.body.status, 'done')
-    assert.equal(patches()[0]!.body.note, 'fin')
+    assert.ok(await waitFor(() => /status: done/.test(read('projects/p/tasks/one.md'))), 'the detached copy performs the write')
+    assert.match(read('projects/p/tasks/one.md'), /\n\nfin\n?$/)
   })
 
   it('predicts the slug of a create and passes stdin through to a batch', async () => {
     const created = await cli(['task', 'add', 'Brand new work', '--project', 'p', '--async'])
     assert.match(created.stdout, /queued task add: p\/brand-new-work/)
-    const before = api.requests.length
+    assert.ok(await waitFor(() => existsSync(join(root, 'projects/p/tasks/brand-new-work.md'))))
     const batch = await cli(['task', 'batch', '--project', 'p', '--async', '--json'], {}, JSON.stringify([{ op: 'note', ref: 'one', note: 'hi' }]))
     assert.deepEqual(batch.json, { queued: '1 ops' })
-    assert.ok(await waitFor(() => api.requests.slice(before).some(r => r.path === '/api/tasks/batch')))
+    assert.ok(await waitFor(() => /\n\nhi\n?$/.test(read('projects/p/tasks/one.md'))))
   })
 
   it('fails at once on what the files can already tell: unknown ref, unsupported command, bad batch JSON', async () => {
@@ -57,15 +52,23 @@ describe('--async', () => {
   })
 
   it('records a failed background write and mdpm status reports it until acknowledged', async () => {
+    // Another writer holds the task's lock for longer than a writer waits, so the background write gives up.
+    const lock = join(root, 'projects/p/tasks/.one.md.lock')
+    writeFileSync(lock, '0')
     const state = join(scratch.dir, 'state', 'async-failures.jsonl')
-    const r = await cli(['task', 'done', 'one', '--project', 'p', '--async'], { MDPM_BASE_URL: 'http://127.0.0.1:1' })
-    assert.equal(r.code, 0)
-    assert.ok(await waitFor(() => existsSync(state)), 'the failure is written to the state dir')
-    const status = await cli(['status', '--json'], { MDPM_BASE_URL: 'http://127.0.0.1:1' })
+    try {
+      const r = await cli(['task', 'done', 'one', '--project', 'p', '--async'])
+      assert.equal(r.code, 0)
+      assert.ok(await waitFor(() => existsSync(state)), 'the failure is written to the state dir')
+    }
+    finally {
+      rmSync(lock, { force: true })
+    }
+    const status = await cli(['status', '--json'])
     assert.equal(status.json.asyncFailures.length >= 1, true)
     assert.equal(status.json.asyncFailures[0].what, 'task done')
-    assert.match(readFileSync(state, 'utf8'), /unreachable/)
-    await cli(['status', '--ack-async'], { MDPM_BASE_URL: 'http://127.0.0.1:1' })
+    assert.match(readFileSync(state, 'utf8'), /being written by another process/)
+    await cli(['status', '--ack-async'])
     assert.equal(existsSync(state), false)
   })
 })

@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { readFileSync, existsSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import matter from 'gray-matter'
 import { slugify as coreSlugify, uniqueSlug as coreUniqueSlug } from '../../lib/core/slug'
+import { atomicWrite, renderMarkdown } from '../../lib/core/write'
 
 // Same variable the CLI and MCP server honor, so every writer and reader agrees on one root.
 // Unset (the default, and always in production) keeps the checkout's own content/ directory.
@@ -20,10 +21,9 @@ export function readMarkdown(relPath: string) {
   return matter(readFileSync(full, 'utf-8'))
 }
 
+// Content writes go through lib/core/write.ts (see utils/writer.ts); this is left for the seed and authors.
 export function writeMarkdown(relPath: string, frontmatter: Record<string, unknown>, body = '') {
-  const full = contentPath(relPath)
-  mkdirSync(dirname(full), { recursive: true })
-  writeFileSync(full, matter.stringify(body.trim(), frontmatter), 'utf-8')
+  atomicWrite(contentPath(relPath), renderMarkdown(frontmatter, body))
 }
 
 export function deleteContent(relPath: string) {

@@ -1,10 +1,9 @@
-import { existsSync } from 'node:fs'
 import type { ApiClient } from './api'
 import type { CoreConfig } from './config'
 import { AmbiguousError, NotFoundError } from './errors'
-import { appendNoteToBody } from './log'
 import { slugify, uniqueSlug } from './slug'
 import type { Doc, Reader } from './read'
+import type { Writer } from './write'
 
 export type BatchItem =
   | ({ op: 'create'; project?: string; title: string } & Record<string, unknown>)
@@ -17,9 +16,12 @@ export interface BatchResult {
   results: { index: number; ok: boolean; id?: string; status?: string; error?: string }[]
 }
 
-// Higher-level operations shared by the MCP server and the CLI. Reads go
-// through the Reader (files), writes through the ApiClient (HTTP).
-export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
+// Higher-level operations shared by the MCP server and the CLI. Reads go through the Reader, writes through
+// the Writer: both work on the files, so no server is needed. The ApiClient only asks about a running server.
+// Writes return promises so a thrown write error arrives as a rejection, as it did when writes were HTTP.
+export function createOps(config: CoreConfig, reader: Reader, writer: Writer, api: ApiClient) {
+  const write = <T>(fn: () => T): Promise<T> => Promise.resolve().then(fn)
+
   function listProjects(opts: { includeArchived?: boolean } = {}) {
     return reader.getProjects().filter(p => opts.includeArchived || !p.archivedAt)
   }
@@ -84,15 +86,15 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
   }
 
   function updateProject(slug: string, fields: Record<string, unknown>) {
-    return api.patch(`/api/projects/${slug}`, fields)
+    return write(() => writer.updateProject(slug, fields))
   }
 
   function deleteProject(slug: string) {
-    return api.delete(`/api/projects/${slug}`)
+    return write(() => writer.deleteProject(slug))
   }
 
   function archiveProject(slug: string, archived = true) {
-    return api.patch(`/api/projects/${slug}`, { archivedAt: archived ? new Date().toISOString() : null })
+    return updateProject(slug, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
   // Docs are scoped like getDocs: a project, standalone only, or (neither) everything. Archived included.
@@ -105,7 +107,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
   }
 
   function archiveTask(project: string, slug: string, archived = true) {
-    return api.patch(`/api/tasks/${project}/${slug}`, { archivedAt: archived ? new Date().toISOString() : null })
+    return updateTask(project, slug, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
   function getTask(project: string, slug: string) {
@@ -115,17 +117,17 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
   }
 
   function createTask(project: string, fields: Record<string, unknown>) {
-    return api.post('/api/tasks', { project, ...fields })
+    return write(() => writer.createTask({ project, ...fields }))
   }
 
   function updateTask(project: string, slug: string, fields: Record<string, unknown>) {
-    return api.patch(`/api/tasks/${project}/${slug}`, fields)
+    return write(() => writer.updateTask(project, slug, fields))
   }
 
   // ── Batch ─────────────────────────────────────────────────────────────────
 
-  // One request for several task writes. `update`/`note` items name their task by `ref` (slug, fragment, or
-  // project/slug); `create` items by `title`. Refs are resolved here, from the files, so the server only sees ids.
+  // Several task writes in one call. `update`/`note` items name their task by `ref` (slug, fragment, or
+  // project/slug); `create` items by `title`. Refs are resolved here, so the writer only sees ids.
   // A ref that does not resolve fails that item locally; the rest still go through, in order.
   async function batchTasks(defaultProject: string | undefined, items: BatchItem[]): Promise<BatchResult> {
     const sent: { index: number; op: Record<string, unknown> }[] = []
@@ -150,7 +152,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
       }
     })
     if (sent.length) {
-      const res = await api.post('/api/tasks/batch', { ops: sent.map(s => s.op) }) as { results: BatchResult['results'] }
+      const res = await write(() => writer.batchTasks(sent.map(s => s.op)))
       res.results.forEach((r, i) => results.push({ ...r, index: sent[i]!.index }))
     }
     results.sort((a, b) => a.index - b.index)
@@ -185,7 +187,7 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return { id: `${project}/${created.slug}`, slug: created.slug, status: 'in-progress', created: true }
   }
 
-  // The slug a create would get, from the files; the server picks the same unless a writer races us.
+  // The slug a create would get, from the files; the writer picks the same unless another writer races us.
   function predictTaskSlug(project: string, title: string) {
     getProject(project)
     const taken = new Set(listTasks({ project, includeArchived: true }).map(t => t.slug))
@@ -193,17 +195,17 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
   }
 
   function deleteTask(project: string, slug: string) {
-    return api.delete(`/api/tasks/${project}/${slug}`)
+    return write(() => writer.deleteTask(project, slug))
   }
 
+  // Appended under the file's lock, so notes written by several processes at once are all kept.
   function appendTaskNote(project: string, slug: string, note: string, author?: string) {
-    const task = getTask(project, slug)
-    const description = appendNoteToBody(task.body, note, author)
-    return api.patch(`/api/tasks/${project}/${slug}`, { description })
+    getTask(project, slug)
+    return updateTask(project, slug, { note, ...(author && { noteAuthor: author }) })
   }
 
   function createProject(fields: unknown) {
-    return api.post('/api/projects', fields)
+    return write(() => writer.createProject(fields))
   }
 
   // Hides archived docs and any doc under an archived folder (archivedAt lives
@@ -236,37 +238,26 @@ export function createOps(config: CoreConfig, reader: Reader, api: ApiClient) {
     return doc
   }
 
-  // Project docs live under /api/docs/<project>, standalone docs under /api/standalone-docs.
-  const docBase = (project?: string | null) => project ? `/api/docs/${project}` : '/api/standalone-docs'
-
   function deleteDoc(project: string | null | undefined, slug: string) {
-    return api.delete(`${docBase(project)}/${slug}`)
+    return write(() => writer.deleteDoc(project, slug))
   }
 
   function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; parent?: string; slug?: string }) {
     const { project, ...fields } = input
-    return api.post(docBase(project), fields)
+    return write(() => writer.createDoc(project, fields))
   }
 
   function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null }) {
-    return api.patch(`${docBase(doc.project)}/${doc.slug}`, fields)
+    return write(() => writer.updateDoc(doc.project, doc.slug, fields))
   }
 
   function archiveDoc(doc: { project?: string | null; slug: string }, archived = true) {
     return updateDoc(doc, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
-  async function upsertDoc(input: { project?: string; slug?: string; title: string; body: string; tags?: string[]; parent?: string }) {
-    const { project, slug, title, body, tags, parent } = input
-    const [dir, patchPath, postPath] = project
-      ? [['projects', project, 'docs'], `/api/docs/${project}`, `/api/docs/${project}`]
-      : [['docs'], '/api/standalone-docs', '/api/standalone-docs']
-    if (slug && existsSync(reader.contentPath(...dir, `${slug}.md`))) {
-      const result = await api.patch(`${patchPath}/${slug}`, { title, body, tags, parent })
-      result.slug = slug
-      return result
-    }
-    return api.post(postPath, { title, body, tags, parent, slug })
+  function upsertDoc(input: { project?: string; slug?: string; title: string; body: string; tags?: string[]; parent?: string }) {
+    const { project, ...fields } = input
+    return write(() => writer.upsertDoc(project, fields))
   }
 
   return {

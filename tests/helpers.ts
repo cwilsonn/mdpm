@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { createServer as createNetServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import matter from 'gray-matter'
 
 export const REPO = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '')
 export const FIXTURE_CONTENT = join(REPO, 'tests/fixtures/content')
@@ -29,14 +30,53 @@ export function scratchDir() {
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
+// The CLI and MCP write files directly, so they never get the checked-in fixtures: each scratch dir holds its
+// own copy (made on first use). Write tests call resetContent() in beforeEach to start from a clean copy.
+export function scratchContent(scratch: string) {
+  const dir = join(scratch, 'fixture-content')
+  if (!existsSync(dir)) cpSync(FIXTURE_CONTENT, dir, { recursive: true })
+  return dir
+}
+
+export function resetContent(scratch: string) {
+  rmSync(join(scratch, 'fixture-content'), { recursive: true, force: true })
+  return scratchContent(scratch)
+}
+
+// Every file under the scratch content (relative path -> text), to see what a command changed.
+export function snapshotContent(scratch: string) {
+  const root = scratchContent(scratch)
+  const out = new Map<string, string>()
+  for (const rel of readdirSync(root, { recursive: true }) as string[]) {
+    const full = join(root, rel)
+    if (statSync(full).isFile()) out.set(rel.split(sep).join('/'), readFileSync(full, 'utf8'))
+  }
+  return out
+}
+
+// Paths added, removed or changed since a snapshot, sorted.
+export function changedContent(scratch: string, before: Map<string, string>) {
+  const now = snapshotContent(scratch)
+  const paths = new Set([...before.keys(), ...now.keys()])
+  return [...paths].filter(p => before.get(p) !== now.get(p)).sort()
+}
+
+// A content file as written: frontmatter and body (e.g. readContent(dir, 'projects/alpha/tasks/x.md')).
+export function readContent(scratch: string, rel: string) {
+  const full = join(scratchContent(scratch), rel)
+  if (!existsSync(full)) return undefined
+  const file = matter(readFileSync(full, 'utf8'))
+  return { data: file.data as Record<string, any>, body: file.content.trim() }
+}
+
 // Environment that can't see the developer's real setup: no MDPM_* leakage, no config file,
-// fixture content, and state (pid files) in a scratch dir.
+// a scratch copy of the fixture content, and state (pid files) in a scratch dir.
 export function isolatedEnv(scratch: string, extra: Record<string, string | undefined> = {}) {
   const env: Record<string, string | undefined> = { ...process.env }
   for (const key of Object.keys(env)) if (key.startsWith('MDPM_')) delete env[key]
   return {
     ...env,
-    MDPM_CONTENT_PATH: FIXTURE_CONTENT,
+    MDPM_CONTENT_PATH: scratchContent(scratch),
     MDPM_CONFIG: join(scratch, 'no-such-config.json'),
     MDPM_STATE_DIR: join(scratch, 'state'),
     // Unroutable on purpose: a test that forgets to point at a server fails fast with exit 3.

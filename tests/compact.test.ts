@@ -1,9 +1,10 @@
 import { strict as assert } from 'node:assert'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
+import matter from 'gray-matter'
 import { applyCompaction, buildPickup, createCore, digest, planCompaction } from '../lib/core'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -59,38 +60,31 @@ describe('planCompaction', () => {
 })
 
 describe('mdpm notes compact', () => {
-  async function run(args: string[]) {
-    const api = await mockApi(req => req.path === '/api/health' ? { body: { ok: true } } : {})
-    try {
-      const r = await runCli(['notes', 'compact', '--project', 'p', '--json', ...args], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root, MDPM_BASE_URL: api.url } })
-      return { r, requests: api.requests.filter(q => q.path !== '/api/health') }
-    }
-    finally {
-      await api.close()
-    }
-  }
+  const run = (args: string[]) => runCli(['notes', 'compact', '--project', 'p', '--json', ...args], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: root } })
+  const docs = () => readdirSync(join(root, 'projects/p/docs')).sort()
+  const doc = (slug: string) => matter(readFileSync(join(root, 'projects/p/docs', `${slug}.md`), 'utf8'))
 
   it('is a dry run by default and writes nothing', async () => {
-    const { r, requests } = await run([])
+    const before = docs().map(f => readFileSync(join(root, 'projects/p/docs', f), 'utf8'))
+    const r = await run([])
     assert.equal(r.code, 0, r.stderr)
     assert.equal(r.json.dryRun, true)
     assert.equal(r.json.compacted.length, 2)
-    assert.equal(requests.length, 0)
+    assert.deepEqual(docs().map(f => readFileSync(join(root, 'projects/p/docs', f), 'utf8')), before)
   })
 
-  it('--apply writes the rollup first, then archives each original (never deletes)', async () => {
-    const { r, requests } = await run(['--apply'])
+  it('--apply writes the rollup, then archives each original (never deletes)', async () => {
+    const before = docs()
+    const r = await run(['--apply'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(r.json.archived.map((s: string) => s.slice(0, 10)), ['2026-09-02', '2026-09-01'])
-    assert.equal(requests[0]!.path, '/api/docs/p/notes-rollup')
-    assert.equal(requests[0]!.method, 'PATCH')
-    assert.deepEqual(requests.slice(1).map(q => q.method), ['PATCH', 'PATCH'])
-    assert.ok(requests.slice(1).every(q => typeof q.body.archivedAt === 'string'))
-    assert.ok(requests.every(q => q.method !== 'DELETE'))
+    assert.match(doc('notes-rollup').content, /Shipped feature 01/)
+    for (const slug of r.json.archived) assert.equal(typeof doc(slug).data.archivedAt, 'string')
+    assert.ok(before.every(f => docs().includes(f)), 'nothing was deleted')
   })
 
   it('rejects a bad --keep', async () => {
-    assert.equal((await run(['--keep', '0'])).r.code, 2)
+    assert.equal((await run(['--keep', '0'])).code, 2)
   })
 })
 

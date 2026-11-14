@@ -2,11 +2,13 @@ import { createApi, type ApiHooks } from './api'
 import { resolveConfig, type CoreConfig } from './config'
 import { createOps } from './ops'
 import { createReader } from './read'
+import { createWriter } from './write'
 
 export function createCore(config: CoreConfig = resolveConfig(), hooks: ApiHooks = {}) {
   const reader = createReader(config)
+  const writer = createWriter(config.contentPath)
   const api = createApi(config, hooks)
-  return createOps(config, reader, api)
+  return createOps(config, reader, writer, api)
 }
 
 export { configFilePath, loadConfig, REPO_ROOT, resolveConfig } from './config'
@@ -16,7 +18,9 @@ export type { InferredProject } from './project'
 export { createLifecycle, LifecycleError } from './lifecycle'
 export type { Lifecycle, ServerStatus } from './lifecycle'
 export type { CoreConfig } from './config'
-export { AmbiguousError, ConfigError, ContentRootMismatchError, NotFoundError, ServerUnreachableError } from './errors'
+export { AmbiguousError, ConfigError, ContentRootMismatchError, LimitError, NotFoundError, ServerUnreachableError, ValidationError, WriteBusyError } from './errors'
+export { createWriter } from './write'
+export type { Writer } from './write'
 export type { BatchItem, BatchResult, Ops } from './ops'
 export { TASK_PRIORITIES, TASK_STATUSES } from './schema'
 export { buildPickup } from './pickup'

@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, describe, it } from 'node:test'
-import { FAKE_SERVER, FIXTURE_CONTENT, freePort, runCli, scratchDir } from './helpers'
+import { FAKE_SERVER, freePort, runCli, scratchContent, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -98,7 +98,7 @@ describe('content root handoff', () => {
     await cli(['start'])
     const r = await cli(['ping', '--json'])
     assert.equal(r.json.serverUp, true)
-    assert.equal(r.json.serverContentPath, FIXTURE_CONTENT)
+    assert.equal(r.json.serverContentPath, scratchContent(scratch.dir))
     assert.equal(r.json.contentMismatch, false)
   })
 
@@ -113,7 +113,7 @@ describe('content root handoff', () => {
     assert.equal(r.json.contentMismatch, false)
   })
 
-  it('a server on a different root is flagged by ping and blocks writes', async () => {
+  it('a server on a different root is flagged by ping; writes go to the CLI\'s own files regardless', async () => {
     const { cli } = await setup()
     cleanupStop = () => cli(['stop'])
     const other = join(scratch.dir, 'elsewhere')
@@ -122,8 +122,7 @@ describe('content root handoff', () => {
     const ping = await cli(['ping', '--json'])
     assert.equal(ping.json.contentMismatch, true)
     const write = await cli(['task', 'done', 'parser', '--project', 'alpha'])
-    assert.equal(write.code, 1)
-    assert.match(write.stderr, /uses content directory/)
+    assert.equal(write.code, 0, write.stderr)
   })
 })
 
@@ -157,53 +156,15 @@ describe('host handoff', () => {
   })
 })
 
-describe('auto-start', () => {
+describe('writes without a server', () => {
   const writeArgs = ['task', 'done', 'parser', '--project', 'alpha']
 
-  it('without the flag, a down server is exit 3 and nothing is started', async () => {
+  it('a write with the server down succeeds and starts nothing, --auto-start or not', async () => {
     const { cli } = await setup()
-    assert.equal((await cli(writeArgs)).code, 3)
-    assert.equal((await cli(['status'])).code, 3)
-  })
-
-  it('starts the server, writes, then stops it again', async () => {
-    const { cli } = await setup()
+    assert.equal((await cli(writeArgs)).code, 0)
     const r = await cli([...writeArgs, '--auto-start'])
     assert.equal(r.code, 0, r.stderr)
-    assert.match(r.stderr, /starting it/)
-    assert.match(r.stderr, /stopped the server this command started/)
-    assert.equal((await cli(['status'])).code, 3)
-  })
-
-  it('--keep-running leaves the server up', async () => {
-    const { cli } = await setup()
-    cleanupStop = () => cli(['stop'])
-    assert.equal((await cli([...writeArgs, '--auto-start', '--keep-running'])).code, 0)
-    assert.equal((await cli(['status'])).code, 0)
-  })
-
-  it('never stops a server that was already running', async () => {
-    const { cli } = await setup()
-    cleanupStop = () => cli(['stop'])
-    await cli(['start'])
-    const r = await cli([...writeArgs, '--auto-start'])
-    assert.equal(r.code, 0)
-    assert.doesNotMatch(r.stderr, /stopped the server/)
-    assert.equal((await cli(['status'])).code, 0)
-  })
-
-  it('MDPM_AUTO_START turns it on, --no-auto-start turns it off', async () => {
-    const { cli } = await setup()
-    assert.equal((await cli(writeArgs, { MDPM_AUTO_START: '1' })).code, 0)
-    assert.equal((await cli([...writeArgs, '--no-auto-start'], { MDPM_AUTO_START: '1' })).code, 3)
-  })
-
-  it('stops the server it started even when the write then fails', async () => {
-    const { cli } = await setup()
-    const r = await cli([...writeArgs, '--auto-start'], { FAKE_SERVER_STATUS: '400' })
-    assert.equal(r.code, 1)
-    assert.match(r.stderr, /forced failure/)
-    assert.match(r.stderr, /stopped the server this command started/)
+    assert.doesNotMatch(r.stderr, /starting it/)
     assert.equal((await cli(['status'])).code, 3)
   })
 })

@@ -1,7 +1,9 @@
 import { strict as assert } from 'node:assert'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { after, beforeEach, describe, it } from 'node:test'
 import { matches, parseWhere, WhereError, type Clause } from '../lib/core'
-import { mockApi, runCli, scratchDir } from './helpers'
+import { changedContent, readContent, resetContent, runCli, scratchContent, scratchDir, snapshotContent } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -58,15 +60,15 @@ describe('--where selectors', () => {
 })
 
 describe('bulk task commands', () => {
-  let api: Awaited<ReturnType<typeof mockApi>>
-  let failPath: string | undefined
-  before(async () => { api = await mockApi(req => failPath && req.path.includes(failPath) ? { status: 500, body: { message: 'boom' } } : {}) })
-  after(() => api.close())
-  beforeEach(() => { api.requests.length = 0; failPath = undefined })
+  let before: Map<string, string>
+  const mark = () => { before = snapshotContent(scratch.dir) }
+  beforeEach(() => { resetContent(scratch.dir); mark() })
 
-  const cli = (args: string[]) => runCli(['task', ...args], { scratch: scratch.dir, env: { MDPM_BASE_URL: api.url } })
-  const writes = () => api.requests.filter(r => r.method !== 'GET' && r.path !== '/api/health')
-  const paths = () => writes().map(w => w.path.split('/').pop()).sort()
+  const cli = (args: string[]) => runCli(['task', ...args], { scratch: scratch.dir })
+  // Task files the command changed, as project/slug.
+  const written = () => changedContent(scratch.dir, before).map(p => p.replace(/^projects\/([^/]+)\/tasks\/(.+)\.md$/, '$1/$2'))
+  const paths = () => written().map(p => p.split('/').pop()).sort()
+  const task = (slug: string) => readContent(scratch.dir, `projects/alpha/tasks/${slug}.md`)
   const A = ['--project', 'alpha']
 
   it('list --where narrows the usual filters', async () => {
@@ -78,7 +80,7 @@ describe('bulk task commands', () => {
     const r = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--dry-run', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual([r.json.dryRun, r.json.matched, r.json.tasks.sort()], [true, 3, ['alpha/shared-task', 'alpha/write-docs', 'alpha/write-tests']])
-    assert.equal(writes().length, 0)
+    assert.deepEqual(written(), [])
     const text = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--dry-run'])
     assert.match(text.stdout, /would be updated \(dry run: nothing changed\)/)
   })
@@ -87,57 +89,68 @@ describe('bulk task commands', () => {
     const r = await cli(['set', ...A, '--where', 'status=todo|blocked', '--priority', 'high', '--yes', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(paths(), ['fix-login-bug', 'shared-task', 'write-docs', 'write-tests'])
-    assert.ok(writes().every(w => w.method === 'PATCH' && JSON.stringify(w.body) === '{"priority":"high"}'))
+    assert.ok(paths().every(s => task(s!)!.data.priority === 'high'))
     assert.deepEqual([r.json.matched, r.json.succeeded, r.json.failed], [4, 4, 0])
   })
 
-  it('refuses to run without --yes when there is no terminal, and sends nothing', async () => {
+  it('refuses to run without --yes when there is no terminal, and writes nothing', async () => {
     const r = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low'])
     assert.equal(r.code, 2)
     assert.match(r.stderr, /--yes/)
-    assert.equal(writes().length, 0)
+    assert.deepEqual(written(), [])
   })
 
   it('done, archive, unarchive, and delete accept --where', async () => {
     await cli(['done', ...A, '--where', 'tag=docs', '--yes'])
-    assert.deepEqual(writes().map(w => [w.path, w.body]), [['/api/tasks/alpha/write-docs', { status: 'done' }]])
-    api.requests.length = 0
+    assert.deepEqual(written(), ['alpha/write-docs'])
+    assert.equal(task('write-docs')!.data.status, 'done')
+    mark()
 
     await cli(['archive', ...A, '--where', 'priority=low', '--yes'])
     assert.deepEqual(paths(), ['write-docs'], 'archived tasks are not matched by default')
-    api.requests.length = 0
+    mark()
 
     await cli(['unarchive', ...A, '--where', 'slug~old', '--include-archived', '--yes'])
-    assert.deepEqual(writes().map(w => [w.path, w.body]), [['/api/tasks/alpha/old-idea', { archivedAt: null }]])
-    api.requests.length = 0
+    assert.deepEqual(written(), ['alpha/old-idea'])
+    assert.equal(task('old-idea')!.data.archivedAt, undefined)
+    mark()
 
     await cli(['delete', ...A, '--where', 'status=done', '--yes'])
-    assert.deepEqual(writes().map(w => [w.method, w.path]), [['DELETE', '/api/tasks/alpha/ship-v1']])
+    assert.deepEqual(written(), ['alpha/ship-v1'])
+    assert.equal(task('ship-v1'), undefined)
   })
 
   it('--all spans projects', async () => {
     await cli(['set', '--all', '--where', 'slug=shared-task', '--priority', 'low', '--yes'])
-    assert.deepEqual(writes().map(w => w.path).sort(), ['/api/tasks/alpha/shared-task', '/api/tasks/beta/shared-task'])
+    assert.deepEqual(written(), ['alpha/shared-task', 'beta/shared-task'])
   })
 
-  it('reports no matches without error and sends nothing', async () => {
+  it('reports no matches without error and writes nothing', async () => {
     const r = await cli(['archive', ...A, '--where', 'status=on-hold', '--yes'])
     assert.equal(r.code, 0)
     assert.match(r.stdout, /no tasks match/)
-    assert.equal(writes().length, 0)
+    assert.deepEqual(written(), [])
   })
 
   it('keeps going after a failure, reports it, and exits 1', async () => {
-    failPath = 'write-docs'
-    const r = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--yes', '--json'])
-    assert.equal(r.code, 1)
-    assert.deepEqual([r.json.matched, r.json.succeeded, r.json.failed], [3, 2, 1])
-    assert.deepEqual(r.json.results.filter((x: any) => !x.ok).map((x: any) => [x.task, x.error]), [['alpha/write-docs', 'boom']])
-    assert.equal(writes().length, 3, 'every match was attempted')
-    failPath = 'write-docs'
-    const text = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--yes'])
-    assert.match(text.stdout, /updated 2 of 3 tasks/)
-    assert.match(text.stdout, /✗ alpha\/write-docs: boom/)
+    // Another writer holds write-docs (a fresh lockfile), so that one write gives up as busy.
+    const lock = join(scratchContent(scratch.dir), 'projects/alpha/tasks/.write-docs.md.lock')
+    writeFileSync(lock, '0')
+    mark()
+    try {
+      const r = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--yes', '--json'])
+      assert.equal(r.code, 1)
+      assert.deepEqual([r.json.matched, r.json.succeeded, r.json.failed], [3, 2, 1])
+      assert.deepEqual(r.json.results.filter((x: any) => !x.ok).map((x: any) => x.task), ['alpha/write-docs'])
+      assert.match(r.json.results.find((x: any) => !x.ok).error, /being written by another process/)
+      assert.deepEqual(written(), ['alpha/shared-task', 'alpha/write-tests'], 'every other match was written')
+      const text = await cli(['set', ...A, '--where', 'status=todo', '--priority', 'low', '--yes'])
+      assert.match(text.stdout, /updated 2 of 3 tasks/)
+      assert.match(text.stdout, /✗ alpha\/write-docs: /)
+    }
+    finally {
+      rmSync(lock, { force: true })
+    }
   })
 
   it('validates the selection before doing anything', async () => {
@@ -151,11 +164,11 @@ describe('bulk task commands', () => {
       ['set', ...A, '--where', 'status=todo', '--yes'],
     ]
     for (const args of cases) assert.equal((await cli(args)).code, 2, args.join(' '))
-    assert.equal(writes().length, 0)
+    assert.deepEqual(written(), [])
   })
 
   it('single-task usage is unchanged', async () => {
     assert.equal((await cli(['done', 'write-docs', ...A])).code, 0)
-    assert.deepEqual(writes().map(w => w.path), ['/api/tasks/alpha/write-docs'])
+    assert.deepEqual(written(), ['alpha/write-docs'])
   })
 })
