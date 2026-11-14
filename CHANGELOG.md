@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.17.0...mdpm-v0.17.1) (2026-11-14)
+
+
+### Performance
+
+* **ui:** stop loading every task and doc on every page ([541316d](https://github.com/cwilsonn/mdpm/commit/541316d56caf88b91b8aa904e73be594c55f4694))
+
 ## [0.17.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.16.0...mdpm-v0.17.0) (2026-11-14)
 
 
