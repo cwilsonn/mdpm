@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.19.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.18.0...mdpm-v0.19.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** exit code 3 is gone (`mdpm status` exits 1 when the server is down); --async no longer queues the write, it runs inline; MCP write tools no longer return { queued: true }.
+
+### Bug Fixes
+
+* **ui:** pre-bundle mdc parser deps so task bodies render after navigation ([b6b2ea9](https://github.com/cwilsonn/mdpm/commit/b6b2ea98e21633681cc51889ac80e80d9f01f568))
+
+
+### Refactoring
+
+* **cli:** drop server lifecycle coupling now that writes go to files ([7bafe0f](https://github.com/cwilsonn/mdpm/commit/7bafe0f7fc9da4a2ddb4b6dd0260314627cea851))
+
 ## [0.18.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.17.1...mdpm-v0.18.0) (2026-11-14)
 
 
