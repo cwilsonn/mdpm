@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { appendNoteToBody } from '../../lib/core/log'
 import { projectRepoOf } from '../../lib/core/links-compat'
+import { isDemo } from './demo'
 import { applyLinkWrite } from './links-write'
 import { assertSafeSlug, contentPath, readMarkdown, slugify, uniqueSlug, writeMarkdown } from './content'
 
@@ -62,7 +63,7 @@ export function createTaskFile(body: TaskCreateInput) {
 
   const tasksDir = contentPath('projects', body.project, 'tasks')
   const taskCount = existsSync(tasksDir) ? readdirSync(tasksDir).filter(f => f.endsWith('.md')).length : 0
-  if (process.env.NODE_ENV === 'production' && taskCount >= TASK_LIMIT_PER_PROJECT) {
+  if (isDemo() && taskCount >= TASK_LIMIT_PER_PROJECT) {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${TASK_LIMIT_PER_PROJECT} tasks per project.` })
   }
 

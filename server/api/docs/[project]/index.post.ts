@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const docCount = existsSync(docsDir)
     ? readdirSync(docsDir).filter(f => f.endsWith('.md')).length
     : 0
-  if (process.env.NODE_ENV === 'production' && docCount >= DOC_LIMIT_PER_PROJECT) {
+  if (isDemo() && docCount >= DOC_LIMIT_PER_PROJECT) {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${DOC_LIMIT_PER_PROJECT} docs per project.` })
   }
 

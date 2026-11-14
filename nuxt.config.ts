@@ -32,11 +32,11 @@ export default defineNuxtConfig({
     experimental: {
       tasks: true,
     },
-    ...(process.env.NODE_ENV === 'production' && {
-      scheduledTasks: {
-        '0 * * * *': ['reset'],
-      },
-    }),
+    // Always registered: whether the hourly reset does anything is decided at runtime by MDPM_DEMO
+    // (server/utils/demo.ts). A build-time condition here is what baked the reset into local builds.
+    scheduledTasks: {
+      '0 * * * *': ['reset'],
+    },
   },
   vite: {
     server: {

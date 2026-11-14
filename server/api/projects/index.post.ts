@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   const projectCount = existsSync(projectsDir)
     ? readdirSync(projectsDir, { withFileTypes: true }).filter(e => e.isDirectory()).length
     : 0
-  if (process.env.NODE_ENV === 'production' && projectCount >= PROJECT_LIMIT) {
+  if (isDemo() && projectCount >= PROJECT_LIMIT) {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${PROJECT_LIMIT} projects allowed.` })
   }
 

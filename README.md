@@ -81,7 +81,7 @@ mdpm start       # background dev server; the first start can take ~30s
 mdpm status
 ```
 
-Open <http://mdpm.local:3333>. A fresh install has no projects (the app seeds demo data only in production). Create one:
+Open <http://mdpm.local:3333>. A fresh install has no projects (demo data is seeded only with `MDPM_DEMO=1`, which the public sandbox sets). Create one:
 
 ```bash
 mdpm project create "My Project" --description "What this is"
@@ -257,4 +257,4 @@ restartPolicyType = "on_failure"
 ```
 
 Required env vars on Railway:
-- `NODE_ENV=production` — enables hourly demo reset + auto-seed on empty volume
+- `MDPM_DEMO=1` — demo mode: wipes and re-seeds content at boot and hourly, caps how much visitors can create, and hides the content path from `/api/health`. Nothing else turns this on: a local `pnpm build && pnpm start` keeps your data.
