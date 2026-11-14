@@ -7,7 +7,7 @@ import { CliError, ExitCode } from '../output'
 const FORMATS = ['json', 'csv', 'markdown'] as const
 
 export default defineCommand({
-  meta: { name: 'export', description: 'Export projects, tasks, and docs as JSON (re-importable), CSV (tasks), or markdown. Reads files; no server needed' },
+  meta: { name: 'export', description: 'Export projects, tasks, and docs as JSON (full fidelity), CSV (tasks), or markdown. Reads files; no server needed' },
   args: {
     ...globalArgs,
     project: { type: 'string', description: 'Export just this project (default: the current repo\'s project, else everything)' },

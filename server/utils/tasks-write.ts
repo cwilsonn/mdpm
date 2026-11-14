@@ -35,7 +35,7 @@ export function createTaskFile(body: TaskCreateInput) {
     throw createError({ statusCode: 429, message: `Demo limit reached: max ${TASK_LIMIT_PER_PROJECT} tasks per project.` })
   }
 
-  // An explicit slug (used by import to keep slugs stable) still goes through uniqueSlug, so it can't overwrite a task.
+  // An explicit slug (async creates pass the slug they predicted) still goes through uniqueSlug, so it can't overwrite a task.
   if (body.slug) assertSafeSlug(body.slug)
   const base = body.slug || slugify(body.title)
   if (!base) throw createError({ statusCode: 400, message: 'Title produces an empty slug' })

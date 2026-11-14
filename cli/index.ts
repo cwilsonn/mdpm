@@ -25,12 +25,8 @@ export const root = defineCommand({
     notes: () => import('./commands/notes/index').then(m => m.default),
     usage: () => import('./commands/usage').then(m => m.default),
     log: () => import('./commands/log').then(m => m.default),
-    completions: () => import('./commands/completions').then(m => m.default),
     export: () => import('./commands/export').then(m => m.default),
-    import: () => import('./commands/import').then(m => m.default),
     migrate: () => import('./commands/migrate').then(m => m.default),
-    watch: () => import('./commands/watch').then(m => m.default),
-    tui: () => import('./commands/tui').then(m => m.default),
     task: () => import('./commands/task/index').then(m => m.default),
     start: () => import('./commands/start').then(m => m.default),
     stop: () => import('./commands/stop').then(m => m.default),
@@ -60,18 +56,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
     if (err.code === 'EPIPE') process.exit(0)
     throw err
   })
-  // Hidden hook for the shell completion scripts: it must see flags like --help as plain words, so it
-  // bypasses citty's parsing, and it must never fail or print errors into the user's prompt.
-  if (rawArgs[0] === '__complete') {
-    try {
-      const { complete, renderCandidates } = await import('./completion')
-      const words = rawArgs.slice(rawArgs[1] === '--' ? 2 : 1)
-      const out = renderCandidates(await complete(root, words.length ? words : ['']))
-      if (out) console.log(out)
-    }
-    catch {}
-    return
-  }
   // Response-size log: count what this command writes to stdout (what an agent would read back).
   let stdoutChars = 0
   const realWrite = process.stdout.write.bind(process.stdout)
