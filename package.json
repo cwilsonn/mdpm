@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.14.1",
   "type": "module",
-  "packageManager": "pnpm@11.22.0",
+  "packageManager": "pnpm@12.18.0",
   "bin": {
     "mdpm": "./bin/mdpm.mjs"
   },
