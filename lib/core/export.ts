@@ -3,11 +3,12 @@ import { viewLink } from './links'
 import type { Ops } from './ops'
 import { builtinRegistry } from './providers/registry'
 
-// Export tasks and docs to JSON (full fidelity, re-importable), CSV (tasks, for spreadsheets), or markdown
-// (human-readable). Everything is read from the files, so no server is needed.
+// Export tasks and docs to JSON (full fidelity), CSV (tasks, for spreadsheets), or markdown
+// (human-readable). Everything is read from the files, so no server is needed. There is no importer:
+// export is the way data leaves mdpm (backups, other tools).
 //
 // Format version 2 carries `links` (the effective list, so content that still uses the legacy GitHub
-// fields exports the same way). Version 1 files (githubRepo/githubIssues/githubPRs) are still importable.
+// fields exports the same way).
 
 export const EXPORT_FORMAT = 'mdpm-export'
 export const EXPORT_FORMAT_VERSION = 2
