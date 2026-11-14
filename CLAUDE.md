@@ -44,6 +44,8 @@ Collections defined in `content.config.ts`: `projects`, `tasks`, `docs`.
 
 ## API Routes
 
+**Request guard.** `server/middleware/request-guard.ts` (rules in `server/utils/request-guard.ts`) runs before every route and page: the `Host` must be loopback, `mdpm.local`, the `MDPM_BASE_URL`/`MDPM_HOST` host, or listed in `MDPM_ALLOWED_HOSTS` (blocks DNS rebinding); mutations from a foreign `Origin` are refused; API POSTs must be `application/json` (blocks cross-site simple requests, which h3's `readBody` would otherwise parse). Write bodies are validated with the zod schemas in `lib/core/write-schemas.ts` via `readValidatedBody(event, validator(Schema))`: unknown keys are refused (they used to be stored as frontmatter), statuses and priorities must be known, and tasks accept `body` as an alias for `description`. Every path segment from a param, query or body goes through `assertSafeSlug`.
+
 ### Tasks
 - `GET /api/tasks` — all tasks (filter: `?project=`, `?status=`, `?priority=`, `?tags=`)
 - `POST /api/tasks` — create task
