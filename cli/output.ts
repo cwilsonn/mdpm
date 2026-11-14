@@ -1,11 +1,11 @@
-import { AmbiguousError, NotFoundError, ServerUnreachableError, WhereError } from '../lib/core'
+import { AmbiguousError, NotFoundError, WhereError } from '../lib/core'
 
 // Stable contract, documented in plan-cli-v1. Scripts and agents rely on these.
 export const ExitCode = {
   ok: 0,
   error: 1,
   usage: 2,
-  unreachable: 3,
+  // 3 was "server unreachable" until writes stopped needing the server; left unused so 4 keeps its meaning.
   notFound: 4,
 } as const
 
@@ -21,7 +21,6 @@ export function exitCodeFor(err: unknown): ExitCode {
   if (err instanceof CliError) return err.exitCode
   if (err instanceof NotFoundError) return ExitCode.notFound
   if (err instanceof AmbiguousError || err instanceof WhereError) return ExitCode.usage
-  if (err instanceof ServerUnreachableError) return ExitCode.unreachable
   // citty's usage errors (unknown command, missing arg) aren't exported, so match by name.
   if ((err as Error)?.name === 'CLIError') return ExitCode.usage
   return ExitCode.error
@@ -52,10 +51,7 @@ export function reportError(err: unknown, json: boolean, style: Style) {
   const message = err instanceof Error ? err.message : String(err)
   const exitCode = exitCodeFor(err)
   if (json) console.error(JSON.stringify({ error: { code: exitCode, name: (err as Error)?.name ?? 'Error', message } }))
-  else {
-    console.error(`${style.red('error:')} ${message}`)
-    if (exitCode === ExitCode.unreachable) console.error(`${style.dim('hint:')} start it with \`mdpm start\`, or pass --auto-start`)
-  }
+  else console.error(`${style.red('error:')} ${message}`)
   return exitCode
 }
 

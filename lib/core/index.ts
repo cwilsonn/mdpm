@@ -1,13 +1,13 @@
-import { createApi, type ApiHooks } from './api'
+import { createApi } from './api'
 import { resolveConfig, type CoreConfig } from './config'
 import { createOps } from './ops'
 import { createReader } from './read'
 import { createWriter } from './write'
 
-export function createCore(config: CoreConfig = resolveConfig(), hooks: ApiHooks = {}) {
+export function createCore(config: CoreConfig = resolveConfig()) {
   const reader = createReader(config)
   const writer = createWriter(config.contentPath)
-  const api = createApi(config, hooks)
+  const api = createApi(config)
   return createOps(config, reader, writer, api)
 }
 
@@ -18,7 +18,7 @@ export type { InferredProject } from './project'
 export { createLifecycle, LifecycleError } from './lifecycle'
 export type { Lifecycle, ServerStatus } from './lifecycle'
 export type { CoreConfig } from './config'
-export { AmbiguousError, ConfigError, ContentRootMismatchError, LimitError, NotFoundError, ServerUnreachableError, ValidationError, WriteBusyError } from './errors'
+export { AmbiguousError, ConfigError, LimitError, NotFoundError, ValidationError, WriteBusyError } from './errors'
 export { createWriter } from './write'
 export type { Writer } from './write'
 export type { BatchItem, BatchResult, Ops } from './ops'
@@ -34,8 +34,6 @@ export { buildSessionContext, checkWork, hookCommand, hooksStatus, installHooks,
 export type { WorkCheck } from './hooks'
 export { applyCompaction, DEFAULT_KEEP, digest, planCompaction, ROLLUP_SLUG } from './compact'
 export type { CompactionPlan } from './compact'
-export { asyncFailuresPath, clearAsyncFailures, readAsyncFailures, recordAsyncFailure } from './async'
-export type { AsyncFailure } from './async'
 export { approxTokens, commandName, readUsage, recordUsage, summarizeUsage, usageLogPath } from './usage'
 export type { UsageEntry, UsageRow } from './usage'
 export { appendNoteToBody, buildLog, parseNotes, parseSince, resolveAuthor, splitNotes } from './log'

@@ -100,7 +100,7 @@ Global skills. Source of truth is `skills/` in this repo; `~/.claude/commands/<n
 <!-- mdpm:work-logging:start -->
 ## Work logging (mdpm)
 
-This repo is tracked in mdpm as project `mdpm`. Log work there so there is an audit trail of what was done and why, but cheaply: every call costs tokens, so touch a task when a unit of work starts and when it ends, not in between. Use the `mdpm` CLI (add `--project mdpm` if it isn't detected from the repo; writes need the server, so add `--auto-start` if it may be down).
+This repo is tracked in mdpm as project `mdpm`. Log work there so there is an audit trail of what was done and why, but cheaply: every call costs tokens, so touch a task when a unit of work starts and when it ends, not in between. Use the `mdpm` CLI (add `--project mdpm` if it isn't detected from the repo; no server needed).
 
 1. **Before starting a unit of work, find or create its task, in one call.** `mdpm task start "<title>" --priority <low|medium|high|urgent> --description "<scope and why>"` resumes the open task with exactly that title or slug, or creates it, and marks it in-progress. To look around first: `mdpm task search "<keywords>"` or `mdpm task list`.
 2. **While working, leave the task alone.** No per-step notes or status updates. The one exception is a real stop: `mdpm task set <ref> --status blocked --note "<why>"`.

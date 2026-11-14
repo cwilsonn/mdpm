@@ -19,10 +19,10 @@ let cleanupStop: (() => Promise<unknown>) | undefined
 afterEach(async () => { await cleanupStop?.(); cleanupStop = undefined })
 
 describe('lifecycle', () => {
-  it('status reports down with exit 3', async () => {
+  it('status reports down with exit 1', async () => {
     const { cli } = await setup()
     const r = await cli(['status', '--json'])
-    assert.equal(r.code, 3)
+    assert.equal(r.code, 1)
     assert.deepEqual([r.json.state, r.json.running], ['stopped', false])
   })
 
@@ -52,7 +52,7 @@ describe('lifecycle', () => {
 
     const stopped = await cli(['stop', '--json'])
     assert.equal(stopped.json.action, 'stopped')
-    assert.equal((await cli(['status'])).code, 3)
+    assert.equal((await cli(['status'])).code, 1)
   })
 
   it('restart brings up a new process', async () => {
@@ -152,19 +152,22 @@ describe('host handoff', () => {
     assert.match(r.stderr, /cannot resolve "no-such-host\.invalid"/)
     assert.match(r.stderr, /hosts file/)
     assert.match(r.stderr, /http:\/\/localhost:3333/)
-    assert.equal((await cli(['status'], env)).code, 3, 'nothing was started')
+    assert.equal((await cli(['status'], env)).code, 1, 'nothing was started')
   })
 })
 
 describe('writes without a server', () => {
   const writeArgs = ['task', 'done', 'parser', '--project', 'alpha']
 
-  it('a write with the server down succeeds and starts nothing, --auto-start or not', async () => {
+  // The removed lifecycle flags still appear in CLAUDE.md blocks of other repos; they must stay harmless.
+  it('a write with the server down succeeds and starts nothing, even with the removed lifecycle flags', async () => {
     const { cli } = await setup()
     assert.equal((await cli(writeArgs)).code, 0)
-    const r = await cli([...writeArgs, '--auto-start'])
-    assert.equal(r.code, 0, r.stderr)
-    assert.doesNotMatch(r.stderr, /starting it/)
-    assert.equal((await cli(['status'])).code, 3)
+    for (const flag of ['--auto-start', '--no-auto-start', '--keep-running', '--async']) {
+      const r = await cli([...writeArgs, flag])
+      assert.equal(r.code, 0, `${flag}: ${r.stderr}`)
+      assert.doesNotMatch(r.stdout + r.stderr, /starting it|queued/)
+    }
+    assert.equal((await cli(['status'])).code, 1)
   })
 })

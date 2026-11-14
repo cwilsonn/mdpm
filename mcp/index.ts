@@ -6,16 +6,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { buildPickup, createCore, createLifecycle, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordAsyncFailure, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
 import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
 
 const loaded = loadConfig()
-// Opt-in (MDPM_AUTO_START=1 or `autoStart` in the config file): a write that finds the server down
-// starts it and retries. Unlike the CLI, this long-lived process never stops it again.
-const lifecycle = createLifecycle(loaded.config)
 
 // Shared by every list/search tool: small pages, chosen fields, compact output.
 const LIST_PROPS = {
@@ -37,15 +34,7 @@ function listResult(rows: Record<string, unknown>[], args: ListArgs, allowed: re
   return `${head}\n${toTsv(page.items, fields)}`
 }
 
-// Fire-and-forget: the tool returns the id at once and the write completes in the background. A failure has
-// nobody to tell, so it is recorded (ping and `mdpm status` report it). The change may not be readable yet.
-const ASYNC_PROP = { type: 'boolean', description: 'Return the id immediately and do the write in the background. Failures are recorded and shown by ping / mdpm status; the change may not be visible to an immediate read.' } as const
-
-function inBackground(what: string, work: Promise<unknown>) {
-  work.catch(err => recordAsyncFailure({ source: 'mcp', what, error: err instanceof Error ? err.message : String(err) }))
-}
-
-const core = createCore(loaded.config, loaded.autoStart.value ? { onUnreachable: async () => { await lifecycle.start() } } : {})
+const core = createCore(loaded.config)
 
 // ─── Server ──────────────────────────────────────────────────────────────────
 
@@ -126,7 +115,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          async: ASYNC_PROP,
           project: { type: 'string' },
           title: { type: 'string' },
           status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
@@ -147,7 +135,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          async: ASYNC_PROP,
           project: { type: 'string' },
           slug: { type: 'string' },
           title: { type: 'string' },
@@ -170,7 +157,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          async: ASYNC_PROP,
           project: { type: 'string', description: 'Default project for items that do not name one.' },
           ops: {
             type: 'array',
@@ -203,7 +189,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          async: ASYNC_PROP,
           project: { type: 'string' },
           title: { type: 'string', description: 'Task title, or the exact slug of an existing task.' },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
@@ -271,7 +256,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 const withNoteAuthor = (fields: Record<string, unknown>) =>
   typeof fields.note === 'string' && fields.note.trim() && !fields.noteAuthor ? { ...fields, noteAuthor: process.env.MDPM_AUTHOR || 'claude' } : fields
 
-async function callTool(name: string, args: Record<string, unknown>) {
+async function callTool(name: string, rawArgs: Record<string, unknown>) {
+  // `async` (fire-and-forget) was removed once writes stopped needing the server; a client still sending it gets a
+  // normal write instead of a refused unknown field.
+  const { async: _removed, ...args } = rawArgs
   // Compact by default: indentation is pure token cost. A string (the tsv list form) is sent as is.
   const text = (value: string | object) => ({
     content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value) }],
@@ -305,44 +293,25 @@ async function callTool(name: string, args: Record<string, unknown>) {
       }
 
       case 'create_task': {
-        const { project, async: later, ...rest } = args as { project: string; async?: boolean; [k: string]: unknown }
-        if (later) {
-          const slug = (rest.slug as string | undefined) ?? core.predictTaskSlug(project, String(rest.title))
-          inBackground('create_task', core.createTask(project, withNoteAuthor({ ...rest, slug })))
-          return json({ queued: true, id: `${project}/${slug}` })
-        }
+        const { project, ...rest } = args as { project: string; [k: string]: unknown }
         return json(await core.createTask(project, withNoteAuthor(rest)))
       }
 
       case 'update_task': {
-        const { project, slug, async: later, archived, ...fields } = args as { project: string; slug: string; async?: boolean; archived?: boolean; [k: string]: unknown }
+        const { project, slug, archived, ...fields } = args as { project: string; slug: string; archived?: boolean; [k: string]: unknown }
         const rest = archived === undefined ? fields : { ...fields, archivedAt: archived ? new Date().toISOString() : null }
-        if (later) {
-          core.getTask(project, slug)
-          inBackground('update_task', core.updateTask(project, slug, withNoteAuthor(rest)))
-          return json({ queued: true, id: `${project}/${slug}` })
-        }
         return json(await core.updateTask(project, slug, withNoteAuthor(rest)))
       }
 
       case 'batch_tasks': {
-        const { project, ops, async: later } = args as { project?: string; ops: BatchItem[]; async?: boolean }
+        const { project, ops } = args as { project?: string; ops: BatchItem[] }
         const author = process.env.MDPM_AUTHOR || 'claude'
         const items = ops.map(o => (o.op === 'note' || (o as { note?: string }).note) ? { ...o, author: (o as { author?: string }).author?.trim() || author } as BatchItem : o)
-        if (later) {
-          inBackground('batch_tasks', core.batchTasks(project, items).then((r) => { if (r.failed) throw new Error(`${r.failed} of ${r.results.length} ops failed: ${r.results.filter(x => !x.ok).map(x => `#${x.index} ${x.error}`).join('; ')}`) }))
-          return json({ queued: true, ops: items.length })
-        }
         return json(await core.batchTasks(project, items))
       }
 
       case 'start_task': {
-        const { project, title, async: later, ...fields } = args as { project: string; title: string; async?: boolean; [k: string]: unknown }
-        if (later) {
-          const id = core.previewStart(project, title)
-          inBackground('start_task', core.startTask(project, title, fields))
-          return json({ queued: true, id, status: 'in-progress' })
-        }
+        const { project, title, ...fields } = args as { project: string; title: string; [k: string]: unknown }
         return json(await core.startTask(project, title, fields))
       }
 

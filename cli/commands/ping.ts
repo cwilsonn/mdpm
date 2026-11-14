@@ -26,8 +26,8 @@ export default defineCommand({
     }
     emit(ctx.json, result, () => [
       `${ctx.style.green('✓')} content: ${result.contentPath} (${result.projectCount} projects)`,
-      `${serverUp ? ctx.style.green('✓') : ctx.style.yellow('!')} server: ${result.baseUrl} ${serverUp ? 'up' : 'down (reads work; writes need it)'}`,
-      ...(contentMismatch ? [`${ctx.style.red('✗')} content mismatch: the server uses ${serverContentPath}; writes won't show up in reads. Run \`mdpm restart\`.`] : []),
+      `${serverUp ? ctx.style.green('✓') : ctx.style.yellow('!')} server: ${result.baseUrl} ${serverUp ? 'up' : 'down (only the web UI needs it)'}`,
+      ...(contentMismatch ? [`${ctx.style.red('✗')} content mismatch: the server uses ${serverContentPath}; the web UI shows different content than the CLI. Run \`mdpm restart\`.`] : []),
     ].join('\n'))
   },
 })

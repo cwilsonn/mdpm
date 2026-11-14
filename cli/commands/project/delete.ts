@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { confirm } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 
@@ -7,7 +7,6 @@ export default defineCommand({
   meta: { name: 'delete', description: 'Permanently delete a project and ALL its tasks and docs (asks for confirmation unless --yes; prefer archive)' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     yes: { type: 'boolean', alias: 'y', description: 'Skip the confirmation prompt', default: false },
     ref: { type: 'positional', description: 'Project slug or unique fragment of slug/title', required: true },
   },

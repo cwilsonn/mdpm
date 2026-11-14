@@ -1,14 +1,13 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { csv, editText, textOrStdin } from '../../io'
 import { emit } from '../../output'
 import { createScope, scopeArgs } from './shared'
 
 export default defineCommand({
-  meta: { name: 'create', description: 'Create a doc (writes via the server)' },
+  meta: { name: 'create', description: 'Create a doc' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     project: scopeArgs.project,
     standalone: scopeArgs.standalone,
     title: { type: 'positional', description: 'Doc title', required: true },

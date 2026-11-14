@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { applyCompaction, DEFAULT_KEEP, planCompaction } from '../../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, requireProject } from '../task/shared'
 
@@ -8,7 +8,6 @@ export default defineCommand({
   meta: { name: 'compact', description: 'Roll old session notes into one short digest doc and archive the originals (dry run unless --apply)' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...projectArgs,
     keep: { type: 'string', description: `Newest session-notes docs to leave untouched (default ${DEFAULT_KEEP})` },
     apply: { type: 'boolean', description: 'Do it. Without this, only show what would happen', default: false },

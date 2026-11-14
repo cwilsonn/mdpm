@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { emit } from '../../output'
 import { bulkArgs, optionalRefArg, projectArgs, runBulk, selectTargets } from './shared'
 
@@ -7,7 +7,6 @@ export default defineCommand({
   meta: { name: 'unarchive', description: 'Restore an archived task' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...optionalRefArg,

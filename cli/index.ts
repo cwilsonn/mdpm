@@ -2,8 +2,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand, renderUsage, runCommand, type CommandDef } from 'citty'
 import { commandName, recordUsage, REPO_ROOT } from '../lib/core'
-import { installAsyncChild, queueIfAsync } from './async'
-import { runCleanups } from './context'
 import { colorEnabled, createStyle, ExitCode, exitCodeFor, reportError } from './output'
 
 // Read from package.json so release-please stays the single source of truth.
@@ -61,7 +59,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
     stdoutChars += typeof chunk === 'string' ? chunk.length : chunk.byteLength
     return (realWrite as any)(chunk, ...rest)
   }) as typeof process.stdout.write
-  const finishAsyncChild = installAsyncChild(rawArgs)
   const json = rawArgs.includes('--json')
   const stderrStyle = createStyle(colorEnabled(process.stderr, !rawArgs.includes('--no-color')))
   try {
@@ -71,11 +68,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
     }
     if (rawArgs.length === 1 && (rawArgs[0] === '--version' || rawArgs[0] === '-v')) {
       console.log(version)
-      return
-    }
-    const queued = await queueIfAsync(rawArgs)
-    if (queued) {
-      console.log(rawArgs.includes('--json') ? JSON.stringify({ queued: queued.replace(/^queued [a-z ]+: /, '') }) : queued)
       return
     }
     await runCommand(root, { rawArgs })
@@ -92,8 +84,6 @@ export async function main(rawArgs = process.argv.slice(2)) {
     // `usage` reads the log, so recording it would only skew the numbers.
     const name = commandName(rawArgs)
     if (name && name !== 'usage' && !rawArgs.includes('--help') && !rawArgs.includes('-h')) recordUsage({ surface: 'cli', name, chars: stdoutChars })
-    finishAsyncChild?.()
-    await runCleanups().catch(err => console.error(`${stderrStyle.yellow('warning:')} cleanup failed: ${err instanceof Error ? err.message : err}`))
   }
 }
 

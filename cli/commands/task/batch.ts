@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
 import { resolveAuthor, TASK_PRIORITIES, TASK_STATUSES, type BatchItem } from '../../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { readStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 import { projectArgs, scopeProject } from './shared'
@@ -14,7 +14,6 @@ export default defineCommand({
   },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...projectArgs,
     file: { type: 'string', description: 'Read the operations from this file instead of stdin' },
     author: { type: 'string', description: 'Author for notes without their own (default: $MDPM_AUTHOR, "claude" under Claude Code, git user.name)' },

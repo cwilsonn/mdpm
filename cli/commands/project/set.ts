@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { TASK_PRIORITIES } from '../../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { csv, oneOf } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
 
@@ -8,10 +8,9 @@ import { CliError, emit, ExitCode } from '../../output'
 const clearable = (value: string | undefined) => value === undefined ? undefined : value === 'none' ? null : value
 
 export default defineCommand({
-  meta: { name: 'set', description: 'Update fields on a project (writes via the server)' },
+  meta: { name: 'set', description: 'Update fields on a project' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ref: { type: 'positional', description: 'Project slug or unique fragment of slug/title', required: true },
     title: { type: 'string' },
     description: { type: 'string' },

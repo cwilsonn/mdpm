@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
 import { TASK_PRIORITIES } from '../../../lib/core'
-import { createContext, globalArgs, writeArgs } from '../../context'
+import { createContext, globalArgs } from '../../context'
 import { csv, oneOf, textOrStdin } from '../../io'
 import { emit } from '../../output'
 import { projectArgs, requireProject } from './shared'
@@ -9,7 +9,6 @@ export default defineCommand({
   meta: { name: 'start', description: 'Begin a unit of work in one call: resume the open task with exactly this slug or title, or create it, and mark it in-progress' },
   args: {
     ...globalArgs,
-    ...writeArgs,
     ...projectArgs,
     title: { type: 'positional', description: 'Task title, or the exact slug of an existing task', required: true },
     priority: { type: 'string', description: TASK_PRIORITIES.join(' | ') + ' (only when it creates the task)' },

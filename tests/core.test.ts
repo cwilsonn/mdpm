@@ -139,31 +139,25 @@ describe('config', () => {
     const loaded = loadConfig({ env: { MDPM_CONFIG: join(scratch.dir, 'missing.json') } })
     assert.equal(loaded.sources.contentPath, 'default')
     assert.equal(loaded.sources.baseUrl, 'default')
-    assert.equal(loaded.autoStart.value, false)
   })
 
   it('applies flag > env > file > default', () => {
     mkdirSync(scratch.dir, { recursive: true })
-    writeFileSync(file, JSON.stringify({ baseUrl: 'http://file.test:1/', contentPath: 'data', autoStart: true }))
+    writeFileSync(file, JSON.stringify({ baseUrl: 'http://file.test:1/', contentPath: 'data', autoStart: true }))  // a leftover autoStart key is ignored
     const fromFile = loadConfig({ env: env() })
     assert.deepEqual([fromFile.config.baseUrl, fromFile.sources.baseUrl], ['http://file.test:1', 'file'])
     assert.equal(fromFile.config.contentPath, join(scratch.dir, 'data'))
-    assert.deepEqual(fromFile.autoStart, { value: true, source: 'file' })
 
-    const fromEnv = loadConfig({ env: env({ MDPM_BASE_URL: 'http://env.test:2', MDPM_AUTO_START: '0' }) })
+    const fromEnv = loadConfig({ env: env({ MDPM_BASE_URL: 'http://env.test:2' }) })
     assert.deepEqual([fromEnv.config.baseUrl, fromEnv.sources.baseUrl], ['http://env.test:2', 'env'])
-    assert.deepEqual(fromEnv.autoStart, { value: false, source: 'env' })
 
-    const fromFlag = loadConfig({ env: env({ MDPM_BASE_URL: 'http://env.test:2' }), flags: { baseUrl: 'http://flag.test:3', autoStart: true } })
+    const fromFlag = loadConfig({ env: env({ MDPM_BASE_URL: 'http://env.test:2' }), flags: { baseUrl: 'http://flag.test:3' } })
     assert.deepEqual([fromFlag.config.baseUrl, fromFlag.sources.baseUrl], ['http://flag.test:3', 'flag'])
-    assert.deepEqual(fromFlag.autoStart, { value: true, source: 'flag' })
   })
 
   it('rejects a broken config file loudly', () => {
     writeFileSync(file, '{oops')
     assert.throws(() => loadConfig({ env: env() }), /invalid JSON/)
-    writeFileSync(file, JSON.stringify({ autoStart: 'yes' }))
-    assert.throws(() => loadConfig({ env: env() }), /autoStart/)
     writeFileSync(file, JSON.stringify({ baseUrl: 5 }))
     assert.throws(() => loadConfig({ env: env() }), /baseUrl/)
   })
