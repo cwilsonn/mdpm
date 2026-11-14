@@ -1,2 +1,55 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/*
+ * Scrollbars: invisible until the scroll container is hovered or holds focus, then a thin thumb in
+ * Nuxt UI's muted text colour. Only the colour changes, so nothing shifts when it appears.
+ * Standard properties cover Firefox and Chromium 121+ (which ignore ::-webkit-scrollbar once
+ * scrollbar-color is set); the @supports block covers Safari, which has no scrollbar-color.
+ */
+@layer base {
+  :root {
+    --scrollbar-thumb: color-mix(in oklab, var(--ui-text-muted) 35%, transparent);
+    --scrollbar-thumb-hover: color-mix(in oklab, var(--ui-text-muted) 60%, transparent);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s ease;
+  }
+
+  *:hover,
+  *:focus-within {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 9999px;
+      background-clip: padding-box;
+      background-color: transparent;
+    }
+
+    *:hover::-webkit-scrollbar-thumb,
+    *:focus-within::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--scrollbar-thumb-hover);
+    }
+  }
+}
