@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.14.0...mdpm-v0.14.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **server:** gate demo mode on MDPM_DEMO instead of NODE_ENV ([a942b6e](https://github.com/cwilsonn/mdpm/commit/a942b6ef2f9b6b304761807f7226dcb96c67034a))
+* **server:** refuse foreign hosts, cross-site writes, path traversal and unknown fields ([e89292b](https://github.com/cwilsonn/mdpm/commit/e89292b84cc705ccccc19ecfbeceb5eb4d41955a))
+
 ## [0.14.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.13.0...mdpm-v0.14.0) (2026-11-12)
 
 
