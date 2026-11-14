@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.15.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.14.1...mdpm-v0.15.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** `mdpm tui`, `mdpm watch`, `mdpm import` and `mdpm completions` no longer exist (they exit 2 as unknown commands). Remove any installed completion script (for example "${fpath[1]}/_mdpm"), which now calls a hook that is gone.
+
+### Refactoring
+
+* **cli:** delete the tui, watch, import and completions commands ([aa2ddcb](https://github.com/cwilsonn/mdpm/commit/aa2ddcb1cff815935e669582767181afb59b4f4f))
+
 ## [0.14.1](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.14.0...mdpm-v0.14.1) (2026-11-14)
 
 
