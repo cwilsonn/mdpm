@@ -6,11 +6,15 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { buildPickup, createCore, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, TASK_PRIORITIES, TASK_STATUSES, taskRow, toTsv } from '../lib/core'
 import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
 const version: string = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version
+
+// Status and priority enums come from lib/core/schema, the one list the writer validates against.
+const STATUS = { type: 'string', enum: [...TASK_STATUSES] }
+const PRIORITY = { type: 'string', enum: [...TASK_PRIORITIES] }
 
 const loaded = loadConfig()
 
@@ -88,7 +92,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           query: { type: 'string', description: 'Full-text search over titles and bodies.' },
           status: {
             type: 'array',
-            items: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
+            items: STATUS,
             description: 'Filter by status values. Omit for all.',
           },
           includeArchived: { type: 'boolean', description: 'Include archived tasks. Defaults to false.' },
@@ -117,8 +121,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           project: { type: 'string' },
           title: { type: 'string' },
-          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
-          priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          status: STATUS,
+          priority: PRIORITY,
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string', description: 'YYYY-MM-DD' },
@@ -138,8 +142,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           project: { type: 'string' },
           slug: { type: 'string' },
           title: { type: 'string' },
-          status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
-          priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          status: STATUS,
+          priority: PRIORITY,
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string' },
@@ -169,8 +173,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                 ref: { type: 'string', description: 'update/note: the task (slug, fragment or project/slug).' },
                 project: { type: 'string' },
                 title: { type: 'string', description: 'create: the title; update: a new title.' },
-                status: { type: 'string', enum: ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold'] },
-                priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+                status: STATUS,
+                priority: PRIORITY,
                 tags: { type: 'array', items: { type: 'string' } },
                 description: { type: 'string', description: 'Markdown body (replaces it on update).' },
                 note: { type: 'string', description: 'Appended as a timestamped note in the same write.' },
@@ -191,7 +195,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           project: { type: 'string' },
           title: { type: 'string', description: 'Task title, or the exact slug of an existing task.' },
-          priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          priority: PRIORITY,
           tags: { type: 'array', items: { type: 'string' } },
           description: { type: 'string', description: 'Scope and why (used only when it creates the task).' },
         },
