@@ -37,9 +37,9 @@ function toggleColorMode() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
-const colorModeIcon = computed(() =>
-  colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun',
-)
+// The icon is chosen in CSS (the `dark` class), not from colorMode.value: the server can't know the mode, so a
+// computed icon renders a sun on the server and a moon in a dark browser, a hydration mismatch. The color-mode
+// script sets the class before the page renders, so the right icon shows from the first paint.
 </script>
 
 <template>
@@ -57,13 +57,17 @@ const colorModeIcon = computed(() =>
       />
     </UDropdownMenu>
     <UButton
-      :icon="colorModeIcon"
       color="neutral"
       variant="ghost"
       size="sm"
+      square
       class="ms-auto shrink-0"
+      aria-label="Toggle color mode"
       @click="toggleColorMode"
-    />
+    >
+      <UIcon name="i-lucide-sun" class="size-4 shrink-0 dark:hidden" />
+      <UIcon name="i-lucide-moon" class="size-4 shrink-0 hidden dark:block" />
+    </UButton>
   </template>
   <template v-else>
     <UTooltip text="Export" :content="{ side: 'right' }">
@@ -81,12 +85,16 @@ const colorModeIcon = computed(() =>
     </UTooltip>
     <UTooltip text="Color mode" :content="{ side: 'right' }">
       <UButton
-        :icon="colorModeIcon"
         color="neutral"
         variant="ghost"
         size="sm"
+        square
+        aria-label="Toggle color mode"
         @click="toggleColorMode"
-      />
+      >
+        <UIcon name="i-lucide-sun" class="size-4 shrink-0 dark:hidden" />
+        <UIcon name="i-lucide-moon" class="size-4 shrink-0 hidden dark:block" />
+      </UButton>
     </UTooltip>
   </template>
 </template>
