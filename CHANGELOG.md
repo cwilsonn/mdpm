@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.22.0...mdpm-v0.23.0) (2026-11-15)
+
+
+### Features
+
+* **cli:** add mdpm task stale to cross-check cited commits against git ([8d154e1](https://github.com/cwilsonn/mdpm/commit/8d154e1cd3ee1b8f950c58486f54767137525294))
+
 ## [0.22.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.21.0...mdpm-v0.22.0) (2026-11-15)
 
 
