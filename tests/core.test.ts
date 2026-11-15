@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { describe, it, after } from 'node:test'
 import { AmbiguousError, buildPickup, createCore, inferProject, loadConfig, NotFoundError, normalizeRepoRef, samePath } from '../lib/core'
 import { sessionNotesOrder, summarize } from '../lib/core/pickup'
+import { MAX_SLUG_LENGTH, slugify } from '../lib/core/slug'
 import { FIXTURE_CONTENT, scratchDir } from './helpers'
 
 const core = createCore({ contentPath: FIXTURE_CONTENT, baseUrl: 'http://127.0.0.1:1' })
@@ -57,6 +58,27 @@ describe('readers', () => {
   it('searches tasks and docs case-insensitively', () => {
     assert.deepEqual(slugs(core.searchTasks('PARSER', 'alpha')).sort(), ['write-parser', 'write-tests'])
     assert.deepEqual(slugs(core.searchDocs('nuxt')), ['architecture'])
+  })
+})
+
+describe('slugify', () => {
+  it('keeps short titles whole', () => {
+    assert.equal(slugify('Cap slug length for new tasks and docs'), 'cap-slug-length-for-new-tasks-and-docs')
+  })
+
+  it('cuts long titles at the last word boundary within the cap', () => {
+    const slug = slugify('Work machine (WSL): pull 0.16+, migrate content, reinstall skills, refresh repo blocks')
+    assert.equal(slug, 'work-machine-wsl-pull-016-migrate')
+    assert.ok(slug.length <= MAX_SLUG_LENGTH)
+  })
+
+  it('cuts hard when one word is longer than the cap', () => {
+    assert.equal(slugify('x'.repeat(60)), 'x'.repeat(MAX_SLUG_LENGTH))
+  })
+
+  it('keeps a word that ends exactly at the cap', () => {
+    const title = `${'a'.repeat(35)} bcde fgh`
+    assert.equal(slugify(title), `${'a'.repeat(35)}-bcde`)
   })
 })
 
