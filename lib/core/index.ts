@@ -38,7 +38,7 @@ export { approxTokens, commandName, readUsage, recordUsage, summarizeUsage, usag
 export type { UsageEntry, UsageRow } from './usage'
 export { buildLog, parseSince, resolveAuthor } from './log'
 export { addNotesToText, formatNote, makeNote, mergeNotes, NOTES_DIR, notesFileOf, parseNotes, readNotesFile, splitNotes, taskNotes } from './notes'
-export { DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, noteSummary, pageFooter, paginate, parseFields, pickFields, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv, truncateChars } from './shape'
+export { DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, fieldsNeedNotes, noteSummary, pageFooter, paginate, parseFields, pickFields, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, taskRow, toTsv, truncateChars } from './shape'
 export type { Page } from './shape'
 export type { LogEntry, LogOptions } from './log'
 export type { ParsedNote } from './notes'

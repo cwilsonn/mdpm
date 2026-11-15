@@ -32,11 +32,12 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
     return project
   }
 
-  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; includeArchived?: boolean } = {}) {
-    const { project, status, priority, tags, assignee, includeArchived } = opts
+  // `notes: true` reads each task's notes too (the log, export, a noteCount column); lists don't need them.
+  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; includeArchived?: boolean; notes?: boolean } = {}) {
+    const { project, status, priority, tags, assignee, includeArchived, notes } = opts
     return (project
-      ? reader.getTasks(project, status)
-      : reader.getAllTasks(status)
+      ? reader.getTasks(project, status, { notes })
+      : reader.getAllTasks(status, { notes })
     ).filter(t =>
       (includeArchived || !t.archivedAt)
       && (!priority?.length || priority.includes(t.priority))
@@ -111,7 +112,7 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
   }
 
   function getTask(project: string, slug: string) {
-    const task = reader.getTasks(project).find(t => t.slug === slug)
+    const task = reader.getTask(project, slug)
     if (!task) throw new NotFoundError(`Task '${slug}' not found in project '${project}'`)
     return task
   }

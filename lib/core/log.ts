@@ -60,9 +60,9 @@ const firstLine = (text: string, max = 100) => {
 export function buildLog(ops: Ops, opts: LogOptions = {}): LogEntry[] {
   const entries: Ranked[] = []
   const authorFilter = opts.author?.toLowerCase()
-  for (const t of ops.listTasks({ project: opts.project })) {
+  for (const t of ops.listTasks({ project: opts.project, notes: true })) {
     const base = { project: t.project, task: t.slug, title: t.title }
-    const notes: ParsedNote[] = t.notes
+    const notes: ParsedNote[] = t.notes ?? []
     notes.forEach((n, i) => entries.push({ ...base, at: n.at.toISOString(), type: 'note', author: n.author, detail: firstLine(n.text), seq: i }))
 
     // Frontmatter dates: createdAt is date-only, updatedAt a full timestamp (set by every API write).

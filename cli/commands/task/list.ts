@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { matches, parseWhere, TASK_FIELDS, TASK_LIST_FIELDS, TASK_PRIORITIES, TASK_STATUSES, taskRow, WHERE_FIELDS } from '../../../lib/core'
+import { fieldsNeedNotes, matches, parseWhere, TASK_FIELDS, TASK_LIST_FIELDS, TASK_PRIORITIES, TASK_STATUSES, taskRow, WHERE_FIELDS } from '../../../lib/core'
 import { createContext, globalArgs } from '../../context'
 import { csv, oneOf } from '../../io'
 import { listArgs, printPage } from '../../listing'
@@ -33,6 +33,8 @@ export default defineCommand({
       tags: csv(args.tags),
       assignee: args.assignee,
       includeArchived: args['include-archived'],
+      // Notes stay unread unless a noteCount column asks for them; `task show` returns them.
+      notes: fieldsNeedNotes(args.fields),
     }).filter(t => !clauses || matches(t, clauses))
     const slugsByProject = new Map<string, string[]>()
     printPage(ctx, args, tasks.map(t => taskRow(t)), {

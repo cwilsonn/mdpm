@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { buildLog, createCore, parseNotes, parseSince, resolveAuthor } from '../lib/core'
@@ -164,5 +164,33 @@ describe('authors on written notes', () => {
     assert.match(body(), /_ by Flagged\n\na note$/)
     await run([], { CLAUDECODE: '1', MDPM_AUTHOR: '' })
     assert.match(body(), /_ by claude\n\na note$/)
+  })
+})
+
+describe('notes are read only when asked for', () => {
+  const notesDir = join(content, 'projects/proj/tasks/notes')
+  const lockedNotes = join(notesDir, 'beta.md')
+  const run = (fn: () => void) => {
+    mkdirSync(notesDir, { recursive: true })
+    writeFileSync(lockedNotes, '**Note** _(2026-10-03 09:00)_ by sam\n\nIn the notes file.\n')
+    try { fn() }
+    finally { chmodSync(lockedNotes, 0o644) }
+  }
+
+  it('a list never opens a notes file; get_task, search and the log do', () => run(() => {
+    assert.equal(core.searchTasks('in the notes file', 'proj').map(t => t.slug).join(), 'beta', 'search covers notes files')
+    assert.deepEqual(core.getTask('proj', 'beta').notes.map(n => n.text), ['In the notes file.'])
+    assert.ok(buildLog(core, { project: 'proj' }).some(e => e.task === 'beta' && e.type === 'note'), 'the log reads notes files')
+    // An unreadable notes file proves the list never opened it.
+    chmodSync(lockedNotes, 0o000)
+    const listed = core.listTasks({ project: 'proj' })
+    assert.equal(listed.find(t => t.slug === 'beta')!.body, 'No notes here.')
+    assert.ok(listed.every(t => !('notes' in t)), 'no notes field on list rows')
+    assert.throws(() => core.listTasks({ project: 'proj', notes: true }), /EACCES/)
+  }))
+
+  it('get_task matches the slug against the listing, so a path cannot escape the project', () => {
+    assert.throws(() => core.getTask('proj', '../../proj/index'), /not found/)
+    assert.throws(() => core.getTask('..', 'proj'), /not found/)
   })
 })

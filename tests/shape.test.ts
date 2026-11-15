@@ -114,6 +114,13 @@ describe('CLI list caps', () => {
   after(scratch.cleanup)
   const cli = (args: string[]) => runCli(args, { scratch: scratch.dir })
 
+  it('task list reads notes only for a noteCount column', async () => {
+    const plain = await cli(['task', 'list', '--project', 'alpha', '--json', '--fields', 'slug,title'])
+    assert.ok(plain.json.every((r: Record<string, unknown>) => !('noteCount' in r)))
+    const counted = await cli(['task', 'list', '--project', 'alpha', '--json', '--fields', 'slug,noteCount'])
+    assert.ok(counted.json.length > 0 && counted.json.every((r: Record<string, unknown>) => typeof r.noteCount === 'number'))
+  })
+
   it('task list --limit pages, with the footer on stderr for --json', async () => {
     const r = await cli(['task', 'list', '--project', 'alpha', '--limit', '2', '--json'])
     assert.equal(r.code, 0)
