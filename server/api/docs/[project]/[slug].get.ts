@@ -9,7 +9,6 @@ export default defineEventHandler((event) => {
     project,
     title: (file.data.title as string) ?? slug,
     tags: (file.data.tags as string[]) ?? [],
-    parent: (file.data.parent as string | undefined) ?? null,
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: file.data.updatedAt instanceof Date ? file.data.updatedAt.toISOString() : (file.data.updatedAt as string | undefined) ?? null,
     archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,

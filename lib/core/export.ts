@@ -8,9 +8,10 @@ import type { Ops } from './ops'
 // Format version 3: links live in task and doc bodies (no `links` field); a project carries its `repo` URL.
 // Format version 4: a task's `description` is its spec only; its history is the separate `notes` list.
 // Format version 5: tasks have no `assignees` (CSV: no `assignees` column).
+// Format version 6: docs have no `parent` (docs are flat).
 
 export const EXPORT_FORMAT = 'mdpm-export'
-export const EXPORT_FORMAT_VERSION = 5
+export const EXPORT_FORMAT_VERSION = 6
 
 export interface ExportedTask {
   slug: string
@@ -32,7 +33,6 @@ export interface ExportedDoc {
   slug: string
   title: string
   tags: string[]
-  parent: string | null
   createdAt: string
   updatedAt: string | null
   archivedAt: string | null
@@ -68,8 +68,8 @@ export interface ExportOptions {
   docs?: boolean
 }
 
-const asDoc = (d: { slug: string; title: string; tags: string[]; parent: string | null; createdAt: string; updatedAt: string | null; archivedAt: string | null; body: string }): ExportedDoc => ({
-  slug: d.slug, title: d.title, tags: d.tags, parent: d.parent, createdAt: d.createdAt, updatedAt: d.updatedAt, archivedAt: d.archivedAt, body: d.body,
+const asDoc = (d: { slug: string; title: string; tags: string[]; createdAt: string; updatedAt: string | null; archivedAt: string | null; body: string }): ExportedDoc => ({
+  slug: d.slug, title: d.title, tags: d.tags, createdAt: d.createdAt, updatedAt: d.updatedAt, archivedAt: d.archivedAt, body: d.body,
 })
 
 export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()): ExportDocument {

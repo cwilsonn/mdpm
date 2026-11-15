@@ -4,9 +4,9 @@ const slug = computed(() => route.params.slug as string)
 
 const project = inject<Ref<ProjectDetail>>('project')!
 
-const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyncData(
+const { data: docs, pending: docsPending } = await useAsyncData(
   () => `docs-${slug.value}`,
-  () => $fetch<DocTreeItem[]>(`/api/docs/${slug.value}`),
+  () => $fetch<DocItem[]>(`/api/docs/${slug.value}`),
 )
 
 const { createDoc } = useDocs()
@@ -67,7 +67,6 @@ const mobileActions = [
           :docs="docs"
           :base-url="`/projects/${slug}/docs`"
           :project-slug="slug"
-          @changed="refreshDocs"
         />
       </div>
     </div>

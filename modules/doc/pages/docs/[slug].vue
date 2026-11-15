@@ -7,7 +7,6 @@ interface DocDetail {
   project: null
   title: string
   tags: string[]
-  parent: string | null
   createdAt: string
   updatedAt: string | null
   archivedAt?: string

@@ -41,12 +41,11 @@ describe('readers', () => {
     assert.equal(core.listTasks({ project: 'alpha' })[0]!.slug, 'write-parser')
   })
 
-  it('hides archived docs and the children of archived docs', () => {
+  it('hides archived docs unless asked for', () => {
     const visible = slugs(core.listDocs({ project: 'alpha' }))
     assert.ok(visible.includes('architecture'))
     assert.ok(!visible.includes('old-folder'))
-    assert.ok(!visible.includes('old-child'))
-    assert.ok(slugs(core.listDocs({ project: 'alpha', includeArchived: true })).includes('old-child'))
+    assert.ok(slugs(core.listDocs({ project: 'alpha', includeArchived: true })).includes('old-folder'))
   })
 
   it('separates standalone docs from project docs', () => {

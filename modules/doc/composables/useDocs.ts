@@ -1,5 +1,5 @@
 // Doc mutation endpoints. Encapsulates the standalone-vs-project URL split that
-// was branched inline across DocForm, DocList, and the doc index pages: pass a
+// was branched inline across DocList and the doc index pages: pass a
 // project slug for project docs, or omit it for standalone docs.
 //
 // (DocEditor stays URL-driven — it's a generic editor handed an explicit
@@ -8,10 +8,7 @@
 export interface DocPayload {
   title?: string
   tags?: string[]
-  parent?: string | null
-  order?: number
   body?: string
-  isFolder?: boolean
   archivedAt?: string | null
 }
 

@@ -17,23 +17,17 @@ export default defineCommand({
     title: { type: 'string' },
     body: { type: 'string', description: 'Replace the body with this text; use - to read it from stdin (skips the editor)' },
     tags: { type: 'string', description: 'Comma-separated; replaces the existing tags' },
-    parent: { type: 'string', description: 'Parent doc (slug or fragment), or "none" to un-nest' },
   },
   async run({ args }) {
     const ctx = createContext(args)
     const scope = docScope(ctx, args)
     const doc = ctx.core.resolveDoc(args.ref, scope)
     const where = doc.project ? `${doc.project}/${doc.slug}` : doc.slug
-    const fieldFlags = args.title !== undefined || args.tags !== undefined || args.parent !== undefined
+    const fieldFlags = args.title !== undefined || args.tags !== undefined
 
-    const fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; expectedUpdatedAt?: string | null } = {}
+    const fields: { title?: string; body?: string; tags?: string[]; expectedUpdatedAt?: string | null } = {}
     if (args.title !== undefined) fields.title = args.title
     if (args.tags !== undefined) fields.tags = csv(args.tags)
-    if (args.parent !== undefined) {
-      fields.parent = args.parent === 'none'
-        ? null
-        : ctx.core.resolveDoc(args.parent, doc.project ? { project: doc.project } : { standalone: true }).slug
-    }
     if (args.body !== undefined) fields.body = await textOrStdin(args.body)
     else if (!fieldFlags) {
       // Plain `doc edit <ref>`: the editor is the interface.

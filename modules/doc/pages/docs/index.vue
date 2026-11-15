@@ -3,8 +3,8 @@ definePageMeta({ title: 'Docs', icon: 'i-lucide-book-open' })
 
 import type { DocGroup } from '~/components/DocList.vue'
 
-const [{ data: allDocs, pending, refresh: refreshDocs }, { data: projects }] = await Promise.all([
-  useAsyncData('all-docs', () => $fetch<DocTreeItem[]>('/api/docs')),
+const [{ data: allDocs, pending }, { data: projects }] = await Promise.all([
+  useAsyncData('all-docs', () => $fetch<DocItem[]>('/api/docs')),
   useAsyncData('all-projects', () => $fetch<Project[]>('/api/projects')),
 ])
 
@@ -28,7 +28,7 @@ const groups = computed((): DocGroup[] => {
   if (!allDocs.value?.length) return []
 
   const standalone = allDocs.value.filter(d => d.project === null)
-  const projectMap = new Map<string, DocTreeItem[]>()
+  const projectMap = new Map<string, DocItem[]>()
   for (const doc of allDocs.value.filter(d => d.project !== null)) {
     const arr = projectMap.get(doc.project!) ?? []
     arr.push(doc)
@@ -73,7 +73,6 @@ const groups = computed((): DocGroup[] => {
       <DocList
         v-if="hasAnyDocs"
         :groups="groups"
-        @changed="refreshDocs"
       />
     </div>
   </AppPageBase>

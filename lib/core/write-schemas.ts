@@ -94,8 +94,6 @@ export const ProjectCreate = z.strictObject({
 export const DocUpdate = z.strictObject({
   title: z.string().trim().min(1, 'cannot be empty').optional(),
   tags: strings.nullable().optional(),
-  parent: slug.nullable().optional(),
-  order: z.number().optional(),
   body: z.string().optional(),
   archivedAt: z.string().nullable().optional(),
   expectedUpdatedAt,

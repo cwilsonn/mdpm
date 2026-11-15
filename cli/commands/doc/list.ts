@@ -13,7 +13,7 @@ export default defineCommand({
     ...scopeArgs,
     ...listArgs,
     tag: { type: 'string', description: 'Comma-separated; matches docs with any of them' },
-    'include-archived': { type: 'boolean', description: 'Include archived docs and their children', default: false },
+    'include-archived': { type: 'boolean', description: 'Include archived docs', default: false },
   },
   async run({ args }) {
     const ctx = createContext(args)

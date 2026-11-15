@@ -239,7 +239,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           title: { type: 'string' },
           body: { type: 'string', description: 'Full markdown body' },
           tags: { type: 'array', items: { type: 'string' } },
-          parent: { type: 'string', description: 'Slug of parent doc in same scope for hierarchy.' },
         },
         required: ['title', 'body'],
       },
