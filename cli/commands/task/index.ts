@@ -7,6 +7,7 @@ export default defineCommand({
     search: () => import('./search').then(m => m.default),
     ready: () => import('./ready').then(m => m.default),
     graph: () => import('./graph').then(m => m.default),
+    stale: () => import('./stale').then(m => m.default),
     show: () => import('./show').then(m => m.default),
     start: () => import('./start').then(m => m.default),
     batch: () => import('./batch').then(m => m.default),

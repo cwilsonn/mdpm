@@ -52,3 +52,5 @@ export { applyMigration, MARKER_FILE as SCHEMA_MARKER_FILE, MigrationError, pend
 export type { ApplyResult, MigrationPlan, PlanEntry, SchemaMarker, SchemaStatus } from './migrate'
 export { slugify, uniqueSlug } from './slug'
 export { VERSION } from './version'
+export { checkStaleness, citedHashes, createGitRepo, defaultBranch, STALE_KINDS } from './stale'
+export type { CommitSource, StaleFinding, StaleKind } from './stale'
