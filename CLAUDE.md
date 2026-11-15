@@ -4,7 +4,7 @@ Markdown-based project management tool. Nuxt 4 app that stores projects, tasks, 
 
 ## Setup
 
-**Node 24 required, 24.15 or newer** (`.nvmrc` pins the major; Nuxt 4.6 needs ≥ 24.15). `better-sqlite3` is a native module — if you switch Node versions, run `pnpm rebuild better-sqlite3`.
+**Node 24 required, 24.15 or newer** (`.nvmrc` pins the major; Nuxt 4.6 needs ≥ 24.15).
 
 ```sh
 nvm use
@@ -23,7 +23,7 @@ Add to `/etc/hosts` if not present (or set `MDPM_BASE_URL=http://localhost:3333`
 ## Stack
 
 - **Nuxt 4** (`compatibilityVersion: 4`, `app/` dir layout — `app.config.ts` lives at `app/app.config.ts`)
-- **@nuxt/content v3** — only for the `<MDC>` markdown renderer on the task page (`queryCollection()` is not used)
+- **@nuxtjs/mdc** — the `<MDC>` markdown renderer for task specs and notes (no `@nuxt/content`, no SQLite: content is read from files by `lib/core`)
 - **@nuxt/ui v4** — `UNavigationMenu`, `UModal`, `UInputTags`, etc.
 - **Nitro server routes** — server-side utils auto-imported: `writeMarkdown`, `contentPath`, `slugify`, `uniqueSlug`, `readMarkdown`, `deleteContent`
 
@@ -41,8 +41,6 @@ content/
       docs/
         <slug>.md       # reference doc: frontmatter + markdown body
 ```
-
-Collections defined in `content.config.ts`: `projects`, `tasks`, `docs`.
 
 **Task notes** live in `tasks/notes/<slug>.md` (`lib/core/notes.ts`), so the task body is only the spec. The subdirectory is deliberate: everything that lists `tasks/*.md` skips it without knowing. `description` writes the spec and never touches notes; a note is appended to the notes file under its own lock, inside the task's lock. Older content and older mdpm versions keep notes appended to the body, so readers always merge both places (deduped, oldest first), and any update moves body notes into the notes file before replacing the spec. Reads return `body` (spec) and `notes` as separate fields, so a client that writes the body back can't copy notes into the spec. Lists don't open notes files (`listTasks({ notes: true })` opts in): `getTask`, search, the log, export and a `noteCount` column read them, and pickup reads only blocked tasks' notes. Delete removes both files; a create clears a leftover notes file for its slug.
 
