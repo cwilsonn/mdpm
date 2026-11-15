@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.22.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.21.0...mdpm-v0.22.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** task notes are stored in tasks/notes/<slug>.md. get_task and `task show --json` return `notes` as a separate field next to the spec in `body`, and JSON export is formatVersion 4. Older mdpm versions don't see notes written by this one; run `mdpm migrate --apply` on each content directory once every machine runs this version.
+
+### Features
+
+* **core:** store task notes in tasks/notes/&lt;slug&gt;.md, apart from the spec ([e1f7657](https://github.com/cwilsonn/mdpm/commit/e1f76574a8c93f6f88fa7ec0416a42f976b6c760))
+* **ui:** show task history with an add-note box on the task page ([9be13ac](https://github.com/cwilsonn/mdpm/commit/9be13acd171f3cdc0c64177b27de58d16f927718))
+
+
+### Bug Fixes
+
+* **cli:** honor --no-backup in mdpm migrate ([d37b26d](https://github.com/cwilsonn/mdpm/commit/d37b26d2acdce644f3accea0776b260899e57cd6))
+
+
+### Performance
+
+* **core:** skip notes files when listing tasks ([04735f1](https://github.com/cwilsonn/mdpm/commit/04735f1ab3076f218b7b173e969fbe7c1dd5f688))
+
+
+### Refactoring
+
+* **mcp:** derive status and priority enums from lib/core ([6ac8bba](https://github.com/cwilsonn/mdpm/commit/6ac8bbad24d6250a0b5713382ddbbc83b48261ac))
+* **ui:** add useToggleSet and projectSlugFromPath, drop useTaskMeta ([2a9867b](https://github.com/cwilsonn/mdpm/commit/2a9867b522359398973c6b52cbd748c925fd106f))
+* **ui:** extract AppSaveStatus and apiErrorMessage ([475d1ae](https://github.com/cwilsonn/mdpm/commit/475d1ae3816c8035939bcbc0f61e11617764af29))
+* **ui:** share task, project, doc and filter types across pages ([5c65865](https://github.com/cwilsonn/mdpm/commit/5c658654a06eb6ba572a9403ad33cdfb3a9370fd))
+
 ## [0.21.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.20.0...mdpm-v0.21.0) (2026-11-15)
 
 
