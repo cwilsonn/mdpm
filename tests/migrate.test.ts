@@ -279,6 +279,11 @@ describe('fixtures and CLI', () => {
     const bad = await runCli(['migrate', '--file', 'projects/nope.md'], { scratch: scratch.dir, env })
     assert.equal(bad.code, 2)
 
+    const skip = fresh()
+    const noBackup = await runCli(['migrate', '--apply', '--no-backup', '--json'], { scratch: scratch.dir, env: { MDPM_CONTENT_PATH: skip, MDPM_STATE_DIR: join(scratch.dir, 'state-nobackup') } })
+    assert.deepEqual([noBackup.code, noBackup.json.backupDir, noBackup.json.stamped], [0, null, true])
+    assert.equal(existsSync(join(scratch.dir, 'state-nobackup', 'backups')), false, '--no-backup takes no backup')
+
     const applied = await runCli(['migrate', '--apply', '--json'], { scratch: scratch.dir, env })
     assert.deepEqual([applied.code, applied.json.applied.length, applied.json.stamped], [0, count, true])
     assert.ok(statSync(applied.json.backupDir).isDirectory())
