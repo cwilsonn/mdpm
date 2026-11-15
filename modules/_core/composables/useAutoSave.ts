@@ -14,6 +14,11 @@ export function useAutoSave(
   const now = ref(Date.now())
   let ticker: ReturnType<typeof setInterval> | null = null
   let saveTimer: ReturnType<typeof setTimeout> | null = null
+  // A save is scheduled but not sent yet. With `saving`, this is "local edits not yet on disk".
+  const queued = ref(false)
+  const busy = computed(() => queued.value || saving.value)
+  // Set while the caller replaces the fields with the stored version: those changes are not edits.
+  let quiet = false
 
   const savedAgo = computed(() => {
     if (!savedAt.value) return null
@@ -24,14 +29,20 @@ export function useAutoSave(
   })
 
   function scheduleSave() {
+    if (quiet) return
     if (!isEdit.value || !loaded.value || conflict.value) return
     if (saveTimer) clearTimeout(saveTimer)
+    queued.value = true
     saveTimer = setTimeout(() => flushSave(), 800)
   }
 
   async function flushSave() {
-    if (!isEdit.value || !loaded.value || saving.value || conflict.value) return
+    if (quiet) return
+    // An edit made while the previous save is in flight is sent once it lands, not dropped.
+    if (saving.value && !conflict.value) { scheduleSave(); return }
+    if (!isEdit.value || !loaded.value || conflict.value) { queued.value = false; return }
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+    queued.value = false
     saving.value = true
     saveError.value = null
     try {
@@ -58,6 +69,19 @@ export function useAutoSave(
     }
   }
 
+  /** Run `fn` (which loads the stored version into the fields) without that counting as an edit to save. */
+  async function quietly(fn: () => unknown) {
+    quiet = true
+    try {
+      await fn()
+      // The field watchers run before the next render; let them see `quiet`.
+      await nextTick()
+    }
+    finally {
+      quiet = false
+    }
+  }
+
   function resolveConflict() {
     conflict.value = false
     saveError.value = null
@@ -68,5 +92,5 @@ export function useAutoSave(
     if (saveTimer) flushSave()
   }
 
-  return { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave, resolveConflict, initAutoSave, cleanupAutoSave }
+  return { saving, busy, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave, quietly, resolveConflict, initAutoSave, cleanupAutoSave }
 }

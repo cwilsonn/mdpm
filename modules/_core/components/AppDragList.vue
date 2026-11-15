@@ -25,6 +25,13 @@ const emit = defineEmits<{
   'drag-add': [evt: { newIndex?: number }]
   'drag-update': []
 }>()
+
+// No live refresh while a card is in the air: replacing the list mid-drag would drop it.
+const { hold } = useLive()
+let release: (() => void) | null = null
+function dragStart() { release?.(); release = hold(); emit('drag-start') }
+function dragEnd() { release?.(); release = null; emit('drag-end') }
+onBeforeUnmount(() => release?.())
 </script>
 
 <template>
@@ -35,8 +42,8 @@ const emit = defineEmits<{
     :animation="150"
     ghost-class="opacity-40"
     filter=".drag-ignore"
-    @start="emit('drag-start')"
-    @end="emit('drag-end')"
+    @start="dragStart"
+    @end="dragEnd"
     @add="(e: { newIndex?: number }) => emit('drag-add', e)"
     @update="emit('drag-update')"
   >

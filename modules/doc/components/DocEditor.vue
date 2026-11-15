@@ -29,7 +29,7 @@ const isEdit = computed(() => true)
 // (an agent's upsert_doc, `mdpm doc edit`, another tab). Rebased on each save's answer.
 const baseUpdatedAt = ref<string | null>(props.initialUpdatedAt)
 
-const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
+const { saving, busy, savedAt, saveError, savedAgo, conflict, scheduleSave, quietly, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
     const res = await $fetch<{ ok: true, updatedAt?: string }>(props.saveUrl, {
@@ -40,20 +40,28 @@ const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, resolveCon
   },
 )
 
+type StoredDoc = { title: string, tags?: string[], body?: string, updatedAt: string | null }
+
+// Put the stored version into the editor (local edits are dropped) without that counting as an edit.
+async function applyStored(latest: StoredDoc) {
+  await quietly(() => {
+    title.value = latest.title
+    if (titleEl.value) titleEl.value.innerText = latest.title
+    tags.value = [...(latest.tags ?? [])]
+    body.value = latest.body ?? ''
+    baseUpdatedAt.value = latest.updatedAt ?? null
+  })
+}
+
+const { docUrl } = useDocs()
 const reloading = ref(false)
 
 // After a conflict: take the latest version (local edits are dropped, as the message says), then resume saving.
 async function reloadAfterConflict() {
   reloading.value = true
   try {
-    const latest = await $fetch<{ title: string, tags?: string[], body?: string, updatedAt: string | null }>(props.saveUrl)
-    title.value = latest.title
-    if (titleEl.value) titleEl.value.innerText = latest.title
-    tags.value = [...(latest.tags ?? [])]
-    body.value = latest.body ?? ''
-    baseUpdatedAt.value = latest.updatedAt ?? null
-    // Let the watchers run (and no-op, autosave is still stopped) before saving again.
-    await nextTick()
+    await applyStored(await $fetch<StoredDoc>(props.saveUrl))
+    remote.dismiss()
     resolveConflict()
   }
   catch {
@@ -63,6 +71,19 @@ async function reloadAfterConflict() {
     reloading.value = false
   }
 }
+
+// Live updates: a change made elsewhere is loaded straight in while nobody is working in the page;
+// while someone is (focus inside it), it is offered instead of swapped in under the cursor.
+const pageEl = ref<HTMLElement | null>(null)
+const remote = useRemoteRecord<StoredDoc>({
+  match: e => (e.kind === 'doc' || e.kind === 'standalone-doc') && docUrl(e.project, e.slug) === props.saveUrl,
+  base: baseUpdatedAt,
+  busy,
+  blocked: computed(() => conflict.value || !bodyLoaded.value),
+  fetchLatest: () => $fetch<StoredDoc>(props.saveUrl),
+  apply: applyStored,
+  silent: () => !pageEl.value?.contains(document.activeElement),
+})
 
 watch(title, scheduleSave)
 watch(tags, scheduleSave, { deep: true })
@@ -180,10 +201,23 @@ const mobileActions = computed(() => [
           :loading="reloading"
           @click="reloadAfterConflict"
         />
+        <template v-else-if="remote.changed.value">
+          <span class="text-warning">Changed elsewhere</span>
+          <UButton
+            label="Load"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="xs"
+            class="shrink-0"
+            :loading="remote.loading.value"
+            @click="remote.loadLatest"
+          />
+        </template>
       </div>
     </template>
 
-    <div class="overflow-y-auto flex-1 min-h-0">
+    <div ref="pageEl" class="overflow-y-auto flex-1 min-h-0">
       <div class="max-w-4xl mx-auto space-y-4">
         <h1
           ref="titleEl"
