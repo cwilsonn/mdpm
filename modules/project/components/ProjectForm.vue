@@ -11,7 +11,6 @@ const props = defineProps<{
     availableStatuses?: string[]
     defaultStatus?: string
     defaultPriority?: string
-    defaultAssignee?: string
   }
 }>()
 
@@ -21,8 +20,6 @@ const emit = defineEmits<{
 }>()
 
 const { createProject, updateProject } = useProjects()
-const { listAuthors, createAuthor } = useAuthors()
-const { tryWithToast } = useApiToast()
 
 const isEdit = computed(() => !!props.project)
 
@@ -36,13 +33,10 @@ const form = reactive({
   availableStatuses: [...(props.project?.availableStatuses ?? ['todo', 'in-progress', 'done'])] as StatusId[],
   defaultStatus: (props.project?.defaultStatus ?? undefined) as StatusId | undefined,
   defaultPriority: (props.project?.defaultPriority ?? undefined) as PriorityId | undefined,
-  defaultAssignee: props.project?.defaultAssignee ?? undefined,
 })
 
 const defaultStatusMeta = computed(() => form.defaultStatus ? STATUS_MAP[form.defaultStatus] : undefined)
 const defaultPriorityMeta = computed(() => form.defaultPriority ? PRIORITY_MAP[form.defaultPriority] : undefined)
-
-const authorNames = ref<string[]>([])
 
 const defaultStatusItems = computed(() =>
   STATUS_SELECT_ITEMS.filter(s => form.availableStatuses.includes(s.value)),
@@ -72,17 +66,11 @@ const { saving, savedAt, saveError, savedAgo, scheduleSave, flushSave, initAutoS
       availableStatuses: form.availableStatuses,
       defaultStatus: form.defaultStatus || null,
       defaultPriority: form.defaultPriority || null,
-      defaultAssignee: form.defaultAssignee || null,
     })
   },
 )
 
-onMounted(() => {
-  initAutoSave()
-  listAuthors().then(data => {
-    authorNames.value = data.map(a => a.name)
-  })
-})
+onMounted(() => initAutoSave())
 onBeforeUnmount(() => cleanupAutoSave())
 
 watch(() => form.title, () => scheduleSave())
@@ -94,13 +82,6 @@ watch(() => form.repo, () => scheduleSave())
 watch(() => form.availableStatuses, () => flushSave(), { deep: true })
 watch(() => form.defaultStatus, () => flushSave())
 watch(() => form.defaultPriority, () => flushSave())
-watch(() => form.defaultAssignee, () => scheduleSave())
-
-async function handleCreateDefaultAssignee(name: string) {
-  if (!await tryWithToast(() => createAuthor(name), 'Failed to add assignee')) return
-  if (!authorNames.value.includes(name)) authorNames.value.push(name)
-  form.defaultAssignee = name
-}
 
 // create mode
 const creating = ref(false)
@@ -120,7 +101,6 @@ async function create() {
       availableStatuses: form.availableStatuses,
       defaultStatus: form.defaultStatus || undefined,
       defaultPriority: form.defaultPriority || undefined,
-      defaultAssignee: form.defaultAssignee || undefined,
     })
     emit('saved')
   }
@@ -276,29 +256,6 @@ async function create() {
             </USelect>
           </UFormField>
         </div>
-
-        <UFormField label="Default Assignee">
-          <UInputMenu
-            v-model="form.defaultAssignee"
-            :items="authorNames"
-            placeholder="Select or create…"
-            class="w-full"
-            :create-item="{ position: 'bottom' }"
-            @create="handleCreateDefaultAssignee"
-          >
-            <template #leading="{ modelValue }">
-              <UAvatar
-                v-if="modelValue"
-                :alt="(modelValue as string)"
-                size="2xs"
-                class="ml-0.5"
-              />
-            </template>
-            <template #item-leading="{ item }">
-              <UAvatar :alt="item" size="2xs" />
-            </template>
-          </UInputMenu>
-        </UFormField>
       </div>
     </template>
 

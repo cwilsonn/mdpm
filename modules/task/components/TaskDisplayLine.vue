@@ -13,7 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const {
-  dueInfo, assignees, depCount, status, priority, isDone, isAiInProgress,
+  dueInfo, depCount, status, priority, isDone,
   completedLabel,
 } = useTaskCard(() => props.task)
 </script>
@@ -25,11 +25,8 @@ const {
     @click="emit('click')"
   >
     <!-- Complete / Reopen (left of title) -->
-    <UTooltip v-if="isAiInProgress" text="Claude is working on this…">
-      <UIcon name="i-lucide-loader-2" class="size-5 shrink-0 text-info animate-spin" />
-    </UTooltip>
     <UButton
-      v-else-if="task.status !== 'done'"
+      v-if="task.status !== 'done'"
       icon="i-lucide-circle"
       color="neutral"
       variant="ghost"
@@ -67,17 +64,11 @@ const {
     <!-- Right-side metadata -->
     <div class="flex items-center gap-1.5 shrink-0">
       <template v-if="isDone">
-        <!-- Completed: date + assignees only -->
+        <!-- Completed: date only -->
         <span v-if="completedLabel" class="text-xs text-muted hidden sm:block shrink-0">{{ completedLabel }}</span>
-        <div v-if="assignees.length" class="hidden md:flex -space-x-1">
-          <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
-          </UTooltip>
-          <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
-        </div>
       </template>
       <template v-else>
-        <!-- Active: due + priority + assignees + deps -->
+        <!-- Active: due + priority + deps -->
         <span
           v-if="dueInfo"
           class="text-xs hidden sm:block shrink-0 tabular-nums"
@@ -91,12 +82,6 @@ const {
           variant="subtle"
           size="sm"
         />
-        <div v-if="assignees.length" class="hidden md:flex -space-x-1">
-          <UTooltip v-for="a in assignees.slice(0, 2)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
-          </UTooltip>
-          <UAvatar v-if="assignees.length > 2" :alt="`+${assignees.length - 2}`" size="2xs" />
-        </div>
         <UIcon
           v-if="depCount"
           name="i-lucide-git-branch"

@@ -13,7 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const {
-  dueInfo, tags, assignees, depCount, priority, isDone, isAiInProgress,
+  dueInfo, tags, depCount, priority, isDone,
   completedLabel,
 } = useTaskCard(() => props.task)
 </script>
@@ -35,11 +35,8 @@ const {
         class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 -mt-0.5"
         @click.stop="emit('delete')"
       />
-      <UTooltip v-if="isAiInProgress" text="Claude is working on this…">
-        <UIcon name="i-lucide-loader-2" class="size-4 shrink-0 text-info animate-spin" />
-      </UTooltip>
       <UButton
-        v-else-if="task.status !== 'done'"
+        v-if="task.status !== 'done'"
         icon="i-lucide-circle"
         color="neutral"
         variant="ghost"
@@ -60,20 +57,12 @@ const {
       />
     </div>
 
-    <!-- Done: completedAt + assignees only -->
+    <!-- Done: completedAt only -->
     <template v-if="isDone">
-      <div class="flex items-center justify-between gap-1.5">
-        <span v-if="completedLabel" class="text-xs text-muted">Completed {{ completedLabel }}</span>
-        <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
-          <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
-          </UTooltip>
-          <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
-        </div>
-      </div>
+      <span v-if="completedLabel" class="text-xs text-muted">Completed {{ completedLabel }}</span>
     </template>
 
-    <!-- Active: priority + due + tags + deps + assignees -->
+    <!-- Active: priority + due + tags + deps -->
     <template v-else>
       <div class="flex items-center gap-1.5 flex-wrap">
         <span
@@ -98,7 +87,7 @@ const {
           size="xs"
         />
       </div>
-      <div v-if="depCount || assignees.length" class="flex items-center">
+      <div v-if="depCount" class="flex items-center">
         <span
           v-if="depCount"
           class="flex items-center gap-0.5 text-xs"
@@ -108,12 +97,6 @@ const {
           <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" />
           {{ depCount }}
         </span>
-        <div v-if="assignees.length" class="flex -space-x-1 ml-auto">
-          <UTooltip v-for="a in assignees.slice(0, 3)" :key="a" :text="a">
-            <UAvatar :alt="a" size="2xs" />
-          </UTooltip>
-          <UAvatar v-if="assignees.length > 3" :alt="`+${assignees.length - 3}`" size="2xs" />
-        </div>
       </div>
     </template>
   </UCard>

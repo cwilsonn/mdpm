@@ -12,7 +12,6 @@ export interface Task {
   status: string
   priority: string
   tags?: string[]
-  assignees?: string[]
   dependencies?: string[]
   due?: string
   completedAt?: string

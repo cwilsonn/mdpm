@@ -33,7 +33,6 @@ export default defineEventHandler((event) => {
         status: (file.data.status as string) ?? 'todo',
         priority: (file.data.priority as string) ?? 'medium',
         tags: (file.data.tags as string[]) ?? [],
-        assignees: (file.data.assignees as string[]) ?? [],
         dependencies: Array.isArray(file.data.dependencies) ? (file.data.dependencies as string[]) : [],
         due: (file.data.due as string | undefined) ?? undefined,
         createdAt: (file.data.createdAt as string) ?? '',

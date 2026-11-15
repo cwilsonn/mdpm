@@ -33,16 +33,15 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
   }
 
   // `notes: true` reads each task's notes too (the log, export, a noteCount column); lists don't need them.
-  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; assignee?: string; includeArchived?: boolean; notes?: boolean } = {}) {
-    const { project, status, priority, tags, assignee, includeArchived, notes } = opts
+  function listTasks(opts: { project?: string; status?: string[]; priority?: string[]; tags?: string[]; includeArchived?: boolean; notes?: boolean } = {}) {
+    const { project, status, priority, tags, includeArchived, notes } = opts
     return (project
       ? reader.getTasks(project, status, { notes })
       : reader.getAllTasks(status, { notes })
     ).filter(t =>
       (includeArchived || !t.archivedAt)
       && (!priority?.length || priority.includes(t.priority))
-      && (!tags?.length || tags.some(tag => t.tags.includes(tag)))
-      && (!assignee || t.assignees.includes(assignee)),
+      && (!tags?.length || tags.some(tag => t.tags.includes(tag))),
     )
   }
 

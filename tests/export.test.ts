@@ -13,7 +13,7 @@ describe('export', () => {
 
   it('builds a self-describing JSON document, leaving out archived items by default', () => {
     const doc = buildExport(core, {}, at)
-    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 4, '2026-10-01T12:00:00.000Z'])
+    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 5, '2026-10-01T12:00:00.000Z'])
     assert.deepEqual(doc.projects.map(p => p.slug).sort(), ['alpha', 'beta'])
     const alpha = doc.projects.find(p => p.slug === 'alpha')!
     assert.ok(!alpha.tasks.some(t => t.slug === 'old-idea'), 'archived task left out')
@@ -38,7 +38,7 @@ describe('export', () => {
   it('CSV quotes commas, quotes, and line breaks; notes get their own column', () => {
     const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 4, exportedAt: '', standaloneDocs: [], projects: [{
       slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], repo: null, createdAt: '', archivedAt: null, docs: [],
-      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma', notes: [{ at: '2026-10-01T12:00:00.000Z', author: 'Sam', text: 'done' }] }],
+      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], due: '2026-12-01', dependencies: ['y'], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma', notes: [{ at: '2026-10-01T12:00:00.000Z', author: 'Sam', text: 'done' }] }],
     }] }
     const csv = toCsv(doc)
     assert.ok(csv.startsWith(`${CSV_COLUMNS.join(',')}\n`))

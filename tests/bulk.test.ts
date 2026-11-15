@@ -9,7 +9,7 @@ const scratch = scratchDir()
 after(scratch.cleanup)
 
 const task = (over: Partial<Parameters<typeof matches>[0]> = {}) => ({
-  project: 'p', slug: 'some-task', title: 'Some Task', status: 'todo', priority: 'medium', tags: ['core', 'Backend'], assignees: ['sam'], ...over,
+  project: 'p', slug: 'some-task', title: 'Some Task', status: 'todo', priority: 'medium', tags: ['core', 'Backend'], ...over,
 })
 const where = (expr: string, t = task()) => matches(t, parseWhere(expr))
 
@@ -29,16 +29,15 @@ describe('--where selectors', () => {
     assert.ok(!where('status!=done|todo'))
   })
 
-  it('treats tags and assignees as sets, with plural aliases', () => {
+  it('treats tags as a set, with a plural alias', () => {
     assert.ok(where('tag=core'))
     assert.ok(where('tags=backend'))
     assert.ok(where('tag=qa|core'))
     assert.ok(!where('tag=qa'))
     assert.ok(where('tag!=qa'))
     assert.ok(where('tag~back'))
-    assert.ok(where('assignee=sam'))
-    assert.ok(!where('assignee=ada'))
-    assert.ok(where('assignee!=ada'))
+    // Assignees were removed: the field is unknown now.
+    assert.throws(() => where('assignee=sam'), /unknown field 'assignee'/)
   })
 
   it('requires every clause to hold', () => {

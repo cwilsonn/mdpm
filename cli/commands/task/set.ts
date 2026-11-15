@@ -17,7 +17,6 @@ export default defineCommand({
     status: { type: 'string', description: TASK_STATUSES.join(' | ') },
     priority: { type: 'string', description: TASK_PRIORITIES.join(' | ') },
     tags: { type: 'string', description: 'Comma-separated; replaces the existing tags' },
-    assignees: { type: 'string', description: 'Comma-separated; replaces the existing assignees' },
     due: { type: 'string', description: 'YYYY-MM-DD, or "none" to clear' },
     dependencies: { type: 'string', description: 'Comma-separated tasks this one waits on (slug, fragment, or project/slug); replaces the list; "none" clears it' },
     description: { type: 'string', description: 'Replace the markdown body; use - to read it from stdin' },
@@ -39,7 +38,6 @@ export default defineCommand({
       status: oneOf(args.status, TASK_STATUSES, '--status'),
       priority: oneOf(args.priority, TASK_PRIORITIES, '--priority'),
       tags: csv(args.tags),
-      assignees: csv(args.assignees),
       // The API treats null as "remove the field".
       due: args.due === 'none' ? null : args.due,
       description: args.description === undefined ? undefined : await textOrStdin(args.description),

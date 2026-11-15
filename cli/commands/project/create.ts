@@ -17,7 +17,6 @@ export default defineCommand({
     'available-statuses': { type: 'string', description: 'Comma-separated task statuses the project uses' },
     'default-status': { type: 'string' },
     'default-priority': { type: 'string', description: TASK_PRIORITIES.join(' | ') },
-    'default-assignee': { type: 'string' },
   },
   async run({ args }) {
     const ctx = createContext(args)
@@ -31,7 +30,6 @@ export default defineCommand({
       availableStatuses: csv(args['available-statuses']),
       defaultStatus: args['default-status'],
       defaultPriority: oneOf(args['default-priority'], TASK_PRIORITIES, '--default-priority'),
-      defaultAssignee: args['default-assignee'],
     })
     emit(ctx.json, { slug }, () => `${ctx.style.green('✓')} created project ${slug}`)
   },

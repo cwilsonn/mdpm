@@ -15,13 +15,6 @@ type ColId = StatusId
 const searchQuery = ref('')
 const filterStatuses = ref<FilterItem[]>([])
 const filterPriorities = ref<FilterItem[]>([])
-const filterAssignees = ref<FilterItem[]>([])
-
-const allAssignees = computed(() => getAssigneeNames((tasks.value ?? []) as Array<{ assignees?: string[] }>))
-
-const assigneeFilterItems = computed<FilterItem[]>(() =>
-  allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
-)
 
 const projectAvailableStatuses = computed(() => project.value.availableStatuses ?? STATUS_CONFIG.map(s => s.id))
 
@@ -55,7 +48,6 @@ const columns = reactive<Record<ColId, Task[]>>({
 
 function matchesFilters(t: Task, q: string) {
   return (filterPriorities.value.length === 0 || filterPriorities.value.some(p => p.value === t.priority))
-    && (filterAssignees.value.length === 0 || filterAssignees.value.some(a => t.assignees?.includes(a.value)))
     && (!q || t.title.toLowerCase().includes(q))
 }
 
@@ -80,7 +72,6 @@ function syncColumns(v: typeof tasks.value) {
 
 watch(tasks, syncColumns, { immediate: true })
 watch(filterPriorities, () => syncColumns(tasks.value), { deep: true })
-watch(filterAssignees, () => syncColumns(tasks.value), { deep: true })
 watch(searchQuery, () => syncColumns(tasks.value))
 
 const { markingDone, markDone: _markDone } = useMarkDone()
@@ -111,11 +102,11 @@ const totalVisible = computed(() => {
 
 const { updating, handleColumnAdd, handleColumnUpdate } = useReorder()
 
-// Within-column task lists are subset by search/priority/assignee (not by status,
+// Within-column task lists are subset by search/priority (not by status,
 // which only hides whole columns). When any of those is active, suppress manual
 // order persistence to avoid colliding with hidden tasks' order values.
 const columnsAreFiltered = computed(() =>
-  !!searchQuery.value.trim() || filterPriorities.value.length > 0 || filterAssignees.value.length > 0,
+  !!searchQuery.value.trim() || filterPriorities.value.length > 0,
 )
 
 function onColumnAdd(colId: ColId, evt: { newIndex?: number }) {
@@ -273,12 +264,6 @@ const mobileActions = computed(() => [
             :items="(PRIORITY_SELECT_ITEMS as FilterItem[])"
             placeholder="Priority"
           />
-          <AppFilterMenu
-            v-if="allAssignees.length"
-            v-model="filterAssignees"
-            :items="assigneeFilterItems"
-            placeholder="Assignees"
-          />
           <UButton
             v-if="archivedList.length"
             :label="showArchived ? 'Hide archived' : `Show archived (${archivedList.length})`"
@@ -394,7 +379,6 @@ const mobileActions = computed(() => [
         :initial-status="createTaskStatus"
         :available-statuses="project.availableStatuses"
         :default-priority="project.defaultPriority"
-        :default-assignee="project.defaultAssignee"
         @close="showCreateTask = false"
         @saved="() => { showCreateTask = false; refreshTasks() }"
       />

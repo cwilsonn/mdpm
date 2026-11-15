@@ -27,7 +27,7 @@ export default defineCommand({
       if (err instanceof MigrationError) throw new CliError(err.message, ExitCode.usage)
       throw err
     }
-    const pending = plan.entries.filter(e => e.newText !== undefined)
+    const pending = plan.entries.filter(e => e.newText !== undefined || e.remove)
 
     if (args.check) {
       const status = schemaStatus(root)

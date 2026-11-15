@@ -20,7 +20,6 @@ export default defineEventHandler((event) => {
     availableStatuses: (file.data.availableStatuses as string[] | undefined) ?? [...TASK_STATUSES],
     defaultStatus: (file.data.defaultStatus as string | undefined) ?? undefined,
     defaultPriority: (file.data.defaultPriority as string | undefined) ?? undefined,
-    defaultAssignee: (file.data.defaultAssignee as string | undefined) ?? undefined,
     repo: repoOf(file.data) ?? undefined,
     archivedAt: (file.data.archivedAt as string | undefined) ?? undefined,
   }

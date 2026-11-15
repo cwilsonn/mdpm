@@ -126,7 +126,7 @@ describe('CLI list caps', () => {
     assert.equal(r.code, 0)
     assert.equal(r.json.length, 2)
     assert.match(r.stderr, /2 of 7 tasks shown.*--offset 2/)
-    assert.deepEqual(Object.keys(r.json[0]), ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'updatedAt'])
+    assert.deepEqual(Object.keys(r.json[0]), ['project', 'slug', 'title', 'status', 'priority', 'tags', 'due', 'updatedAt'])
   })
 
   it('--fields picks columns, --tsv prints a header and rows', async () => {

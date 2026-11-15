@@ -1,14 +1,14 @@
 // `--where` selectors for bulk task operations: `status=todo|blocked,tag=core,priority!=low`.
 // Clauses are joined by commas (all must hold); `|` separates alternatives within a clause.
-//   field=value    equals (any of the alternatives, case-insensitive; for tags/assignees: has one of them)
+//   field=value    equals (any of the alternatives, case-insensitive; for tags: has one of them)
 //   field!=value   none of the alternatives match
-//   field~text     contains the text (case-insensitive; for tags/assignees: some entry contains it)
+//   field~text     contains the text (case-insensitive; for tags: some entry contains it)
 
 export class WhereError extends Error {
   override name = 'WhereError'
 }
 
-export const WHERE_FIELDS = ['status', 'priority', 'tag', 'assignee', 'title', 'slug', 'project'] as const
+export const WHERE_FIELDS = ['status', 'priority', 'tag', 'title', 'slug', 'project'] as const
 type Field = typeof WHERE_FIELDS[number]
 type Op = '=' | '!=' | '~'
 
@@ -25,10 +25,9 @@ export interface WhereTask {
   status: string
   priority: string
   tags: string[]
-  assignees: string[]
 }
 
-const ALIASES: Record<string, Field> = { tags: 'tag', assignees: 'assignee' }
+const ALIASES: Record<string, Field> = { tags: 'tag' }
 
 export function parseWhere(expr: string): Clause[] {
   const clauses = expr.split(',').map(c => c.trim()).filter(Boolean).map((raw): Clause => {
@@ -48,7 +47,6 @@ export function parseWhere(expr: string): Clause[] {
 const candidates = (task: WhereTask, field: Field): string[] => {
   switch (field) {
     case 'tag': return task.tags
-    case 'assignee': return task.assignees
     default: return [task[field]]
   }
 }

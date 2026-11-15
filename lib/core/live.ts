@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, watch, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
 
-export type ContentKind = 'project' | 'task' | 'doc' | 'standalone-doc' | 'author'
+export type ContentKind = 'project' | 'task' | 'doc' | 'standalone-doc'
 
 export interface ContentEvent {
   kind: ContentKind
@@ -46,7 +46,6 @@ export function mapContentPath(rel: string): Target | null {
     return null
   }
   if (parts.length === 2 && md && parts[0] === 'docs') return { kind: 'standalone-doc', slug: base, file: rel }
-  if (parts.length === 2 && md && parts[0] === 'authors') return { kind: 'author', slug: base, file: rel }
   return null
 }
 

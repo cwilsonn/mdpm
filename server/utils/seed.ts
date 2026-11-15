@@ -68,18 +68,8 @@ const SEED_PROJECTS: SeedProject[] = [
   },
 ]
 
-const SEED_AUTHOR = { name: 'Demo User', slug: 'demo-user' }
-
 export function seedContent() {
   const today = new Date().toISOString().split('T')[0]!
-
-  // Author
-  if (!existsSync(contentPath('authors', `${SEED_AUTHOR.slug}.md`))) {
-    writeMarkdown(`authors/${SEED_AUTHOR.slug}.md`, {
-      name: SEED_AUTHOR.name,
-      createdAt: today,
-    })
-  }
 
   for (const project of SEED_PROJECTS) {
     const projectPath = `projects/${project.slug}/index.md`
@@ -103,8 +93,6 @@ export function seedContent() {
           status: task.status,
           priority: task.priority,
           tags: task.tags ?? [],
-          assignees: [SEED_AUTHOR.name],
-          dependencies: [],
           createdAt: today,
           order: i,
         }, task.description ?? '')
@@ -124,12 +112,8 @@ export function resetContent() {
     }
   }
 
-  if (existsSync(authorsDir)) {
-    for (const entry of readdirSync(authorsDir)) {
-      if (entry === '.gitkeep') continue
-      rmSync(contentPath('authors', entry), { recursive: true, force: true })
-    }
-  }
+  // Authors (assignee records) were removed; a deployment seeded by an older version still has the directory.
+  rmSync(authorsDir, { recursive: true, force: true })
 
   seedContent()
 }

@@ -61,10 +61,3 @@ export function projectSlugFromPath(path: string): string {
   return /^\/projects\/([^/]+)/.exec(path)?.[1] ?? ''
 }
 
-export function getAssigneeNames(tasks: Array<{ assignees?: string[] }>): string[] {
-  const set = new Set<string>()
-  for (const t of tasks) {
-    for (const a of t.assignees ?? []) set.add(a)
-  }
-  return [...set].sort()
-}

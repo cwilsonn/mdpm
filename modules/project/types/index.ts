@@ -20,5 +20,4 @@ export interface ProjectDetail extends Project {
   availableStatuses: string[]
   defaultStatus?: string
   defaultPriority?: string
-  defaultAssignee?: string
 }

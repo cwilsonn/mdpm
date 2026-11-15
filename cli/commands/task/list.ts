@@ -16,7 +16,6 @@ export default defineCommand({
     status: { type: 'string', description: `Comma-separated: ${TASK_STATUSES.join(', ')}` },
     priority: { type: 'string', description: `Comma-separated: ${TASK_PRIORITIES.join(', ')}` },
     tags: { type: 'string', description: 'Comma-separated; matches tasks with any of them' },
-    assignee: { type: 'string', description: 'Only tasks assigned to this name' },
     where: { type: 'string', description: `Further filter: ${WHERE_FIELDS.join(', ')} with = != ~, joined by commas, | for alternatives` },
     'include-archived': { type: 'boolean', description: 'Include archived tasks', default: false },
   },
@@ -31,7 +30,6 @@ export default defineCommand({
       status,
       priority,
       tags: csv(args.tags),
-      assignee: args.assignee,
       includeArchived: args['include-archived'],
       // Notes stay unread unless a noteCount column asks for them; `task show` returns them.
       notes: fieldsNeedNotes(args.fields),
