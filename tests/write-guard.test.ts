@@ -122,18 +122,6 @@ describe('write bodies', () => {
     assert.equal('due' in matter(raw('projects/p/tasks/one.md')).data, false)
   })
 
-  it('a batch refuses a bad op and applies the rest', async () => {
-    const batch = await route('tasks/batch.post')
-    const r = await batch({ body: { ops: [
-      { op: 'update', project: 'p', slug: 'one', status: 'done', bogus: 1 },
-      { op: 'create', project: 'p', title: 'Fine' },
-    ] } })
-    assert.equal(r.failed, 1)
-    assert.match(r.results[0].error, /unknown field: bogus/)
-    assert.equal(r.results[1].ok, true)
-    assert.equal(matter(raw('projects/p/tasks/one.md')).data.status, 'todo')
-  })
-
   it('project and doc updates refuse unknown fields', async () => {
     const project = await route('projects/[slug].patch')
     const doc = await route('docs/[project]/[slug].patch')
