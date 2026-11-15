@@ -230,3 +230,46 @@ describe('stale updates (expectedUpdatedAt)', () => {
     assert.equal(read('projects/p/docs/d.md').data.expectedUpdatedAt, undefined)
   })
 })
+
+// The writer's batch (the CLI's `task batch` and MCP's batch_tasks go through ops.batchTasks to here).
+describe('batchTasks', () => {
+  it('applies creates, updates and notes in order and returns only ids and statuses', () => {
+    const w = createWriter(root)
+    w.createTask({ project: 'p', title: 'Two', status: 'in-progress' })
+    const r = w.batchTasks([
+      { op: 'create', project: 'p', title: 'Third', status: 'in-progress' },
+      { op: 'update', project: 'p', slug: 'one', status: 'done', note: 'shipped' },
+      { op: 'note', project: 'p', slug: 'two', note: 'halfway', noteAuthor: 'claude' },
+    ])
+    assert.deepEqual(r, { ok: 3, failed: 0, results: [
+      { index: 0, ok: true, id: 'p/third', status: 'in-progress' },
+      { index: 1, ok: true, id: 'p/one', status: 'done' },
+      { index: 2, ok: true, id: 'p/two', status: 'in-progress' },
+    ] })
+    assert.match(notesOf('one'), /shipped\s*$/)
+    assert.match(notesOf('two'), /halfway\s*$/)
+  })
+
+  it('reports a failing item without stopping the rest, unknown fields included', () => {
+    const r = createWriter(root).batchTasks([
+      { op: 'update', project: 'p', slug: 'nope', status: 'done' },
+      { op: 'update', project: 'p', slug: 'one', status: 'done', bogus: 1 },
+      { op: 'bogus' },
+      { op: 'note', project: 'p', slug: 'one', note: '  ' },
+      { op: 'update', project: 'p', slug: 'one', status: 'in-review' },
+    ])
+    assert.equal(r.ok, 1)
+    assert.equal(r.failed, 4)
+    assert.match(r.results[0]!.error!, /Task not found/)
+    assert.match(r.results[1]!.error!, /unknown field: bogus/)
+    assert.match(r.results[2]!.error!, /Unknown op/)
+    assert.match(r.results[3]!.error!, /note is empty/)
+    assert.equal(read('projects/p/tasks/one.md').data.status, 'in-review')
+  })
+
+  it('rejects an empty or oversized batch', () => {
+    const w = createWriter(root)
+    assert.throws(() => w.batchTasks([]), ValidationError)
+    assert.throws(() => w.batchTasks(Array.from({ length: 101 }, () => ({ op: 'note', project: 'p', slug: 'one', note: 'x' }))), ValidationError)
+  })
+})

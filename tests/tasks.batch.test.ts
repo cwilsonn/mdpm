@@ -65,47 +65,6 @@ describe('write responses', () => {
   })
 })
 
-describe('POST /api/tasks/batch', () => {
-  it('applies creates, updates and notes in order and returns only ids and statuses', async () => {
-    const batch = await route('tasks/batch.post')
-    const r = await batch({ body: { ops: [
-      { op: 'create', project: 'p', title: 'Third', status: 'in-progress' },
-      { op: 'update', project: 'p', slug: 'one', status: 'done', note: 'shipped' },
-      { op: 'note', project: 'p', slug: 'two', note: 'halfway', noteAuthor: 'claude' },
-    ] } })
-    assert.deepEqual(r, { ok: 3, failed: 0, results: [
-      { index: 0, ok: true, id: 'p/third', status: 'in-progress' },
-      { index: 1, ok: true, id: 'p/one', status: 'done' },
-      { index: 2, ok: true, id: 'p/two', status: 'in-progress' },
-    ] })
-    assert.match(notesOf('one'), /shipped$/)
-    assert.match(notesOf('two'), /halfway$/)
-  })
-
-  it('a failing item is reported and does not stop the rest', async () => {
-    const batch = await route('tasks/batch.post')
-    const r = await batch({ body: { ops: [
-      { op: 'update', project: 'p', slug: 'nope', status: 'done' },
-      { op: 'update', project: 'p', slug: 'one', status: 'done' },
-      { op: 'bogus' },
-      { op: 'note', project: 'p', slug: 'one', note: '  ' },
-    ] } })
-    assert.equal(r.ok, 1)
-    assert.equal(r.failed, 3)
-    assert.match(r.results[0].error, /Task not found/)
-    assert.equal(r.results[1].ok, true)
-    assert.match(r.results[2].error, /Unknown op/)
-    assert.match(r.results[3].error, /note is empty/)
-    assert.equal(read('projects/p/tasks/one.md').data.status, 'done')
-  })
-
-  it('rejects an empty or oversized batch', async () => {
-    const batch = await route('tasks/batch.post')
-    assert.equal((await rejects(batch({ body: { ops: [] } }))).statusCode, 400)
-    assert.equal((await rejects(batch({ body: { ops: Array.from({ length: 101 }, () => ({ op: 'note', project: 'p', slug: 'one', note: 'x' })) } }))).statusCode, 400)
-  })
-})
-
 describe('batchTasks and startTask (core)', () => {
   // Reads and writes both go to the files; the base URL is unroutable, so nothing may need a server.
   const core = () => createCore({ contentPath: root, baseUrl: 'http://127.0.0.1:1' })
