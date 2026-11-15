@@ -22,9 +22,17 @@ export interface Task {
   order?: number
 }
 
-/** A single task with its markdown body (`GET /api/tasks/[project]/[slug]`). */
+/** One entry of a task's history; `at` is UTC (ISO), to the minute. */
+export interface TaskNote {
+  at: string
+  author: string | null
+  text: string
+}
+
+/** A single task (`GET /api/tasks/[project]/[slug]`): `body` is the spec, `notes` the history, oldest first. */
 export interface TaskDetail extends Task {
   body: string
+  notes: TaskNote[]
 }
 
 /** A status column descriptor (shape of a `STATUS_CONFIG` entry, mutable). */

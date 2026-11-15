@@ -13,7 +13,10 @@ export interface TaskPayload {
   assignees?: string[]
   due?: string
   dependencies?: string[]
+  /** The spec; it never touches the notes. */
   description?: string
+  /** A note to add to the task's history. */
+  note?: string
   archivedAt?: string | null
   /** The updatedAt this edit is based on; the server answers 409 if the task changed since. */
   expectedUpdatedAt?: string | null
