@@ -78,6 +78,7 @@ describe('against a real repository', () => {
     g('commit', '-q', '-m', subject)
     return g('rev-parse', 'HEAD')
   }
+  // Full SHAs: a random 7-char prefix is all digits ~4% of the time, and citedHashes needs a letter.
   let landed: string, branchOnly: string, rewritten: string
   before(() => {
     mkdirSync(repo)
@@ -96,9 +97,9 @@ describe('against a real repository', () => {
     assert.equal(defaultBranch(repo), 'main')
     const git = createGitRepo(repo, 'main')
     const findings = checkStaleness([
-      task('open', 'todo', `landed in ${landed.slice(0, 7)}`),
-      task('old-sha', 'done', `see ${rewritten.slice(0, 9)}`),
-      task('lost', 'done', `see ${branchOnly.slice(0, 7)} and deadbee1`),
+      task('open', 'todo', `landed in ${landed}`),
+      task('old-sha', 'done', `see ${rewritten}`),
+      task('lost', 'done', `see ${branchOnly} and deadbee1`),
     ], git)
     assert.deepEqual(findings.map(f => [f.kind, f.slug]), [['landed', 'open'], ['unverified', 'lost'], ['rewritten', 'old-sha']])
     assert.equal(findings[2]!.onBranch[0], g('rev-parse', '--short=7', 'main'))
@@ -106,7 +107,7 @@ describe('against a real repository', () => {
 
   it('mdpm task stale reports for a project against --repo', async () => {
     const cli = (args: string[]) => runCli(args, { scratch: scratch.dir })
-    await cli(['task', 'note', 'alpha/fix-login-bug', `shipped in ${landed.slice(0, 7)}`, '--project', 'alpha'])
+    await cli(['task', 'note', 'alpha/fix-login-bug', `shipped in ${landed}`, '--project', 'alpha'])
     const r = await cli(['task', 'stale', '--project', 'alpha', '--repo', repo, '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.equal(r.json.branch, 'main')
