@@ -153,7 +153,8 @@ describe('--dependencies on add and set', () => {
 
   it('set --dependencies none clears them', async () => {
     await cli(['set', 'write-tests', '--project', 'alpha', '--dependencies', 'none'])
-    assert.deepEqual(deps('write-tests'), [])
+    // An empty list is left out of the file, not written as `[]`.
+    assert.equal(deps('write-tests'), undefined)
   })
 
   it('refuses a dependency that would create a cycle, naming the path, and writes nothing', async () => {

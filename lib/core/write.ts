@@ -67,9 +67,14 @@ export function parseInput<S extends z.ZodType>(schema: S, data: unknown): z.out
   throw new ValidationError(`Invalid request: ${formatIssues(result.error.issues)}`)
 }
 
-/** The exact bytes a markdown file is written with (kept identical to the server's historic output). */
+// List fields every reader defaults to []: an empty one is left out of the file rather than written as `[]`.
+const LIST_KEYS = ['tags', 'assignees', 'dependencies'] as const
+
+/** The exact bytes a markdown file is written with: gray-matter's output, minus empty list fields. */
 export function renderMarkdown(frontmatter: Record<string, unknown>, body = '') {
-  return matter.stringify(body.trim(), frontmatter)
+  const data = { ...frontmatter }
+  for (const key of LIST_KEYS) if (Array.isArray(data[key]) && !(data[key] as unknown[]).length) delete data[key]
+  return matter.stringify(body.trim(), data)
 }
 
 function sideFile(full: string, suffix: string) {
@@ -354,7 +359,8 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
         const rel = `projects/${project}/tasks/${slug}.md`
         if (!existsSync(path(rel))) return
         try {
-          modify(rel, 'Task not found', file => ({ data: { ...file.data, order: i }, body: file.content, result: undefined }))
+          // Only tasks that actually moved are rewritten: a drag touches one or two files, not the whole board.
+          modify(rel, 'Task not found', file => file.data.order === i ? null : { data: { ...file.data, order: i }, body: file.content, result: undefined })
         }
         catch (err) {
           if (!(err instanceof NotFoundError)) throw err
@@ -454,6 +460,7 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       if (!existsSync(path(rel))) return
       try {
         modify(rel, 'Project not found', (file) => {
+          if (file.data.pinnedOrder === i && !!file.data.pinned === isPinned) return null
           const { pinned: _pin, ...rest } = file.data
           const data = isPinned ? { ...file.data, pinned: true, pinnedOrder: i } : { ...rest, pinnedOrder: i }
           return { data, body: file.content, result: undefined }
