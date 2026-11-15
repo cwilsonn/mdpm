@@ -25,7 +25,6 @@ if (!task.value) {
   throw createError({ statusCode: 404, message: 'Task not found' })
 }
 
-const { statusColor, statusIcon, priorityColor, priorityIcon } = useTaskMeta()
 const { updateTask, removeTask } = useTasks()
 const { tryWithToast } = useApiToast()
 
@@ -130,14 +129,14 @@ const mobileActions = computed(() => [
         <div class="flex items-center gap-2 flex-wrap">
           <UBadge
             :label="task!.status"
-            :color="statusColor(task!.status)"
-            :icon="statusIcon(task!.status)"
+            :color="statusMeta(task!.status).color"
+            :icon="statusMeta(task!.status).icon"
             variant="subtle"
           />
           <UBadge
             :label="task!.priority"
-            :color="priorityColor(task!.priority)"
-            :icon="priorityIcon(task!.priority)"
+            :color="priorityMeta(task!.priority).color"
+            :icon="priorityMeta(task!.priority).icon"
             variant="subtle"
           />
           <UBadge

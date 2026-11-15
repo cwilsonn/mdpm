@@ -23,14 +23,12 @@ const tags = ref([...props.initialTags])
 const body = ref(props.initialBody)
 const bodyLoaded = ref(false)
 
-const isEdit = computed(() => true)
-
 // Sent with every save, so the server refuses (409) instead of overwriting a change made elsewhere meanwhile
 // (an agent's upsert_doc, `mdpm doc edit`, another tab). Rebased on each save's answer.
 const baseUpdatedAt = ref<string | null>(props.initialUpdatedAt)
 
 const { saving, busy, savedAt, saveError, savedAgo, conflict, scheduleSave, quietly, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
-  isEdit,
+  true,
   async () => {
     const res = await $fetch<{ ok: true, updatedAt?: string }>(props.saveUrl, {
       method: 'PATCH',

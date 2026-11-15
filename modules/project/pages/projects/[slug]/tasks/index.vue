@@ -156,17 +156,10 @@ watch(slug, (s) => {
 
 watch(taskView, v => localStorage.setItem(taskViewKey(slug.value), v))
 
-const openListStatuses = ref<string[]>([])
+const openListStatuses = useToggleSet()
 watch(visibleColumns, (cols) => {
-  for (const col of cols)
-    if (!openListStatuses.value.includes(col.id)) openListStatuses.value.push(col.id)
+  for (const col of cols) openListStatuses.add(col.id)
 }, { immediate: true })
-
-function toggleListStatus(id: string) {
-  const idx = openListStatuses.value.indexOf(id)
-  if (idx >= 0) openListStatuses.value.splice(idx, 1)
-  else openListStatuses.value.push(id)
-}
 
 function openCreateTask(status?: ColId) {
   createTaskStatus.value = status ?? (project.value.defaultStatus as ColId | undefined) ?? 'todo'
@@ -344,11 +337,11 @@ const mobileActions = computed(() => [
           v-model="columns[col.id]"
           :status-cfg="col"
           group="tasks"
-          :is-open="openListStatuses.includes(col.id)"
+          :is-open="openListStatuses.has(col.id)"
           :is-dragging="isDragging"
           :loading-path="markingDone"
           show-add-button
-          @toggle="toggleListStatus(col.id)"
+          @toggle="openListStatuses.toggle(col.id)"
           @drag-start="isDragging = true"
           @drag-end="isDragging = false"
           @drag-add="(e) => onColumnAdd(col.id, e)"

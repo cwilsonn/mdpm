@@ -35,6 +35,16 @@ export const PRIORITY_MAP = Object.fromEntries(
   PRIORITY_CONFIG.map(p => [p.id, p]),
 ) as Record<string, typeof PRIORITY_CONFIG[number]>
 
+// Descriptor for a status/priority, with a neutral fallback for values not in the config
+// (legacy or hand-edited frontmatter) so templates never deref undefined.
+export function statusMeta(status: string) {
+  return STATUS_MAP[status] ?? { id: status, label: status, icon: 'i-lucide-circle', color: 'neutral' as const }
+}
+
+export function priorityMeta(priority: string) {
+  return PRIORITY_MAP[priority] ?? { id: priority, label: priority, icon: 'i-lucide-arrow-right', color: 'neutral' as const }
+}
+
 export const PRIORITY_SELECT_ITEMS = PRIORITY_CONFIG.map(p => ({
   label: p.label,
   value: p.id,
@@ -44,6 +54,11 @@ export const PRIORITY_SELECT_ITEMS = PRIORITY_CONFIG.map(p => ({
 
 export function slugFromPath(path: string): string {
   return path.split('/').at(-1) ?? ''
+}
+
+/** The project slug of a task or doc path (`/projects/<project>/tasks/<slug>`), or '' for any other path. */
+export function projectSlugFromPath(path: string): string {
+  return /^\/projects\/([^/]+)/.exec(path)?.[1] ?? ''
 }
 
 export function getAssigneeNames(tasks: Array<{ assignees?: string[] }>): string[] {

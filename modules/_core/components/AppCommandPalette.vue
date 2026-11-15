@@ -47,7 +47,7 @@ const defaultDocs = computed<DocResult[]>(() =>
 )
 
 function projectTitleOf(taskPath: string) {
-  const pSlug = taskPath.split('/')[2]
+  const pSlug = projectSlugFromPath(taskPath)
   return projects.value?.find(p => slugFromPath(p.path) === pSlug)?.title ?? pSlug
 }
 
@@ -56,8 +56,7 @@ function projectTitleOfSlug(slug: string) {
 }
 
 function taskRoute(path: string) {
-  const parts = path.split('/')
-  return `/projects/${parts[2]}/tasks/${parts[4]}`
+  return `/projects/${projectSlugFromPath(path)}/tasks/${slugFromPath(path)}`
 }
 
 function docRoute(doc: DocResult) {
