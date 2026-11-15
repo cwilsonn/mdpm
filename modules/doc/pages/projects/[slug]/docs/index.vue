@@ -2,11 +2,7 @@
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
-interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string; description?: string; tags?: string[]; repo?: string }
-
-const project = inject<Ref<ProjectHeader>>('project')!
-
-import type { DocTreeItem } from '~/components/DocTreeList.vue'
+const project = inject<Ref<ProjectDetail>>('project')!
 
 const { data: docs, refresh: refreshDocs, pending: docsPending } = await useAsyncData(
   () => `docs-${slug.value}`,
@@ -32,7 +28,7 @@ useHead(() => ({ title: `${project.value?.title ?? slug.value} — Docs` }))
 const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
   { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
-  { label: project.value?.title ?? slug.value, icon: (project.value as any)?.icon || undefined },
+  { label: project.value?.title ?? slug.value, icon: project.value?.icon || undefined },
 ])
 
 const tabs = computed(() => [

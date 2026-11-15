@@ -14,9 +14,7 @@ interface DocDetail {
   body: string
 }
 
-interface ProjectHeader { slug: string; path: string; title: string; icon?: string; status: string }
-
-const project = inject<Ref<ProjectHeader>>('project')!
+const project = inject<Ref<ProjectDetail>>('project')!
 
 const { docUrl } = useDocs()
 const apiUrl = computed(() => docUrl(projectSlug.value, docSlug.value))
@@ -33,7 +31,7 @@ if (!docMeta.value) {
 const projectsMeta = resolveRouteMeta('/projects')
 const breadcrumb = computed(() => [
   { label: projectsMeta.label ?? 'Projects', to: '/projects', icon: projectsMeta.icon },
-  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: (project.value as any)?.icon || undefined },
+  { label: project.value?.title ?? projectSlug.value, to: `/projects/${projectSlug.value}/docs`, icon: project.value?.icon || undefined },
   { label: docMeta.value?.title || docSlug.value },
 ])
 
