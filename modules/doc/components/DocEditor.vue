@@ -9,6 +9,8 @@ const props = defineProps<{
   initialTags: string[]
   initialBody: string
   initialArchivedAt?: string
+  /** The loaded doc's updatedAt (null if it never had one): the base for the stale-edit check. */
+  initialUpdatedAt: string | null
   fallbackTitle: string
   breadcrumb: PageBreadcrumbItem[]
   backTo?: string
@@ -23,15 +25,44 @@ const bodyLoaded = ref(false)
 
 const isEdit = computed(() => true)
 
-const { saving, savedAt, saveError, savedAgo, scheduleSave, initAutoSave, cleanupAutoSave } = useAutoSave(
+// Sent with every save, so the server refuses (409) instead of overwriting a change made elsewhere meanwhile
+// (an agent's upsert_doc, `mdpm doc edit`, another tab). Rebased on each save's answer.
+const baseUpdatedAt = ref<string | null>(props.initialUpdatedAt)
+
+const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
-    await $fetch(props.saveUrl, {
+    const res = await $fetch<{ ok: true, updatedAt?: string }>(props.saveUrl, {
       method: 'PATCH',
-      body: { title: title.value, tags: tags.value, body: body.value },
+      body: { title: title.value, tags: tags.value, body: body.value, expectedUpdatedAt: baseUpdatedAt.value },
     })
+    if (res.updatedAt) baseUpdatedAt.value = res.updatedAt
   },
 )
+
+const reloading = ref(false)
+
+// After a conflict: take the latest version (local edits are dropped, as the message says), then resume saving.
+async function reloadAfterConflict() {
+  reloading.value = true
+  try {
+    const latest = await $fetch<{ title: string, tags?: string[], body?: string, updatedAt: string | null }>(props.saveUrl)
+    title.value = latest.title
+    if (titleEl.value) titleEl.value.innerText = latest.title
+    tags.value = [...(latest.tags ?? [])]
+    body.value = latest.body ?? ''
+    baseUpdatedAt.value = latest.updatedAt ?? null
+    // Let the watchers run (and no-op, autosave is still stopped) before saving again.
+    await nextTick()
+    resolveConflict()
+  }
+  catch {
+    saveError.value = 'Reload failed; try again'
+  }
+  finally {
+    reloading.value = false
+  }
+}
 
 watch(title, scheduleSave)
 watch(tags, scheduleSave, { deep: true })
@@ -138,6 +169,17 @@ const mobileActions = computed(() => [
           <template v-else-if="savedAt">Saved {{ savedAgo }}</template>
           <template v-else>Auto-save on</template>
         </span>
+        <UButton
+          v-if="conflict"
+          label="Reload"
+          icon="i-lucide-refresh-cw"
+          color="error"
+          variant="soft"
+          size="xs"
+          class="shrink-0"
+          :loading="reloading"
+          @click="reloadAfterConflict"
+        />
       </div>
     </template>
 

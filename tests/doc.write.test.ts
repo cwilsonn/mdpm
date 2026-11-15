@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, beforeEach, describe, it } from 'node:test'
-import { changedContent, readContent, REPO, resetContent, runCli, scratchDir, snapshotContent } from './helpers'
+import { changedContent, readContent, REPO, resetContent, runCli, scratchContent, scratchDir, snapshotContent } from './helpers'
 
 // Doc writes go straight to the files; these check the scratch copy of the fixtures.
 const scratch = scratchDir()
@@ -62,6 +62,16 @@ describe('doc edit', () => {
     assert.match(readFileSync(log, 'utf8'), /^## Stack/, 'the editor starts from the existing body')
     assert.match(arch()!.body, /## Stack[\s\S]*Added line\.$/)
     assert.deepEqual(r.json.updated, ['body'])
+  })
+
+  it('refuses to overwrite a doc changed during the editor session, and keeps the edit in a file', async () => {
+    const file = join(scratchContent(scratch.dir), 'projects/alpha/docs/architecture.md')
+    const r = await cli(['doc', 'edit', 'architecture', '--project', 'alpha'], { EDITOR, FAKE_EDITOR_APPEND: '\nMy edit.\n', FAKE_EDITOR_TOUCH: file })
+    assert.equal(r.code, 1, r.stderr)
+    assert.match(r.stderr, /changed while you were editing; nothing was saved/)
+    assert.doesNotMatch(arch()!.body, /My edit\./)
+    const saved = r.stderr.match(/Your text is in (\S+):/)![1]!
+    assert.match(readFileSync(saved, 'utf8'), /My edit\.$/)
   })
 
   it('writes nothing when the editor leaves the body unchanged', async () => {

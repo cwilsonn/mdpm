@@ -198,7 +198,9 @@ function nextStamp(data: Record<string, unknown>): Date {
 function assertFresh(data: Record<string, unknown>, expected: string | null | undefined, what: string) {
   if (expected === undefined) return
   const actual = updatedAtOf(data)
-  if (actual !== expected) {
+  // Same instant in another spelling counts as equal (the reader shortens a midnight Date to `YYYY-MM-DD`).
+  const same = actual === expected || (actual !== null && expected !== null && Date.parse(actual) === Date.parse(expected) && !Number.isNaN(Date.parse(actual)))
+  if (!same) {
     throw new ConflictError(`${what} changed since it was loaded (now updated ${actual ?? 'never'}); reload to get the latest`)
   }
 }

@@ -1,4 +1,8 @@
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { defineCommand } from 'citty'
+import { ConflictError } from '../../../lib/core'
 import { createContext, globalArgs } from '../../context'
 import { csv, editText, textOrStdin } from '../../io'
 import { CliError, emit, ExitCode } from '../../output'
@@ -22,7 +26,7 @@ export default defineCommand({
     const where = doc.project ? `${doc.project}/${doc.slug}` : doc.slug
     const fieldFlags = args.title !== undefined || args.tags !== undefined || args.parent !== undefined
 
-    const fields: { title?: string; body?: string; tags?: string[]; parent?: string | null } = {}
+    const fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; expectedUpdatedAt?: string | null } = {}
     if (args.title !== undefined) fields.title = args.title
     if (args.tags !== undefined) fields.tags = csv(args.tags)
     if (args.parent !== undefined) {
@@ -36,13 +40,25 @@ export default defineCommand({
       const edited = editText(doc.body, doc.slug)
       if (edited.trimEnd() !== doc.body.trimEnd()) fields.body = edited.trimEnd()
     }
+    const viaEditor = !fieldFlags && args.body === undefined && fields.body !== undefined
+    const updated = Object.keys(fields)
 
     if (!Object.keys(fields).length) {
       if (fieldFlags || args.body !== undefined) throw new CliError('nothing to change', ExitCode.usage)
       emit(ctx.json, { project: doc.project, slug: doc.slug, updated: [] }, () => `no changes to ${where}`)
       return
     }
-    await ctx.core.updateDoc(doc, fields)
-    emit(ctx.json, { project: doc.project, slug: doc.slug, updated: Object.keys(fields) }, () => `${ctx.style.green('✓')} updated ${where} (${Object.keys(fields).join(', ')})`)
+    // An editor session can last minutes: refuse to overwrite a doc that changed meanwhile, and keep the edit.
+    if (viaEditor) fields.expectedUpdatedAt = doc.updatedAt ?? null
+    try {
+      await ctx.core.updateDoc(doc, fields)
+    }
+    catch (err) {
+      if (!(err instanceof ConflictError) || !viaEditor) throw err
+      const saved = join(tmpdir(), `mdpm-${doc.slug}-${Date.now()}.md`)
+      writeFileSync(saved, fields.body!)
+      throw new CliError(`${where} changed while you were editing; nothing was saved. Your text is in ${saved}: run \`mdpm doc edit ${doc.slug}\` again and merge it in.`)
+    }
+    emit(ctx.json, { project: doc.project, slug: doc.slug, updated }, () => `${ctx.style.green('✓')} updated ${where} (${updated.join(', ')})`)
   },
 })
