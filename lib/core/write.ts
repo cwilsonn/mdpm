@@ -68,12 +68,15 @@ export function parseInput<S extends z.ZodType>(schema: S, data: unknown): z.out
 }
 
 // List fields every reader defaults to []: an empty one is left out of the file rather than written as `[]`.
-const LIST_KEYS = ['tags', 'assignees', 'dependencies'] as const
+const LIST_KEYS = ['tags', 'dependencies'] as const
+// Fields mdpm no longer has (assignees were removed): dropped when a file not yet migrated is rewritten.
+const DROPPED_KEYS = ['assignees', 'defaultAssignee'] as const
 
-/** The exact bytes a markdown file is written with: gray-matter's output, minus empty list fields. */
+/** The exact bytes a markdown file is written with: gray-matter's output, minus empty lists and dropped fields. */
 export function renderMarkdown(frontmatter: Record<string, unknown>, body = '') {
   const data = { ...frontmatter }
   for (const key of LIST_KEYS) if (Array.isArray(data[key]) && !(data[key] as unknown[]).length) delete data[key]
+  for (const key of DROPPED_KEYS) delete data[key]
   return matter.stringify(body.trim(), data)
 }
 
@@ -266,7 +269,6 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
     const project = read(`projects/${body.project}/index.md`)
     const defaultStatus = (project?.data.defaultStatus as string | undefined) ?? 'todo'
     const defaultPriority = (project?.data.defaultPriority as string | undefined) ?? 'medium'
-    const defaultAssignee = (project?.data.defaultAssignee as string | undefined) ?? null
 
     const taskCount = mdCount('projects', body.project, 'tasks')
     if (limits.tasksPerProject !== undefined && taskCount >= limits.tasksPerProject) {
@@ -284,7 +286,6 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       status,
       priority: body.priority ?? defaultPriority,
       tags: body.tags ?? [],
-      assignees: body.assignees ?? (defaultAssignee ? [defaultAssignee] : []),
       ...(body.due ? { due: body.due } : {}),
       dependencies: body.dependencies ?? [],
       createdAt: today(),
@@ -422,7 +423,6 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       availableStatuses: body.availableStatuses ?? ['todo', 'in-progress', 'done'],
       ...(body.defaultStatus ? { defaultStatus: body.defaultStatus } : {}),
       ...(body.defaultPriority ? { defaultPriority: body.defaultPriority } : {}),
-      ...(body.defaultAssignee ? { defaultAssignee: body.defaultAssignee } : {}),
       createdAt: today(),
     }
     // A project is a directory; claim it by its index.md, so two creators racing for one name get two projects.

@@ -166,24 +166,6 @@ const mobileActions = computed(() => [
             <span class="text-muted font-normal text-xs ml-1">({{ task!.due }})</span>
           </p>
         </div>
-        <div v-if="task!.assignees?.length">
-          <p class="text-xs text-muted font-medium uppercase tracking-wide mb-1">
-            Assignees
-          </p>
-          <div class="flex flex-col gap-1.5 mt-1">
-            <div
-              v-for="a in task!.assignees"
-              :key="a"
-              class="flex items-center gap-2"
-            >
-              <UAvatar
-                :alt="a"
-                size="sm"
-              />
-              <span class="text-sm">{{ a }}</span>
-            </div>
-          </div>
-        </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase tracking-wide mb-1">
             Created

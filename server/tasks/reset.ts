@@ -1,7 +1,7 @@
 export default defineTask({
   meta: {
     name: 'reset',
-    description: 'Wipe all projects and authors, then re-seed demo content',
+    description: 'Wipe all projects, then re-seed demo content',
   },
   run() {
     if (!isDemo()) {

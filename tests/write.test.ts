@@ -24,9 +24,9 @@ beforeEach(() => {
 })
 
 describe('file primitives', () => {
-  it('renders what gray-matter writes (trimmed body), leaving out empty list fields', () => {
+  it('renders what gray-matter writes (trimmed body), leaving out empty lists and dropped fields', () => {
     assert.equal(renderMarkdown({ title: 'T', tags: ['a'] }, '\n body \n'), matter.stringify('body', { title: 'T', tags: ['a'] }))
-    assert.equal(renderMarkdown({ title: 'T', tags: [], assignees: [], dependencies: [], availableStatuses: [] }), matter.stringify('', { title: 'T', availableStatuses: [] }))
+    assert.equal(renderMarkdown({ title: 'T', tags: [], assignees: ['sam'], defaultAssignee: 'sam', dependencies: [], availableStatuses: [] }), matter.stringify('', { title: 'T', availableStatuses: [] }))
   })
 
   it('rewrites only the tasks a reorder actually moves', () => {

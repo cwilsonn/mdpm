@@ -14,7 +14,6 @@ const dropdownItems = computed(() => [
     label: item.label,
     icon: item.icon,
     color: item.color,
-    avatar: item.avatar,
     type: 'checkbox' as const,
     checked: model.value.some(s => s.value === item.value),
     onSelect(e: Event) {
@@ -43,13 +42,8 @@ const isActive = computed(() => model.value.length > 0)
     :content="{ align: 'start' }"
   >
     <template #item-leading="{ item }">
-      <UAvatar
-        v-if="item.avatar"
-        v-bind="item.avatar"
-        size="2xs"
-      />
       <UIcon
-        v-else-if="item.icon"
+        v-if="item.icon"
         :name="item.icon"
         class="size-4 shrink-0"
         :class="item.color ? `text-${item.color}` : 'text-muted'"

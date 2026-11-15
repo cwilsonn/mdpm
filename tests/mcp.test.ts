@@ -82,7 +82,7 @@ describe('MCP server through core', () => {
     const { text } = await tool('list_tasks', { project: 'alpha', limit: 2 })
     const [head, header, ...rows] = text.split('\n')
     assert.match(head!, /^# total=7 returned=2 offset=0 next=2$/)
-    assert.equal(header, 'project\tslug\ttitle\tstatus\tpriority\ttags\tassignees\tdue\tupdatedAt')
+    assert.equal(header, 'project\tslug\ttitle\tstatus\tpriority\ttags\tdue\tupdatedAt')
     assert.equal(rows.length, 2)
     assert.doesNotMatch(text, /Implement the parser/)
   })

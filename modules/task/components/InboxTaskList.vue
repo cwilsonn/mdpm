@@ -18,19 +18,12 @@ watch(() => props.presetStatuses, (val) => {
 })
 const filterPriorities = ref<FilterItem[]>([])
 const filterProjects = ref<FilterItem[]>([])
-const filterAssignees = ref<FilterItem[]>([])
 
 const projectFilterItems = computed(() =>
   props.projects.map(p => ({
     label: p.title,
     value: slugFromPath(p.path),
   })),
-)
-
-const allAssignees = computed(() => getAssigneeNames(props.tasks))
-
-const assigneeFilterItems = computed<FilterItem[]>(() =>
-  allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
 )
 
 // Sort
@@ -87,7 +80,6 @@ const filtered = computed(() => {
   if (filterProjects.value.length) t = t.filter(task => filterProjects.value.some(p => p.value === projectSlugFromPath(task.path)))
   if (filterStatuses.value.length) t = t.filter(task => filterStatuses.value.some(s => s.value === task.status))
   if (filterPriorities.value.length) t = t.filter(task => filterPriorities.value.some(p => p.value === task.priority))
-  if (filterAssignees.value.length) t = t.filter(task => filterAssignees.value.some(a => task.assignees?.includes(a.value)))
   return t
 })
 
@@ -190,7 +182,7 @@ function closeEdit() {
 
 const hasActiveFilter = computed(() =>
   !!search.value || filterProjects.value.length > 0 || filterStatuses.value.length > 0
-    || filterPriorities.value.length > 0 || filterAssignees.value.length > 0,
+    || filterPriorities.value.length > 0,
 )
 
 function clearFilters() {
@@ -198,7 +190,6 @@ function clearFilters() {
   filterProjects.value = []
   filterStatuses.value = []
   filterPriorities.value = []
-  filterAssignees.value = []
 }
 </script>
 
@@ -226,12 +217,6 @@ function clearFilters() {
       v-model="filterPriorities"
       :items="(PRIORITY_SELECT_ITEMS as FilterItem[])"
       placeholder="Priority"
-    />
-    <AppFilterMenu
-      v-if="allAssignees.length"
-      v-model="filterAssignees"
-      :items="assigneeFilterItems"
-      placeholder="Assignees"
     />
     <USelect
       v-model="sortBy"

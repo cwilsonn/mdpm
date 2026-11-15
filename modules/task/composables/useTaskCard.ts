@@ -9,21 +9,17 @@ export function useTaskCard(task: MaybeRefOrGetter<Task>) {
 
   const dueInfo = computed(() => t.value.due ? formatDueDate(t.value.due) : null)
   const tags = computed(() => t.value.tags ?? [])
-  const assignees = computed(() => t.value.assignees ?? [])
   const depCount = computed(() => t.value.dependencies?.length ?? 0)
   const status = computed(() => statusMeta(t.value.status))
   const priority = computed(() => priorityMeta(t.value.priority))
   const isDone = computed(() => t.value.status === 'done')
-  const isAiInProgress = computed(() =>
-    t.value.status === 'in-progress' && assignees.value.includes('Claude'),
-  )
   const completedLabel = computed(() => {
     if (!t.value.completedAt) return null
     return new Date(t.value.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   })
 
   return {
-    dueInfo, tags, assignees, depCount, status, priority,
-    isDone, isAiInProgress, completedLabel,
+    dueInfo, tags, depCount, status, priority,
+    isDone, completedLabel,
   }
 }

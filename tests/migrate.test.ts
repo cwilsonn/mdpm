@@ -273,7 +273,7 @@ describe('migration 003: notes move to the notes file', () => {
   it('moves the notes byte for byte and keeps frontmatter and spec; content without links is at version 3 until then', () => {
     writeFileSync(task('t'), FM(['title: T', '# a comment', 'due: 2026-07-01'], `The spec.\n\n---\n\nA rule in the spec.\n\n---\n${NOTE}\n---\n${NOTE2}`))
     writeFileSync(task('plain'), FM(['title: Plain'], 'No notes.\n'))
-    assert.deepEqual([schemaStatus(root).version, schemaStatus(root).pendingBy], [3, { links: 0, notes: 1 }])
+    assert.deepEqual([schemaStatus(root).version, schemaStatus(root).pendingBy], [3, { links: 0, notes: 1, trim: 0 }])
     const plan = planMigration(root)
     assert.deepEqual(plan.entries.map(e => [e.file, e.migrations, e.changes]), [['projects/p/tasks/t.md', ['notes'], ['2 note(s) move to projects/p/tasks/notes/t.md']]])
     applyMigration(plan, { backup: false })
@@ -365,5 +365,44 @@ describe('fixtures and CLI', () => {
     assert.deepEqual([after.code, after.json.pending], [0, false])
     const again = await runCli(['migrate'], { scratch: scratch.dir, env })
     assert.match(again.stdout, /nothing to migrate/)
+  })
+})
+
+describe('migration 004: fields mdpm no longer reads', () => {
+  let root: string
+  const put = (rel: string, text: string) => {
+    mkdirSync(join(root, rel, '..'), { recursive: true })
+    writeFileSync(join(root, rel), text)
+  }
+  beforeEach(() => {
+    root = join(scratch.dir, `trim-${n++}`)
+    process.env.MDPM_STATE_DIR = join(scratch.dir, `state-trim-${n}`)
+  })
+  after(() => { delete process.env.MDPM_STATE_DIR })
+
+  it('drops assignees, the project default and empty lists, deletes the authors records, and leaves the rest alone', () => {
+    put('projects/p/index.md', FM(['title: P', 'tags: []', 'defaultAssignee: Me', "createdAt: '2026-01-01'"], ''))
+    put('projects/p/tasks/t.md', FM(['title: T', 'tags:', '  - keep', 'assignees:', '  - Me', 'dependencies: []', "updatedAt: '2026-11-01T10:00:00.000Z'", 'order: 2'], 'The spec.\n'))
+    put('projects/p/tasks/clean.md', FM(['title: Clean', 'dependencies:', '  - t'], 'Untouched.\n'))
+    put('projects/p/docs/d.md', FM(['title: D', 'tags: []'], 'Doc.\n'))
+    put('authors/me.md', FM(['name: Me'], ''))
+    put('authors/.gitkeep', '')
+    const before = readFileSync(join(root, 'projects/p/tasks/clean.md'), 'utf8')
+
+    assert.deepEqual(schemaStatus(root).pendingBy, { links: 0, notes: 0, trim: 4 })
+    const plan = planMigration(root)
+    assert.deepEqual(plan.entries.map(e => [e.file, e.changes]), [
+      ['projects/p/index.md', ['drop defaultAssignee, tags']],
+      ['projects/p/tasks/t.md', ['drop assignees, dependencies']],
+      ['projects/p/docs/d.md', ['drop tags']],
+      ['authors/me.md', ['delete (assignees were removed)']],
+    ])
+    applyMigration(plan, { backup: false })
+
+    assert.equal(readFileSync(join(root, 'projects/p/tasks/t.md'), 'utf8'), FM(['title: T', 'tags:', '  - keep', "updatedAt: '2026-11-01T10:00:00.000Z'", 'order: 2'], 'The spec.\n'))
+    assert.equal(readFileSync(join(root, 'projects/p/index.md'), 'utf8'), FM(['title: P', "createdAt: '2026-01-01'"], ''))
+    assert.equal(readFileSync(join(root, 'projects/p/tasks/clean.md'), 'utf8'), before)
+    assert.ok(!existsSync(join(root, 'authors')), 'the authors directory goes with its records')
+    assert.deepEqual([schemaStatus(root).pendingFiles, readSchemaMarker(root)?.schemaVersion], [0, 5])
   })
 })

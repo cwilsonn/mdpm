@@ -26,7 +26,7 @@ before(() => {
   write('projects/alpha/tasks/old-work.md', `---\ntitle: Old work\nstatus: todo\npriority: low\ncreatedAt: 2026-06-01\nupdatedAt: '2026-07-01T10:00:00.000Z'\norder: 20\n---\nOld.`)
   write('projects/alpha/tasks/new-work.md', `---\ntitle: New work\nstatus: in-progress\npriority: high\ncreatedAt: 2026-07-10\nupdatedAt: '2026-07-10T09:00:00.000Z'\norder: 21\n---\nNew.\n\n---\n${note('2026-07-10 09:00', 'Started it.')}`)
   write('projects/alpha/tasks/waiting.md', `---\ntitle: Waiting task\nstatus: todo\npriority: medium\ncreatedAt: 2026-06-01\ndependencies: [new-work, ghost-task]\norder: 22\n---\nNeeds things.`)
-  write('projects/alpha/tasks/fix-login-bug.md', `---\ntitle: Fix login bug\nstatus: blocked\npriority: urgent\ntags: []\nassignees: [sam]\ncreatedAt: 2026-06-10\norder: 3\n---\nBlocked on upstream.\n\n---\n${note('2026-07-01 08:00', 'Waiting for the vendor to ship the fix.\n\nMore detail.')}`)
+  write('projects/alpha/tasks/fix-login-bug.md', `---\ntitle: Fix login bug\nstatus: blocked\npriority: urgent\ntags: []\ncreatedAt: 2026-06-10\norder: 3\n---\nBlocked on upstream.\n\n---\n${note('2026-07-01 08:00', 'Waiting for the vendor to ship the fix.\n\nMore detail.')}`)
   core = createCore({ contentPath: content, baseUrl: 'http://127.0.0.1:1' })
 })
 

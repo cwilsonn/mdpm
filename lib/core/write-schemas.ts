@@ -43,7 +43,6 @@ export const TaskCreate = taskText({
   status: z.enum(TASK_STATUSES).optional(),
   priority: z.enum(TASK_PRIORITIES).optional(),
   tags: strings.optional(),
-  assignees: strings.optional(),
   due: z.string().optional(),
   dependencies: strings.optional(),
   description: z.string().optional(),
@@ -56,7 +55,6 @@ export const TaskUpdate = taskText({
   status: z.enum(TASK_STATUSES).optional(),
   priority: z.enum(TASK_PRIORITIES).optional(),
   tags: strings.nullable().optional(),
-  assignees: strings.nullable().optional(),
   due: z.string().nullable().optional(),
   dependencies: strings.nullable().optional(),
   description: z.string().optional(),
@@ -76,7 +74,6 @@ export const ProjectUpdate = z.strictObject({
   availableStatuses: z.array(z.enum(TASK_STATUSES)).nullable().optional(),
   defaultStatus: z.enum(TASK_STATUSES).nullable().optional(),
   defaultPriority: z.enum(TASK_PRIORITIES).nullable().optional(),
-  defaultAssignee: z.string().nullable().optional(),
   pinned: z.boolean().nullable().optional(),
   pinnedOrder: z.number().nullable().optional(),
   archivedAt: z.string().nullable().optional(),
@@ -92,7 +89,6 @@ export const ProjectCreate = z.strictObject({
   availableStatuses: z.array(z.enum(TASK_STATUSES)).optional(),
   defaultStatus: z.enum(TASK_STATUSES).optional(),
   defaultPriority: z.enum(TASK_PRIORITIES).optional(),
-  defaultAssignee: z.string().optional(),
 })
 
 export const DocUpdate = z.strictObject({

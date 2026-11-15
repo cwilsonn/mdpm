@@ -28,12 +28,11 @@ describe('readers', () => {
     assert.throws(() => core.getProject('nope'), NotFoundError)
   })
 
-  it('filters tasks by status, priority, tags, assignee and archived', () => {
+  it('filters tasks by status, priority, tags and archived', () => {
     const titles = (opts: Parameters<typeof core.listTasks>[0]) => slugs(core.listTasks(opts)).sort()
     assert.deepEqual(titles({ project: 'alpha', status: ['in-progress'] }), ['write-parser'])
     assert.deepEqual(titles({ project: 'alpha', priority: ['urgent'] }), ['fix-login-bug'])
     assert.deepEqual(titles({ project: 'alpha', tags: ['qa', 'docs'] }), ['write-docs', 'write-tests'])
-    assert.deepEqual(titles({ project: 'alpha', assignee: 'sam' }), ['fix-login-bug'])
     assert.ok(!titles({ project: 'alpha' }).includes('old-idea'))
     assert.ok(titles({ project: 'alpha', includeArchived: true }).includes('old-idea'))
   })

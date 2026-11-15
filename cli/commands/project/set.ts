@@ -21,7 +21,6 @@ export default defineCommand({
     'available-statuses': { type: 'string', description: 'Comma-separated task statuses the project uses' },
     'default-status': { type: 'string', description: 'Or "none" to clear' },
     'default-priority': { type: 'string', description: `${TASK_PRIORITIES.join(' | ')}, or "none" to clear` },
-    'default-assignee': { type: 'string', description: 'Or "none" to clear' },
   },
   async run({ args }) {
     const ctx = createContext(args)
@@ -37,7 +36,6 @@ export default defineCommand({
       availableStatuses: csv(args['available-statuses']),
       defaultStatus: clearable(args['default-status']),
       defaultPriority: priority === 'none' ? null : oneOf(priority, TASK_PRIORITIES, '--default-priority'),
-      defaultAssignee: clearable(args['default-assignee']),
     }
     const changed = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
     if (!Object.keys(changed).length) throw new CliError('nothing to set: pass at least one field flag (see --help)', ExitCode.usage)

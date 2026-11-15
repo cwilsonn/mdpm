@@ -21,7 +21,7 @@ export function readMarkdown(relPath: string) {
   return matter(readFileSync(full, 'utf-8'))
 }
 
-// Content writes go through lib/core/write.ts (see utils/writer.ts); this is left for the seed and authors.
+// Content writes go through lib/core/write.ts (see utils/writer.ts); this is left for the seed.
 export function writeMarkdown(relPath: string, frontmatter: Record<string, unknown>, body = '') {
   atomicWrite(contentPath(relPath), renderMarkdown(frontmatter, body))
 }

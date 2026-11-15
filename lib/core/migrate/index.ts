@@ -6,20 +6,22 @@ import { stateDir } from '../lifecycle'
 import { notesFileOf } from '../notes'
 import { applyToText, hasLegacyKeys, planFile, repoUrlOf, type FileKind } from './links-to-body'
 import { planNotesMove } from './notes-to-sidecar'
+import { trimMigration, trimmedKeys } from './trim-fields'
 import { withFileLock } from '../write'
 
 // Content schema versions: 1 = legacy GitHub fields, 2 = `links` (never shipped to real content),
 // 3 = no link fields: links live in the body, a project's repository is one `repo:` URL.
 // 4 = task notes live in `tasks/notes/<slug>.md`, not in the task body.
+// 5 = no assignees (`assignees`, `defaultAssignee`, `content/authors/`) and no empty `tags`/`dependencies` lists.
 // State is derived from the content itself (a file still carrying githubRepo/githubIssues/githubPRs/links, or a
 // task body still holding notes, is "pending"); the marker file records when and by which mdpm version it was
 // migrated. The migrations chain per file: 003 is planned on 002's output, so a file gets one entry.
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 /** Which migration a change belongs to, and the schema version content is at while it is pending. */
-export type MigrationId = 'links' | 'notes'
-const PENDING_VERSION: Record<MigrationId, number> = { links: 2, notes: 3 }
+export type MigrationId = 'links' | 'notes' | 'trim'
+const PENDING_VERSION: Record<MigrationId, number> = { links: 2, notes: 3, trim: 4 }
 export const MARKER_FILE = '.mdpm-schema.json'
 
 export interface SchemaMarker {
@@ -31,11 +33,14 @@ export interface SchemaMarker {
 export interface PlanEntry {
   // Relative to the content root, e.g. projects/acme/tasks/fix-bug.md
   file: string
-  kind: FileKind
+  // `author`: a record of the removed authors collection, deleted by migration 004.
+  kind: FileKind | 'author'
   changes: string[]
   unresolved: string[]
   // Present when the file needs a text change; absent when there is nothing to write.
   newText?: string
+  // Migration 004: the file is deleted instead (an authors record).
+  remove?: true
   // Migration 003: the task's notes file to write first (relative path and full new text), when it changes.
   sidecar?: { file: string; text: string }
   // What the plan was made from: the file's text, and for a task its notes file (relative path and text, '' when
@@ -120,6 +125,13 @@ export function planMigration(contentRoot: string, opts: PlanOptions = {}): Migr
           changes.push(`${move.moved} note(s) move to ${relative(contentRoot, notesPath)}`)
         }
       }
+      const trim = trimmedKeys(kind, matter(text).data)
+      if (trim.length) {
+        migrations.push('trim')
+        const migration = trimMigration(trim)
+        text = applyToText(text, migration)
+        changes.push(...migration.changes)
+      }
       if (!migrations.length) return
       entries.push({ file: rel, kind, changes, unresolved, newText: text, ...(sidecar && { sidecar }), basis: { text: original, ...notesBasis }, migrations })
     }
@@ -146,8 +158,14 @@ export function planMigration(contentRoot: string, opts: PlanOptions = {}): Migr
   }
   if (!opts.project) {
     for (const f of listMd(join(contentRoot, 'docs'))) consider(join(contentRoot, 'docs', f), 'doc', undefined)
+    for (const f of listMd(join(contentRoot, 'authors'))) {
+      const rel = join('authors', f)
+      if (only && rel !== only) continue
+      scanned++
+      entries.push({ file: rel, kind: 'author', changes: ['delete (assignees were removed)'], unresolved: [], remove: true, basis: { text: readFileSync(join(contentRoot, rel), 'utf8') }, migrations: ['trim'] })
+    }
   }
-  if (only && scanned === 0) throw new MigrationError(`${only} is not a project, task or doc file`)
+  if (only && scanned === 0) throw new MigrationError(`${only} is not a project, task, doc or author file`)
   return { contentRoot, scanned, entries }
 }
 
@@ -167,8 +185,8 @@ export interface SchemaStatus {
 export function schemaStatus(contentRoot: string): SchemaStatus {
   const marker = readSchemaMarker(contentRoot)
   const plan = planMigration(contentRoot)
-  const pendingEntries = plan.entries.filter(e => e.newText !== undefined)
-  const pending = { links: 0, notes: 0 }
+  const pendingEntries = plan.entries.filter(e => e.newText !== undefined || e.remove)
+  const pending = { links: 0, notes: 0, trim: 0 }
   for (const e of plan.entries) for (const m of e.migrations) pending[m]++
   const oldest = (Object.keys(PENDING_VERSION) as MigrationId[]).filter(m => pending[m]).map(m => PENDING_VERSION[m])
   return {
@@ -176,14 +194,18 @@ export function schemaStatus(contentRoot: string): SchemaStatus {
     ...(marker && { marker }),
     pendingFiles: pendingEntries.length,
     pendingBy: pending,
-    blockedFiles: plan.entries.filter(e => e.newText === undefined).length,
+    blockedFiles: plan.entries.filter(e => e.error).length,
     newerThanCode: !!marker && marker.schemaVersion > SCHEMA_VERSION,
   }
 }
 
-/** "3 file(s) still carry link fields, 120 task(s) still hold notes in the body" */
+/** "3 file(s) still carry link fields, 120 task(s) still hold notes in the body, 9 file(s) carry dropped fields" */
 export function pendingSummary(by: Record<MigrationId, number>) {
-  return [by.links && `${by.links} file(s) still carry link fields`, by.notes && `${by.notes} task(s) still hold notes in the body`].filter(Boolean).join(', ')
+  return [
+    by.links && `${by.links} file(s) still carry link fields`,
+    by.notes && `${by.notes} task(s) still hold notes in the body`,
+    by.trim && `${by.trim} file(s) carry fields mdpm no longer reads`,
+  ].filter(Boolean).join(', ')
 }
 
 export interface ApplyOptions {
@@ -206,7 +228,7 @@ export function applyMigration(plan: MigrationPlan, opts: ApplyOptions = {}): Ap
   if (broken.length) {
     throw new MigrationError(`${broken.length} file(s) cannot be migrated safely, nothing was written:\n${broken.map(e => `  ${e.file}: ${e.error}`).join('\n')}`)
   }
-  const writes = plan.entries.filter(e => e.newText !== undefined)
+  const writes = plan.entries.filter(e => e.newText !== undefined || e.remove)
   const result: ApplyResult = { applied: [], stamped: false }
 
   if (writes.length && opts.backup !== false) {
@@ -244,6 +266,10 @@ export function applyMigration(plan: MigrationPlan, opts: ApplyOptions = {}): Ap
         if (entry.basis && (readOr(full) !== entry.basis.text || (notesFull && readOr(notesFull) !== entry.basis.notesText))) {
           throw new MigrationError('changed since it was planned; re-run')
         }
+        if (entry.remove) {
+          rmSync(full, { force: true })
+          return
+        }
         if (entry.sidecar) replace(join(plan.contentRoot, entry.sidecar.file), entry.sidecar.text)
         replace(full, entry.newText!)
       }
@@ -254,6 +280,9 @@ export function applyMigration(plan: MigrationPlan, opts: ApplyOptions = {}): Ap
     }
     result.applied.push(entry.file)
   }
+  // The authors directory goes once its records are gone (it only ever held them).
+  const authorsDir = join(plan.contentRoot, 'authors')
+  if (existsSync(authorsDir) && readdirSync(authorsDir).every(f => f.startsWith('.'))) rmSync(authorsDir, { recursive: true, force: true })
 
   // Stamp only when nothing is pending anywhere (a --file/--project run is not the whole job).
   if (schemaStatus(plan.contentRoot).pendingFiles === 0 && (writes.length || !readSchemaMarker(plan.contentRoot))) {

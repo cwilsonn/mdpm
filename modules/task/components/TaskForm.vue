@@ -4,7 +4,6 @@ const props = defineProps<{
   initialStatus?: 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked' | 'on-hold'
   availableStatuses?: string[]
   defaultPriority?: string
-  defaultAssignee?: string
   task?: Task
 }>()
 
@@ -14,7 +13,6 @@ const emit = defineEmits<{
 }>()
 
 const { createTask, updateTask, archiveTask, unarchiveTask } = useTasks()
-const { listAuthors, createAuthor } = useAuthors()
 const { tryWithToast } = useApiToast()
 
 const isEdit = computed(() => !!props.task)
@@ -31,7 +29,6 @@ const form = reactive({
   status: (props.task?.status ?? props.initialStatus ?? 'todo') as 'todo' | 'in-progress' | 'in-review' | 'done' | 'blocked' | 'on-hold',
   priority: (props.task?.priority ?? props.defaultPriority ?? 'medium') as 'low' | 'medium' | 'high' | 'urgent',
   tags: [...(props.task?.tags ?? [])] as string[],
-  assignees: props.task ? [...(props.task.assignees ?? [])] : (props.defaultAssignee ? [props.defaultAssignee] : []) as string[],
   due: props.task?.due ?? '',
   dependencies: [...(props.task?.dependencies ?? [])] as string[],
 })
@@ -76,7 +73,6 @@ async function toggleArchive() {
 
 const description = ref('')
 const descriptionLoading = ref(false)
-const authorNames = ref<string[]>([])
 
 // The updatedAt the form's content is based on, from the load and then from each save's answer. Sent with every
 // save so the server refuses (409) instead of overwriting a note or edit that landed while the form was open.
@@ -91,7 +87,6 @@ const { saving, busy, savedAt, saveError, savedAgo, conflict, scheduleSave, flus
       status: form.status,
       priority: form.priority,
       tags: form.tags,
-      assignees: form.assignees,
       due: form.due || undefined,
       dependencies: form.dependencies,
       description: description.value,
@@ -118,7 +113,6 @@ function applyTask(raw: RawTask) {
     status: raw.status,
     priority: raw.priority,
     tags: [...(raw.tags ?? [])],
-    assignees: [...(raw.assignees ?? [])],
     due: raw.due ?? '',
     dependencies: [...(raw.dependencies ?? [])],
   })
@@ -158,10 +152,6 @@ const remote = useRemoteRecord<RawTask>({
 })
 
 onMounted(async () => {
-  listAuthors().then((data) => {
-    authorNames.value = data.map(a => a.name)
-  })
-
   $fetch<ProjectTask[]>(`/api/tasks/${props.projectSlug}`).then((data) => {
     projectTasks.value = data
   })
@@ -193,19 +183,12 @@ watch(() => form.status, () => flushSave())
 watch(() => form.priority, () => flushSave())
 watch(() => form.due, () => flushSave())
 watch(() => form.tags, () => flushSave(), { deep: true })
-watch(() => form.assignees, () => flushSave(), { deep: true })
 watch(() => form.dependencies, () => flushSave(), { deep: true })
 watch(description, () => scheduleSave())
 
 // create mode
 const creating = ref(false)
 const createError = ref<string | null>(null)
-
-async function handleCreateAuthor(name: string) {
-  if (!await tryWithToast(() => createAuthor(name), 'Failed to add assignee')) return
-  if (!authorNames.value.includes(name)) authorNames.value.push(name)
-  if (!form.assignees.includes(name)) form.assignees.push(name)
-}
 
 async function create() {
   creating.value = true
@@ -217,7 +200,6 @@ async function create() {
       status: form.status,
       priority: form.priority,
       tags: form.tags,
-      assignees: form.assignees,
       due: form.due || undefined,
       dependencies: form.dependencies,
       description: description.value,
@@ -335,25 +317,6 @@ async function create() {
             type="date"
             class="w-full"
           />
-        </UFormField>
-
-        <UFormField label="Assignees">
-          <UInputMenu
-            v-model="form.assignees"
-            :items="authorNames"
-            multiple
-            placeholder="Select or create assignees…"
-            class="w-full"
-            :create-item="{ position: 'bottom' }"
-            @create="handleCreateAuthor"
-          >
-            <template #item-leading="{ item }">
-              <UAvatar
-                :alt="item"
-                size="2xs"
-              />
-            </template>
-          </UInputMenu>
         </UFormField>
 
         <UFormField

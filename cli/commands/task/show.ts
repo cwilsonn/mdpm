@@ -27,7 +27,6 @@ export default defineCommand({
         `status: ${task.status}`,
         `priority: ${task.priority}`,
         task.tags.length && `tags: ${task.tags.join(', ')}`,
-        task.assignees.length && `assignees: ${task.assignees.join(', ')}`,
         task.due && `due: ${task.due}`,
         task.dependencies.length && `depends on: ${task.dependencies.join(', ')}`,
         task.archivedAt && 'archived',

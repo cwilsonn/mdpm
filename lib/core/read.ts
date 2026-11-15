@@ -81,7 +81,6 @@ export function createReader(config: CoreConfig) {
       status: (file.data.status as string) ?? 'todo',
       priority: (file.data.priority as string) ?? 'medium',
       tags: (file.data.tags as string[]) ?? [],
-      assignees: (file.data.assignees as string[]) ?? [],
       due: dateString(file.data.due),
       dependencies: (file.data.dependencies as string[]) ?? [],
       createdAt: dateString(file.data.createdAt) ?? '',

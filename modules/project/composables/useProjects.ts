@@ -12,7 +12,6 @@ export interface ProjectPayload {
   availableStatuses?: string[]
   defaultStatus?: string | null
   defaultPriority?: string | null
-  defaultAssignee?: string | null
   archivedAt?: string | null
 }
 

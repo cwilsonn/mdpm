@@ -10,7 +10,6 @@ export interface TaskPayload {
   status?: string
   priority?: string
   tags?: string[]
-  assignees?: string[]
   due?: string
   dependencies?: string[]
   /** The spec; it never touches the notes. */
