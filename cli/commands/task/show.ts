@@ -16,7 +16,8 @@ export default defineCommand({
   },
   async run({ args }) {
     const ctx = createContext(args)
-    const full = resolveRef(ctx, args.ref, args)
+    const ref = resolveRef(ctx, args.ref, args)
+    const full = ctx.core.getTask(ref.project, ref.slug)
     const keep = args.notes === undefined ? undefined : Number(args.notes)
     if (keep !== undefined && (!Number.isInteger(keep) || keep < 0)) throw new CliError(`--notes: '${args.notes}' is not a non-negative integer`, ExitCode.usage)
     const task = shapeTask(full, { full: args.full, notes: keep })

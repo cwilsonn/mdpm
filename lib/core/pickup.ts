@@ -100,7 +100,8 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
   const graph = buildGraph(ops.listTasks({ includeArchived: true }))
   const allBlockers = [
     ...open.filter(t => t.status === 'blocked').map((t) => {
-      const last = t.notes.at(-1)
+      // The reason is the newest note: read for blocked tasks only (lists leave notes out).
+      const last = ops.getTask(t.project, t.slug).notes.at(-1)
       return { slug: t.slug, title: t.title, reason: last ? firstLine(last.text) : 'marked blocked' }
     }),
     ...blockedTasks(graph).filter(b => b.task.project === project && b.task.status !== 'blocked').map(b => ({

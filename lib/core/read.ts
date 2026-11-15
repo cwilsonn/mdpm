@@ -22,6 +22,7 @@ export function repoOf(data: Record<string, unknown>): string | null {
 }
 
 export type Reader = ReturnType<typeof createReader>
+export interface TaskReadOptions { notes?: boolean }
 export type Doc = ReturnType<Reader['getDocs']>[number]
 
 export function createReader(config: CoreConfig) {
@@ -69,35 +70,53 @@ export function createReader(config: CoreConfig) {
     })
   }
 
-  function getTasks(projectSlug: string, statusFilter?: string[]) {
+  // One task file as a record. `notesText` is its notes file's text, or undefined to leave notes out.
+  function taskRecord(projectSlug: string, slug: string, file: matter.GrayMatterFile<string>, notesText: string | undefined) {
+    // `body` is the spec; `notes` the history, from the notes file and any notes still in the body.
+    const { spec, notes } = taskNotes(file.content, notesText ?? '')
+    return {
+      slug,
+      project: projectSlug,
+      title: (file.data.title as string) ?? slug,
+      status: (file.data.status as string) ?? 'todo',
+      priority: (file.data.priority as string) ?? 'medium',
+      tags: (file.data.tags as string[]) ?? [],
+      assignees: (file.data.assignees as string[]) ?? [],
+      due: dateString(file.data.due),
+      dependencies: (file.data.dependencies as string[]) ?? [],
+      createdAt: dateString(file.data.createdAt) ?? '',
+      updatedAt: dateString(file.data.updatedAt),
+      archivedAt: dateString(file.data.archivedAt),
+      order: (file.data.order as number) ?? 0,
+      body: spec,
+      ...(notesText !== undefined && { notes }),
+    }
+  }
+
+  // `notes: true` also reads each task's notes file. Off by default: a list needs the spec, not the history,
+  // and the notes files are most of the bytes. Notes still in an old-layout body are split off either way.
+  function getTasks(projectSlug: string, statusFilter?: string[], opts: TaskReadOptions = {}) {
     const tasksDir = contentPath('projects', projectSlug, 'tasks')
-    const withNotes = notesSlugs(tasksDir)
+    const withNotes = opts.notes ? notesSlugs(tasksDir) : new Set<string>()
     return listMdFiles(tasksDir).flatMap((f) => {
       const slug = f.replace('.md', '')
       const file = readMd(`projects/${projectSlug}/tasks/${slug}.md`)
       if (!file) return []
-      const status = (file.data.status as string) ?? 'todo'
-      if (statusFilter?.length && !statusFilter.includes(status)) return []
-      // `body` is the spec; `notes` the history, from the notes file and from any notes still in the body.
-      const { spec, notes } = taskNotes(file.content, withNotes.has(slug) ? readNotesFile(tasksDir, slug) : '')
-      return [{
-        slug,
-        project: projectSlug,
-        title: (file.data.title as string) ?? slug,
-        status,
-        priority: (file.data.priority as string) ?? 'medium',
-        tags: (file.data.tags as string[]) ?? [],
-        assignees: (file.data.assignees as string[]) ?? [],
-        due: dateString(file.data.due),
-        dependencies: (file.data.dependencies as string[]) ?? [],
-        createdAt: dateString(file.data.createdAt) ?? '',
-        updatedAt: dateString(file.data.updatedAt),
-        archivedAt: dateString(file.data.archivedAt),
-        order: (file.data.order as number) ?? 0,
-        body: spec,
-        notes,
-      }]
+      if (statusFilter?.length && !statusFilter.includes((file.data.status as string) ?? 'todo')) return []
+      const notesText = !opts.notes ? undefined : withNotes.has(slug) ? readNotesFile(tasksDir, slug) : ''
+      return [taskRecord(projectSlug, slug, file, notesText)]
     }).sort((a, b) => a.order - b.order)
+  }
+
+  /** One task with its notes, reading only its own two files; null when it doesn't exist. */
+  function getTask(projectSlug: string, slug: string) {
+    // Matched against the listings, never joined blindly: the slugs come from MCP and CLI arguments.
+    if (!listDirs(contentPath('projects')).includes(projectSlug)) return null
+    if (!listMdFiles(contentPath('projects', projectSlug, 'tasks')).includes(`${slug}.md`)) return null
+    const file = readMd(`projects/${projectSlug}/tasks/${slug}.md`)
+    if (!file) return null
+    const task = taskRecord(projectSlug, slug, file, readNotesFile(contentPath('projects', projectSlug, 'tasks'), slug))
+    return { ...task, notes: task.notes ?? [] }
   }
 
   function getDocs(projectSlug?: string, standaloneOnly = false) {
@@ -162,17 +181,18 @@ export function createReader(config: CoreConfig) {
     return results
   }
 
-  function getAllTasks(statusFilter?: string[]) {
+  function getAllTasks(statusFilter?: string[], opts: TaskReadOptions = {}) {
     const projectsDir = contentPath('projects')
     if (!existsSync(projectsDir)) return []
-    return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter))
+    return listDirs(projectsDir).flatMap(slug => getTasks(slug, statusFilter, opts))
   }
 
   function searchTasks(query: string, projectSlug?: string, statusFilter?: string[]) {
     const q = query.toLowerCase()
-    const tasks = projectSlug ? getTasks(projectSlug, statusFilter) : getAllTasks(statusFilter)
+    // Search covers notes: they hold the commit hashes and PR URLs people look for.
+    const tasks = projectSlug ? getTasks(projectSlug, statusFilter, { notes: true }) : getAllTasks(statusFilter, { notes: true })
     return tasks.filter(t =>
-      t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || t.notes.some(n => n.text.toLowerCase().includes(q)),
+      t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || !!t.notes?.some(n => n.text.toLowerCase().includes(q)),
     )
   }
 
@@ -198,6 +218,7 @@ export function createReader(config: CoreConfig) {
     contentPath,
     getProjects,
     getTasks,
+    getTask,
     getAllTasks,
     getDocs,
     searchTasks,

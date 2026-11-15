@@ -86,11 +86,11 @@ export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()
       repo: p.repo,
       createdAt: p.createdAt,
       archivedAt: p.archivedAt,
-      tasks: ops.listTasks({ project: p.slug, includeArchived: opts.includeArchived }).map(t => ({
+      tasks: ops.listTasks({ project: p.slug, includeArchived: opts.includeArchived, notes: true }).map(t => ({
         slug: t.slug, title: t.title, status: t.status, priority: t.priority, tags: t.tags, assignees: t.assignees, due: t.due,
         dependencies: t.dependencies,
         createdAt: t.createdAt, updatedAt: t.updatedAt, archivedAt: t.archivedAt, description: t.body,
-        notes: t.notes.map(n => ({ at: n.at.toISOString(), author: n.author ?? null, text: n.text })),
+        notes: (t.notes ?? []).map(n => ({ at: n.at.toISOString(), author: n.author ?? null, text: n.text })),
       })),
       docs: withDocs ? ops.listDocsWithBody({ project: p.slug, includeArchived: opts.includeArchived }).map(asDoc) : [],
     }))

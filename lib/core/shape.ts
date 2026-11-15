@@ -121,20 +121,24 @@ export function shapeDoc<T extends { body: string }>(doc: T, opts: { maxChars?: 
   }
 }
 
-/** Every field a task list row may carry (`--fields`). `summary` and `noteCount` are derived from the body. */
+/** Every field a task list row may carry (`--fields`). `summary` is derived from the spec, `noteCount` from the notes. */
 export const TASK_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'createdAt', 'updatedAt', 'archivedAt', 'order', 'summary', 'noteCount', 'match'] as const
 export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'createdAt', 'updatedAt', 'archivedAt', 'excerpt', 'summary'] as const
 
+/** Whether a list printing these `--fields` needs each task's notes read (only `noteCount` does). */
+export const fieldsNeedNotes = (fields: string | string[] | undefined) =>
+  fields !== undefined && (Array.isArray(fields) ? fields : fields.split(',')).some(f => ['noteCount', '*'].includes(f.trim()))
+
 // A task as a list row: everything but the body, plus derived `summary` (first prose line of the spec),
-// `noteCount`, and, for a search, `match` (the first line containing the query).
-export function taskRow<T extends { body: string; notes: ParsedNote[] }>(task: T, query?: string) {
+// `noteCount` (only when the notes were read), and, for a search, `match` (the first line containing the query).
+export function taskRow<T extends { body: string; notes?: ParsedNote[] }>(task: T, query?: string) {
   const { body, notes, ...rest } = task
   const q = query?.toLowerCase()
-  const line = q ? [body, ...notes.map(n => n.text)].join('\n').split('\n').find(l => l.toLowerCase().includes(q))?.trim() : undefined
+  const line = q ? [body, ...(notes ?? []).map(n => n.text)].join('\n').split('\n').find(l => l.toLowerCase().includes(q))?.trim() : undefined
   return {
     ...rest,
     summary: summarize(body),
-    noteCount: notes.length,
+    ...(notes && { noteCount: notes.length }),
     match: line ? (line.length > 120 ? `${line.slice(0, 119)}…` : line) : '',
   }
 }

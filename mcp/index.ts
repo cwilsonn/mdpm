@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { buildPickup, createCore, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, loadConfig, paginate, parseFields, pickFields, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, TASK_PRIORITIES, TASK_STATUSES, taskRow, toTsv } from '../lib/core'
+import { buildPickup, createCore, DEFAULT_LIMIT, DEFAULT_MAX_CHARS, DOC_FIELDS, DOC_LIST_FIELDS, docRow, fieldsNeedNotes, loadConfig, paginate, parseFields, pickFields, recordUsage, REPO_ROOT, shapeDoc, shapeTask, TASK_FIELDS, TASK_LIST_FIELDS, TASK_PRIORITIES, TASK_STATUSES, taskRow, toTsv } from '../lib/core'
 import type { BatchItem } from '../lib/core'
 
 // Same source of truth as the CLI, so release-please keeps both in step.
@@ -287,7 +287,8 @@ async function callTool(name: string, rawArgs: Record<string, unknown>) {
       case 'list_tasks': {
         const { query, limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listTasks>[0] & { query?: string } & ListArgs
         const q = query?.trim().toLowerCase()
-        const tasks = core.listTasks(rest).filter(t => !q || t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || t.notes.some(n => n.text.toLowerCase().includes(q)))
+        // Notes are read only for a search (it covers them) or a noteCount column; get_task returns them.
+        const tasks = core.listTasks({ ...rest, notes: !!q || fieldsNeedNotes(fields) }).filter(t => !q || t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || !!t.notes?.some(n => n.text.toLowerCase().includes(q)))
         return text(listResult(tasks.map(t => taskRow(t, q)), { limit, offset, fields, format }, TASK_FIELDS, q ? [...TASK_LIST_FIELDS, 'match'] : TASK_LIST_FIELDS))
       }
 
