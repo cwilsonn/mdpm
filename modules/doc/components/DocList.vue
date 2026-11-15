@@ -1,30 +1,20 @@
 <script setup lang="ts">
-import type { AppTreeItem } from '../../_core/components/AppTree.vue'
-
 export interface DocGroup {
   label: string
   icon?: string
-  docs: DocTreeItem[]
+  docs: DocItem[]
   baseUrl: string
   projectSlug: string | null
 }
 
 const props = defineProps<{
   // single-group mode
-  docs?: DocTreeItem[]
+  docs?: DocItem[]
   baseUrl?: string
   projectSlug?: string | null
   // multi-group mode
   groups?: DocGroup[]
 }>()
-
-const emit = defineEmits<{
-  changed: []
-}>()
-
-const router = useRouter()
-const toast = useToast()
-const { createDoc, updateDoc } = useDocs()
 
 // ── Search ─────────────────────────────────────────────────────────────────
 const q = ref('')
@@ -42,23 +32,11 @@ const rawGroups = computed((): DocGroup[] => {
   }]
 })
 
-// A doc is hidden when it — or any ancestor folder — is archived. archivedAt
-// lives only on the archived node itself; descendants are inferred here, so
-// unarchiving a folder is a single write that restores the whole subtree.
-function visibleDocs(docs: DocTreeItem[]): DocTreeItem[] {
-  if (showArchived.value) return docs
-  const bySlug = new Map(docs.map(d => [d.slug, d]))
-  function isHidden(d: DocTreeItem): boolean {
-    let cur: DocTreeItem | undefined = d
-    const seen = new Set<string>()
-    while (cur && !seen.has(cur.slug)) {
-      if (cur.archivedAt) return true
-      seen.add(cur.slug)
-      cur = cur.parent ? bySlug.get(cur.parent) : undefined
-    }
-    return false
-  }
-  return docs.filter(d => !isHidden(d))
+// Docs are flat: archived ones are hidden unless asked for, the rest sorted by title.
+function visibleDocs(docs: DocItem[]): DocItem[] {
+  return docs
+    .filter(d => showArchived.value || !d.archivedAt)
+    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
 }
 
 const effectiveGroups = computed((): DocGroup[] =>
@@ -107,42 +85,6 @@ function toggleSection(g: DocGroup) {
   localStorage.setItem(key, next ? 'collapsed' : 'expanded')
 }
 
-// ── AppTree item conversion ─────────────────────────────────────────────────
-function toTreeItems(docs: DocTreeItem[]): AppTreeItem[] {
-  return docs.map(d => ({
-    slug: d.slug,
-    label: d.title,
-    parent: d.parent,
-    isFolder: d.isFolder,
-    order: d.order,
-  }))
-}
-
-// ── Reparent ───────────────────────────────────────────────────────────────
-async function handleReparent(payload: { slug: string; parent: string | null; order: number }, group: DocGroup) {
-  try {
-    await updateDoc(group.projectSlug, payload.slug, { parent: payload.parent, order: payload.order })
-    emit('changed')
-  }
-  catch (e: unknown) {
-    toast.add({ title: 'Failed to move doc', description: apiErrorMessage(e, String(e)), color: 'error' })
-  }
-}
-
-// ── Folder creation ─────────────────────────────────────────────────────────
-async function handleCreateFolder(payload: { parent: string | null; name: string }, group: DocGroup) {
-  try {
-    await createDoc(group.projectSlug, {
-      title: payload.name,
-      isFolder: true,
-      ...(payload.parent ? { parent: payload.parent } : {}),
-    })
-    emit('changed')
-  }
-  catch (e: unknown) {
-    toast.add({ title: 'Failed to create folder', description: apiErrorMessage(e, String(e)), color: 'error' })
-  }
-}
 </script>
 
 <template>
@@ -171,40 +113,23 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
       />
     </div>
 
-    <!-- Search: flat results across all groups -->
+    <!-- Search: results across all groups -->
     <div v-if="isSearching" class="overflow-y-auto flex-1 min-h-0">
       <div v-if="!filtered.length" class="flex flex-col items-center justify-center py-16 text-center gap-2">
         <UIcon name="i-lucide-search-x" class="size-8 text-muted" />
         <p class="text-sm text-muted">No docs match "{{ q }}"</p>
       </div>
-      <NuxtLink
+      <DocListRow
         v-for="doc in filtered"
         :key="`${doc._baseUrl}/${doc.slug}`"
+        :doc="doc"
         :to="`${doc._baseUrl}/${doc.slug}`"
-        class="flex flex-col gap-0.5 px-4 py-2.5 hover:bg-muted/40 transition-colors border-b border-default last:border-b-0"
-      >
-        <div class="flex items-center gap-1.5">
-          <span class="text-sm font-medium truncate flex-1">{{ doc.title }}</span>
-          <span v-if="doc._groupLabel" class="text-xs text-muted shrink-0 flex items-center gap-1">
-            <UIcon v-if="doc._groupIcon" :name="doc._groupIcon" class="size-3" />
-            {{ doc._groupLabel }}
-          </span>
-        </div>
-        <span v-if="doc.excerpt" class="text-xs text-muted line-clamp-2">{{ doc.excerpt }}</span>
-        <div v-if="doc.tags.length" class="flex gap-1 flex-wrap mt-0.5">
-          <UBadge
-            v-for="tag in doc.tags.slice(0, 3)"
-            :key="tag"
-            :label="tag"
-            color="neutral"
-            variant="outline"
-            size="xs"
-          />
-        </div>
-      </NuxtLink>
+        :group-label="doc._groupLabel"
+        :group-icon="doc._groupIcon"
+      />
     </div>
 
-    <!-- Tree view (multi-group or single group) -->
+    <!-- List (multi-group or single group) -->
     <div v-else class="overflow-y-auto flex-1 min-h-0">
       <template v-for="group in effectiveGroups" :key="group.label || 'single'">
         <!-- Group header (multi-group mode only) — clickable to collapse -->
@@ -224,15 +149,14 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
           />
         </button>
 
-        <AppTree
-          v-if="!groups || !collapsed[sectionKey(group)]"
-          :items="toTreeItems(group.docs)"
-          :allow-drag="true"
-          :allow-folder-create="true"
-          @select="(slug) => router.push(`${group.baseUrl}/${slug}`)"
-          @reparent="(payload) => handleReparent(payload, group)"
-          @create-folder="(payload) => handleCreateFolder(payload, group)"
-        />
+        <template v-if="!groups || !collapsed[sectionKey(group)]">
+          <DocListRow
+            v-for="doc in group.docs"
+            :key="doc.slug"
+            :doc="doc"
+            :to="`${group.baseUrl}/${doc.slug}`"
+          />
+        </template>
       </template>
     </div>
   </div>

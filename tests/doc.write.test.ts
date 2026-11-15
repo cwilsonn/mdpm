@@ -18,13 +18,13 @@ const doc = (rel: string) => readContent(scratch.dir, rel)
 const arch = () => doc('projects/alpha/docs/architecture.md')
 
 describe('doc create', () => {
-  it('creates a project doc with body, tags, and a resolved parent', async () => {
-    const r = await cli(['doc', 'create', 'Release notes', '--project', 'alpha', '--body', 'hello', '--tags', 'a,b', '--parent', 'arch', '--json'])
+  it('creates a project doc with body and tags', async () => {
+    const r = await cli(['doc', 'create', 'Release notes', '--project', 'alpha', '--body', 'hello', '--tags', 'a,b', '--json'])
     assert.equal(r.code, 0, r.stderr)
     assert.deepEqual(r.json, { project: 'alpha', slug: 'release-notes' })
     assert.deepEqual(written(), ['projects/alpha/docs/release-notes.md'])
     const d = doc('projects/alpha/docs/release-notes.md')!
-    assert.deepEqual([d.data.title, d.data.tags, d.data.parent, d.body], ['Release notes', ['a', 'b'], 'architecture', 'hello'])
+    assert.deepEqual([d.data.title, d.data.tags, d.body], ['Release notes', ['a', 'b'], 'hello'])
   })
 
   it('creates a standalone doc and reads the body from stdin', async () => {
@@ -44,12 +44,6 @@ describe('doc create', () => {
     const r = await cli(['doc', 'create', 'Nowhere'])
     assert.equal(r.code, 2)
     assert.match(r.stderr, /--project or --standalone/)
-    assert.deepEqual(written(), [])
-  })
-
-  it('rejects an unknown parent before writing anything', async () => {
-    const r = await cli(['doc', 'create', 'Orphan', '--project', 'alpha', '--parent', 'zzz-nope'])
-    assert.equal(r.code, 4)
     assert.deepEqual(written(), [])
   })
 })
@@ -93,11 +87,11 @@ describe('doc edit', () => {
     assert.equal(arch()!.body, 'scripted body')
   })
 
-  it('changes metadata with flags: title, tags, parent, and parent none', async () => {
-    const r = await cli(['doc', 'edit', 'architecture', '--project', 'alpha', '--title', 'Renamed', '--tags', 'x,y', '--parent', 'none'])
+  it('changes metadata with flags: title and tags', async () => {
+    const r = await cli(['doc', 'edit', 'architecture', '--project', 'alpha', '--title', 'Renamed', '--tags', 'x,y'])
     assert.equal(r.code, 0, r.stderr)
     const d = arch()!
-    assert.deepEqual([d.data.title, d.data.tags, d.data.parent], ['Renamed', ['x', 'y'], undefined])
+    assert.deepEqual([d.data.title, d.data.tags], ['Renamed', ['x', 'y']])
   })
 
   it('edits a standalone doc', async () => {

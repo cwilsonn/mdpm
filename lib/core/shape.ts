@@ -17,7 +17,7 @@ export const DEFAULT_MAX_CHARS = 8000
 
 /** Fields a task list row carries unless asked for more. No body: that is what `show` is for. */
 export const TASK_LIST_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'due', 'updatedAt'] as const
-export const DOC_LIST_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'updatedAt'] as const
+export const DOC_LIST_FIELDS = ['project', 'slug', 'title', 'tags', 'updatedAt'] as const
 
 export interface Page<T> {
   total: number
@@ -123,7 +123,7 @@ export function shapeDoc<T extends { body: string }>(doc: T, opts: { maxChars?: 
 
 /** Every field a task list row may carry (`--fields`). `summary` is derived from the spec, `noteCount` from the notes. */
 export const TASK_FIELDS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'due', 'dependencies', 'createdAt', 'updatedAt', 'archivedAt', 'order', 'summary', 'noteCount', 'match'] as const
-export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'createdAt', 'updatedAt', 'archivedAt', 'excerpt', 'summary'] as const
+export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'createdAt', 'updatedAt', 'archivedAt', 'excerpt', 'summary'] as const
 
 /** Whether a list printing these `--fields` needs each task's notes read (only `noteCount` does). */
 export const fieldsNeedNotes = (fields: string | string[] | undefined) =>

@@ -194,24 +194,9 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
     return write(() => writer.createProject(fields))
   }
 
-  // Hides archived docs and any doc under an archived folder (archivedAt lives
-  // only on the archived node; descendants are inferred here).
-  // Full docs (with body), minus archived ones and children of archived folders unless asked.
-  // archivedAt lives only on the archived node; descendants are inferred here.
+  // Full docs (with body), minus archived ones unless asked.
   function listDocsWithBody(opts: { project?: string; standalone?: boolean; includeArchived?: boolean } = {}) {
-    const all = reader.getDocs(opts.project, opts.standalone)
-    const bySlug = new Map(all.map(d => [d.slug, d]))
-    const hidden = (d: Doc): boolean => {
-      let cur: Doc | undefined = d
-      const seen = new Set<string>()
-      while (cur && !seen.has(cur.slug)) {
-        if (cur.archivedAt) return true
-        seen.add(cur.slug)
-        cur = cur.parent ? bySlug.get(cur.parent) : undefined
-      }
-      return false
-    }
-    return all.filter(d => opts.includeArchived || !hidden(d))
+    return reader.getDocs(opts.project, opts.standalone).filter(d => opts.includeArchived || !d.archivedAt)
   }
 
   function listDocs(opts: { project?: string; standalone?: boolean; includeArchived?: boolean } = {}) {
@@ -228,12 +213,12 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
     return write(() => writer.deleteDoc(project, slug))
   }
 
-  function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; parent?: string; slug?: string }) {
+  function createDoc(input: { project?: string; title: string; body?: string; tags?: string[]; slug?: string }) {
     const { project, ...fields } = input
     return write(() => writer.createDoc(project, fields))
   }
 
-  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null; expectedUpdatedAt?: string | null }) {
+  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; archivedAt?: string | null; expectedUpdatedAt?: string | null }) {
     return write(() => writer.updateDoc(doc.project, doc.slug, fields))
   }
 
@@ -241,7 +226,7 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
     return updateDoc(doc, { archivedAt: archived ? new Date().toISOString() : null })
   }
 
-  function upsertDoc(input: { project?: string; slug?: string; title: string; body: string; tags?: string[]; parent?: string }) {
+  function upsertDoc(input: { project?: string; slug?: string; title: string; body: string; tags?: string[] }) {
     const { project, ...fields } = input
     return write(() => writer.upsertDoc(project, fields))
   }

@@ -95,7 +95,7 @@ describe('read commands (--json)', () => {
   it('doc list honours --tag, --standalone and archiving', async () => {
     assert.deepEqual((await cli(['doc', 'list', '--project', 'alpha', '--tag', 'architecture', '--json'])).json.map((d: any) => d.slug), ['architecture'])
     assert.deepEqual((await cli(['doc', 'list', '--standalone', '--json'])).json.map((d: any) => d.slug), ['standalone-guide'])
-    assert.ok(!(await cli(['doc', 'list', '--project', 'alpha', '--json'])).json.some((d: any) => d.slug === 'old-child'))
+    assert.ok(!(await cli(['doc', 'list', '--project', 'alpha', '--json'])).json.some((d: any) => d.slug === 'old-folder'))
   })
 
   it('doc show prints only the body in human mode', async () => {

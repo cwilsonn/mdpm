@@ -11,9 +11,6 @@ export default defineEventHandler((event) => {
     project: string | null
     title: string
     tags: string[]
-    parent: string | null
-    isFolder: boolean
-    order: number
     createdAt: string
     updatedAt?: string
     archivedAt?: string
@@ -42,9 +39,6 @@ export default defineEventHandler((event) => {
             project: projectSlug,
             title: (file.data.title as string) ?? slug,
             tags: (file.data.tags as string[]) ?? [],
-            parent: (file.data.parent as string | undefined) ?? null,
-            isFolder: (file.data.isFolder as boolean | undefined) ?? false,
-            order: (file.data.order as number) ?? 0,
             createdAt: (file.data.createdAt as string) ?? '',
             updatedAt: (file.data.updatedAt as string) ?? undefined,
             archivedAt: (file.data.archivedAt as string) ?? undefined,
@@ -68,9 +62,6 @@ export default defineEventHandler((event) => {
           project: null,
           title: (file.data.title as string) ?? slug,
           tags: (file.data.tags as string[]) ?? [],
-          parent: (file.data.parent as string | undefined) ?? null,
-          isFolder: (file.data.isFolder as boolean | undefined) ?? false,
-          order: (file.data.order as number) ?? 0,
           createdAt: (file.data.createdAt as string) ?? '',
           updatedAt: (file.data.updatedAt as string) ?? undefined,
           excerpt: file.content.slice(0, 200).replace(/[#*`_]/g, '').trim(),

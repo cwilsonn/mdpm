@@ -22,8 +22,6 @@ export interface DocCreateInput {
   title: string
   slug?: string
   tags?: string[]
-  parent?: string
-  isFolder?: boolean
   body?: string
 }
 
@@ -69,8 +67,9 @@ export function parseInput<S extends z.ZodType>(schema: S, data: unknown): z.out
 
 // List fields every reader defaults to []: an empty one is left out of the file rather than written as `[]`.
 const LIST_KEYS = ['tags', 'dependencies'] as const
-// Fields mdpm no longer has (assignees were removed): dropped when a file not yet migrated is rewritten.
-const DROPPED_KEYS = ['assignees', 'defaultAssignee'] as const
+// Fields mdpm no longer has (assignees and the doc hierarchy were removed): dropped when a file not yet
+// migrated is rewritten. A doc's old `order` is left to migration 004 (tasks have an `order` of their own).
+const DROPPED_KEYS = ['assignees', 'defaultAssignee', 'parent', 'isFolder'] as const
 
 /** The exact bytes a markdown file is written with: gray-matter's output, minus empty lists and dropped fields. */
 export function renderMarkdown(frontmatter: Record<string, unknown>, body = '') {
@@ -495,32 +494,13 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
     const base = input.slug || slugify(input.title)
     if (!base) throw new ValidationError('Title produces an empty slug')
 
-    if (!project && input.parent) {
-      assertSafeSlug(input.parent)
-      if (!existsSync(path('docs', `${input.parent}.md`))) throw new ValidationError(`Parent doc '${input.parent}' not found`)
-    }
-
     const frontmatter: Record<string, unknown> = {
       title: input.title.trim(),
       tags: input.tags ?? [],
-      ...(input.parent ? { parent: input.parent } : {}),
-      ...(input.isFolder ? { isFolder: true } : {}),
       createdAt: today(),
     }
     const slug = createUnique(docsDir(project), base, frontmatter, input.body ?? '')
     return { slug }
-  }
-
-  function wouldCreateDocCycle(project: string | null | undefined, slug: string, newParent: string) {
-    let current: string | null = newParent
-    const visited = new Set<string>()
-    while (current) {
-      if (current === slug) return true
-      if (visited.has(current)) return false
-      visited.add(current)
-      current = (read(docRel(project, current))?.data.parent as string | undefined) ?? null
-    }
-    return false
   }
 
   function updateDoc(project: string | null | undefined, slug: string, input: unknown) {
@@ -528,14 +508,6 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
     assertSafeSlug(slug)
     const body = parseInput(DocUpdate, input)
     if (!read(docRel(project, slug))) throw new NotFoundError('Doc not found')
-
-    if (body.parent !== undefined && body.parent !== null) {
-      assertSafeSlug(body.parent)
-      if (!existsSync(path(docRel(project, body.parent)))) {
-        throw new ValidationError(project ? `Parent doc '${body.parent}' not found in this project` : `Parent doc '${body.parent}' not found`)
-      }
-      if (wouldCreateDocCycle(project, slug, body.parent)) throw new ValidationError('Setting this parent would create a cycle')
-    }
 
     const updatedAt = modify(docRel(project, slug), 'Doc not found', (file) => {
       const { body: text, expectedUpdatedAt, ...fields } = body
@@ -558,14 +530,14 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
   }
 
   /** Create or replace a doc by slug: an existing slug is updated in place, otherwise a doc is created. */
-  function upsertDoc(project: string | null | undefined, input: { slug?: string; title: string; body: string; tags?: string[]; parent?: string }) {
-    const { slug, title, body, tags, parent } = input
+  function upsertDoc(project: string | null | undefined, input: { slug?: string; title: string; body: string; tags?: string[] }) {
+    const { slug, title, body, tags } = input
     if (slug) assertSafeSlug(slug)
     if (slug && existsSync(path(docRel(project, slug)))) {
-      const result = updateDoc(project, slug, { title, body, tags, parent })
+      const result = updateDoc(project, slug, { title, body, tags })
       return { ...result, slug }
     }
-    return createDoc(project, { title, body, tags, parent, slug })
+    return createDoc(project, { title, body, tags, slug })
   }
 
   return {

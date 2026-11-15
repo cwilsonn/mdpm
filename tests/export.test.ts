@@ -13,11 +13,11 @@ describe('export', () => {
 
   it('builds a self-describing JSON document, leaving out archived items by default', () => {
     const doc = buildExport(core, {}, at)
-    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 5, '2026-10-01T12:00:00.000Z'])
+    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 6, '2026-10-01T12:00:00.000Z'])
     assert.deepEqual(doc.projects.map(p => p.slug).sort(), ['alpha', 'beta'])
     const alpha = doc.projects.find(p => p.slug === 'alpha')!
     assert.ok(!alpha.tasks.some(t => t.slug === 'old-idea'), 'archived task left out')
-    assert.ok(!alpha.docs.some(d => d.slug === 'old-child'), 'doc under an archived folder left out')
+    assert.ok(!alpha.docs.some(d => d.slug === 'old-folder'), 'archived doc left out')
     assert.deepEqual(doc.standaloneDocs.map(d => d.slug), ['standalone-guide'])
     const parser = alpha.tasks.find(t => t.slug === 'write-parser')!
     assert.deepEqual([parser.status, parser.priority, parser.tags, parser.dependencies], ['in-progress', 'high', ['backend'], ['shared-task']])

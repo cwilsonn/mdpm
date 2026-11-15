@@ -380,11 +380,11 @@ describe('migration 004: fields mdpm no longer reads', () => {
   })
   after(() => { delete process.env.MDPM_STATE_DIR })
 
-  it('drops assignees, the project default and empty lists, deletes the authors records, and leaves the rest alone', () => {
+  it('drops assignees, the project default, the doc hierarchy and empty lists, deletes the authors records, and leaves the rest alone', () => {
     put('projects/p/index.md', FM(['title: P', 'tags: []', 'defaultAssignee: Me', "createdAt: '2026-01-01'"], ''))
     put('projects/p/tasks/t.md', FM(['title: T', 'tags:', '  - keep', 'assignees:', '  - Me', 'dependencies: []', "updatedAt: '2026-11-01T10:00:00.000Z'", 'order: 2'], 'The spec.\n'))
     put('projects/p/tasks/clean.md', FM(['title: Clean', 'dependencies:', '  - t'], 'Untouched.\n'))
-    put('projects/p/docs/d.md', FM(['title: D', 'tags: []'], 'Doc.\n'))
+    put('projects/p/docs/d.md', FM(['title: D', 'tags: []', 'parent: other', 'isFolder: true', 'order: 3'], 'Doc.\n'))
     put('authors/me.md', FM(['name: Me'], ''))
     put('authors/.gitkeep', '')
     const before = readFileSync(join(root, 'projects/p/tasks/clean.md'), 'utf8')
@@ -394,13 +394,14 @@ describe('migration 004: fields mdpm no longer reads', () => {
     assert.deepEqual(plan.entries.map(e => [e.file, e.changes]), [
       ['projects/p/index.md', ['drop defaultAssignee, tags']],
       ['projects/p/tasks/t.md', ['drop assignees, dependencies']],
-      ['projects/p/docs/d.md', ['drop tags']],
+      ['projects/p/docs/d.md', ['drop parent, isFolder, order, tags']],
       ['authors/me.md', ['delete (assignees were removed)']],
     ])
     applyMigration(plan, { backup: false })
 
     assert.equal(readFileSync(join(root, 'projects/p/tasks/t.md'), 'utf8'), FM(['title: T', 'tags:', '  - keep', "updatedAt: '2026-11-01T10:00:00.000Z'", 'order: 2'], 'The spec.\n'))
     assert.equal(readFileSync(join(root, 'projects/p/index.md'), 'utf8'), FM(['title: P', "createdAt: '2026-01-01'"], ''))
+    assert.equal(readFileSync(join(root, 'projects/p/docs/d.md'), 'utf8'), FM(['title: D'], 'Doc.\n'))
     assert.equal(readFileSync(join(root, 'projects/p/tasks/clean.md'), 'utf8'), before)
     assert.ok(!existsSync(join(root, 'authors')), 'the authors directory goes with its records')
     assert.deepEqual([schemaStatus(root).pendingFiles, readSchemaMarker(root)?.schemaVersion], [0, 5])

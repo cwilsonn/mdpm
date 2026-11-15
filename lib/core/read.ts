@@ -124,7 +124,6 @@ export function createReader(config: CoreConfig) {
       project: string | null
       title: string
       tags: string[]
-      parent: string | null
       createdAt: string
       updatedAt: string | null
       archivedAt: string | null
@@ -145,7 +144,6 @@ export function createReader(config: CoreConfig) {
             project: pSlug,
             title: (file.data.title as string) ?? slug,
             tags: (file.data.tags as string[]) ?? [],
-            parent: (file.data.parent as string | undefined) ?? null,
             createdAt: dateString(file.data.createdAt) ?? '',
             updatedAt: dateString(file.data.updatedAt),
             archivedAt: dateString(file.data.archivedAt),
@@ -167,7 +165,6 @@ export function createReader(config: CoreConfig) {
           project: null,
           title: (file.data.title as string) ?? slug,
           tags: (file.data.tags as string[]) ?? [],
-          parent: (file.data.parent as string | undefined) ?? null,
           createdAt: dateString(file.data.createdAt) ?? '',
           updatedAt: dateString(file.data.updatedAt),
           archivedAt: dateString(file.data.archivedAt),
