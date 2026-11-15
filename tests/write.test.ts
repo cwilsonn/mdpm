@@ -24,8 +24,22 @@ beforeEach(() => {
 })
 
 describe('file primitives', () => {
-  it('renders exactly what gray-matter wrote before (trimmed body)', () => {
-    assert.equal(renderMarkdown({ title: 'T', tags: [] }, '\n body \n'), matter.stringify('body', { title: 'T', tags: [] }))
+  it('renders what gray-matter writes (trimmed body), leaving out empty list fields', () => {
+    assert.equal(renderMarkdown({ title: 'T', tags: ['a'] }, '\n body \n'), matter.stringify('body', { title: 'T', tags: ['a'] }))
+    assert.equal(renderMarkdown({ title: 'T', tags: [], assignees: [], dependencies: [], availableStatuses: [] }), matter.stringify('', { title: 'T', availableStatuses: [] }))
+  })
+
+  it('rewrites only the tasks a reorder actually moves', () => {
+    const w = createWriter(root)
+    w.createTask({ project: 'p', title: 'Order A' })
+    w.createTask({ project: 'p', title: 'Order B' })
+    const file = join(root, 'projects/p/tasks/order-a.md')
+    const before = readFileSync(file, 'utf8')
+    const orderOf = (slug: string) => matter(readFileSync(join(root, `projects/p/tasks/${slug}.md`), 'utf8')).data.order
+    const a = orderOf('order-a')
+    w.reorderTasks('p', { todo: [...Array(a).fill('missing-slug'), 'order-a', 'order-b'] })
+    assert.equal(readFileSync(file, 'utf8'), before)
+    assert.equal(orderOf('order-b'), a + 1)
   })
 
   it('atomicWrite replaces a file and leaves no temp file', () => {
