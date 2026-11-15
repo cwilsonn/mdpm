@@ -71,10 +71,6 @@ function sortedTasks(list: Task[], statusId?: string): Task[] {
   })
 }
 
-function projectSlugOf(path: string) {
-  return path.split('/')[2] ?? ''
-}
-
 function projectNameOf(slug: string) {
   return props.projects.find(p => slugFromPath(p.path) === slug)?.title ?? slug
 }
@@ -88,7 +84,7 @@ const filtered = computed(() => {
   let t = props.tasks
   const q = search.value.trim().toLowerCase()
   if (q) t = t.filter(task => task.title.toLowerCase().includes(q))
-  if (filterProjects.value.length) t = t.filter(task => filterProjects.value.some(p => p.value === projectSlugOf(task.path)))
+  if (filterProjects.value.length) t = t.filter(task => filterProjects.value.some(p => p.value === projectSlugFromPath(task.path)))
   if (filterStatuses.value.length) t = t.filter(task => filterStatuses.value.some(s => s.value === task.status))
   if (filterPriorities.value.length) t = t.filter(task => filterPriorities.value.some(p => p.value === task.priority))
   if (filterAssignees.value.length) t = t.filter(task => filterAssignees.value.some(a => task.assignees?.includes(a.value)))
@@ -102,7 +98,7 @@ const draggableGroups = ref<TaskGroups>({})
 function buildGroups(tasks: Task[]): TaskGroups {
   const result: TaskGroups = {}
   for (const task of tasks) {
-    const pSlug = projectSlugOf(task.path)
+    const pSlug = projectSlugFromPath(task.path)
     if (!result[pSlug]) result[pSlug] = {}
     const sId = task.status ?? 'todo'
     if (!result[pSlug][sId]) result[pSlug][sId] = []
@@ -131,42 +127,24 @@ function projectTaskCount(pSlug: string) {
 }
 
 // Collapsible projects — open by default
-const openProjects = ref<string[]>([])
+const openProjects = useToggleSet()
 
 watch(projectSlugs, (slugs) => {
-  for (const s of slugs) {
-    if (!openProjects.value.includes(s)) openProjects.value.push(s)
-  }
+  for (const s of slugs) openProjects.add(s)
 }, { immediate: true })
-
-function toggleProject(pSlug: string) {
-  const idx = openProjects.value.indexOf(pSlug)
-  if (idx >= 0) openProjects.value.splice(idx, 1)
-  else openProjects.value.push(pSlug)
-}
 
 // Collapsible status subgroups — open by default, keyed as `pSlug:statusId`
-const openStatuses = ref<string[]>([])
-
-watch(draggableGroups, (g) => {
-  for (const pSlug of Object.keys(g)) {
-    for (const statusId of Object.keys(g[pSlug] ?? {})) {
-      const key = `${pSlug}:${statusId}`
-      if (!openStatuses.value.includes(key)) openStatuses.value.push(key)
-    }
-  }
-}, { immediate: true })
+const openStatuses = useToggleSet()
 
 function statusKey(pSlug: string, statusId: string) {
   return `${pSlug}:${statusId}`
 }
 
-function toggleStatus(pSlug: string, statusId: string) {
-  const key = statusKey(pSlug, statusId)
-  const idx = openStatuses.value.indexOf(key)
-  if (idx >= 0) openStatuses.value.splice(idx, 1)
-  else openStatuses.value.push(key)
-}
+watch(draggableGroups, (g) => {
+  for (const pSlug of Object.keys(g)) {
+    for (const statusId of Object.keys(g[pSlug] ?? {})) openStatuses.add(statusKey(pSlug, statusId))
+  }
+}, { immediate: true })
 
 // Drag handlers
 const isDragging = ref(false)
@@ -199,7 +177,7 @@ const { markingDone, markDone: _markDone } = useMarkDone()
 
 async function markDone(task: Task) {
   if (task.status === 'done') return
-  await _markDone(projectSlugOf(task.path), task.path, () => emit('refresh'))
+  await _markDone(projectSlugFromPath(task.path), task.path, () => emit('refresh'))
 }
 
 // Edit modal
@@ -297,12 +275,12 @@ function clearFilters() {
       <!-- Project header -->
       <button
         class="flex items-center gap-2 w-full px-4 py-2.5 hover:bg-muted transition-colors text-left border-b border-default"
-        @click="toggleProject(pSlug)"
+        @click="openProjects.toggle(pSlug)"
       >
         <UIcon
           name="i-lucide-chevron-right"
           class="size-3.5 shrink-0 transition-transform duration-150"
-          :class="openProjects.includes(pSlug) ? 'rotate-90' : ''"
+          :class="openProjects.has(pSlug) ? 'rotate-90' : ''"
         />
         <UIcon :name="projectIconOf(pSlug)" class="size-4 shrink-0 text-primary" />
         <span class="font-medium text-sm flex-1 truncate">{{ projectNameOf(pSlug) }}</span>
@@ -324,7 +302,7 @@ function clearFilters() {
 
       <!-- Status subgroups -->
       <div
-        v-if="openProjects.includes(pSlug)"
+        v-if="openProjects.has(pSlug)"
         class="divide-y divide-default"
       >
         <TaskStatusGroup
@@ -333,12 +311,12 @@ function clearFilters() {
           v-model="draggableGroups[pSlug]![statusCfg.id]!"
           :status-cfg="statusCfg"
           :group="`tasks-${pSlug}`"
-          :is-open="openStatuses.includes(statusKey(pSlug, statusCfg.id))"
+          :is-open="openStatuses.has(statusKey(pSlug, statusCfg.id))"
           :is-dragging="isDragging"
           :sort="sortBy === 'manual'"
           :loading-path="markingDone"
           muted
-          @toggle="toggleStatus(pSlug, statusCfg.id)"
+          @toggle="openStatuses.toggle(statusKey(pSlug, statusCfg.id))"
           @drag-start="isDragging = true"
           @drag-end="isDragging = false"
           @drag-add="(e) => onGroupAdd(pSlug, statusCfg.id, e)"
@@ -353,7 +331,7 @@ function clearFilters() {
   <!-- Edit modal -->
   <TaskForm
     v-if="editingTask"
-    :project-slug="projectSlugOf(editingTask.path)"
+    :project-slug="projectSlugFromPath(editingTask.path)"
     :task="editingTask"
     @close="closeEdit"
   />

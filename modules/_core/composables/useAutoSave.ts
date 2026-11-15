@@ -1,7 +1,8 @@
-import type { ComputedRef, Ref } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
 
+// `enabled`: false for a create form, which saves through its own button instead.
 export function useAutoSave(
-  isEdit: Ref<boolean> | ComputedRef<boolean>,
+  enabled: MaybeRefOrGetter<boolean>,
   saveFn: () => Promise<void>,
 ) {
   const saving = ref(false)
@@ -30,7 +31,7 @@ export function useAutoSave(
 
   function scheduleSave() {
     if (quiet) return
-    if (!isEdit.value || !loaded.value || conflict.value) return
+    if (!toValue(enabled) || !loaded.value || conflict.value) return
     if (saveTimer) clearTimeout(saveTimer)
     queued.value = true
     saveTimer = setTimeout(() => flushSave(), 800)
@@ -40,7 +41,7 @@ export function useAutoSave(
     if (quiet) return
     // An edit made while the previous save is in flight is sent once it lands, not dropped.
     if (saving.value && !conflict.value) { scheduleSave(); return }
-    if (!isEdit.value || !loaded.value || conflict.value) { queued.value = false; return }
+    if (!toValue(enabled) || !loaded.value || conflict.value) { queued.value = false; return }
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     queued.value = false
     saving.value = true
@@ -64,7 +65,7 @@ export function useAutoSave(
 
   function initAutoSave() {
     loaded.value = true
-    if (isEdit.value) {
+    if (toValue(enabled)) {
       ticker = setInterval(() => now.value = Date.now(), 5000)
     }
   }
