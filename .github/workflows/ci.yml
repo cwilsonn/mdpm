@@ -20,8 +20,8 @@ jobs:
       # pnpm comes from the `packageManager` field in package.json.
       - run: corepack enable
 
-      # Scripts are skipped on purpose: `postinstall` runs `nuxt prepare` and native builds
-      # (better-sqlite3), neither of which the CLI, core, or tests need.
+      # Scripts are skipped on purpose: `postinstall` runs `nuxt prepare`, which the CLI, core, and
+      # tests don't need.
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - run: pnpm typecheck:cli

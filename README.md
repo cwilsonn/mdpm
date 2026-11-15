@@ -1,6 +1,6 @@
 # .mdpm
 
-A local-first, markdown-based project management tool. Tasks and docs live as plain `.md` files in a `content/` directory — portable, git-friendly, and readable without the app. Built on Nuxt 4 + `@nuxt/content` + `@nuxt/ui`.
+A local-first, markdown-based project management tool. Tasks and docs live as plain `.md` files in a `content/` directory — portable, git-friendly, and readable without the app. Built on Nuxt 4 + `@nuxt/ui`.
 
 ## Demo / Sandbox
 
@@ -20,7 +20,7 @@ Feel free to poke around — create projects, drag tasks between columns, write 
 ## Stack
 
 - [Nuxt 4](https://nuxt.com) (`compatibilityVersion: 4`)
-- [@nuxt/content v3](https://content.nuxt.com) — file-based markdown with SQLite cache
+- [@nuxtjs/mdc](https://github.com/nuxt-content/mdc) — markdown rendering for task specs and notes
 - [@nuxt/ui v4](https://ui.nuxt.com) — component library
 - [Tiptap](https://tiptap.dev) — rich text editor
 - [vue-draggable-plus](https://github.com/Alfred-Skyblue/vue-draggable-plus) — drag-and-drop kanban
@@ -40,7 +40,6 @@ Works on macOS and Linux. **WSL2 is confirmed working** (Ubuntu on a Windows VM)
 - **Node 24.15 or newer** within 24 (`.nvmrc`; `nvm install 24`); Nuxt 4.6 refuses older 24.x
 - **pnpm 12.18.0**, pinned by `packageManager`: `corepack enable` (bundled with Node 24) or `npm i -g pnpm@12.18.0`. An older pnpm switches to the pinned version by itself
 - **git**, and admin rights once to edit the hosts file
-- Build tools (`build-essential`, `python3` on Debian/Ubuntu; Xcode CLT on macOS) only if `better-sqlite3` has no prebuilt binary for your platform
 - Claude Code, optional, for the MCP server and skills
 
 ### 2. Clone and install
@@ -143,7 +142,6 @@ To remove: `mdpm stop`, `pnpm remove --global mdpm`, `claude mcp remove mdpm`, `
 | `cannot resolve "mdpm.local"` | Add the hosts entries (step 3), or use `MDPM_BASE_URL=http://localhost:3333` |
 | `Another Nuxt dev is already running` | One dev server per checkout: `mdpm status`, then `mdpm stop` |
 | `stop` says the server wasn't started by `mdpm start` | Something else holds the port; stop it yourself |
-| `better-sqlite3` build or binding error | Install build tools, then `pnpm rebuild better-sqlite3` (also after switching Node versions) |
 | `403 Host "…" is not served here` | The server only answers loopback names, `mdpm.local`, and the `MDPM_BASE_URL` host. Use one of those, or add the name to `MDPM_ALLOWED_HOSTS` (comma-separated; a deployment's public hostname goes here too) |
 | Port 3333 busy | `mdpm start --port 3344` and set `MDPM_BASE_URL=http://mdpm.local:3344` |
 
