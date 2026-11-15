@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.20.0...mdpm-v0.21.0) (2026-11-15)
+
+
+### Features
+
+* **ui:** push content changes to open pages over SSE ([8f525a0](https://github.com/cwilsonn/mdpm/commit/8f525a09abcaef18583ce0c3e5e1cd19754200fc))
+
 ## [0.20.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.19.0...mdpm-v0.20.0) (2026-11-15)
 
 
