@@ -7,7 +7,8 @@ const props = withDefaults(defineProps<{
   saving: boolean
   saveError: string | null
   savedAt: Date | null
-  savedAgo: string
+  // null until the first save (useAutoSave)
+  savedAgo: string | null
   idleLabel?: string
   conflict?: boolean
   reloading?: boolean
