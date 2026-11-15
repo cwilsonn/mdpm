@@ -1,6 +1,7 @@
 import { userInfo } from 'node:os'
 import type { Ops } from './ops'
 import { git } from './project'
+import type { ParsedNote } from './notes'
 
 // ── Authors ───────────────────────────────────────────────────────────────────
 
@@ -15,43 +16,6 @@ export function resolveAuthor(opts: { flag?: string; env?: NodeJS.ProcessEnv; cw
     ?? clean(git(opts.cwd ?? process.cwd(), 'config', 'user.name'))
     ?? clean(userInfo().username)
     ?? 'unknown'
-}
-
-// ── Notes ─────────────────────────────────────────────────────────────────────
-
-export interface ParsedNote {
-  /** UTC; notes are stamped with toISOString(), minute precision. */
-  at: Date
-  author?: string
-  text: string
-}
-
-// `**Note** _(2026-10-01 17:47)_` optionally followed by ` by <author>`, then a blank line and the text.
-// Notes written before authors existed have no `by`.
-const NOTE_RE = /\*\*Note\*\* _\((\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})\)_(?: by ([^\n]+))?\n\n([\s\S]*?)(?=\n\n---\n\*\*Note\*\* _\(|$)/g
-
-// A task body is the spec followed by appended notes (`\n\n---\n**Note** _(...)_`). Splits them, so readers can
-// show the spec in full and only the newest notes. `spec` is everything before the first note.
-export function splitNotes(body: string): { spec: string; notes: ParsedNote[] } {
-  const first = body.search(/(?:^|\n\n---\n)\*\*Note\*\* _\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)_/)
-  return { spec: (first < 0 ? body : body.slice(0, first)).trim(), notes: parseNotes(body) }
-}
-
-export function parseNotes(body: string): ParsedNote[] {
-  return [...body.matchAll(NOTE_RE)].map(m => ({
-    at: new Date(`${m[1]}T${m[2]}:00Z`),
-    author: m[3]?.trim() || undefined,
-    text: m[4]!.trim(),
-  }))
-}
-
-// The text of a task body after appending a note. A body starting with `---` would be parsed as frontmatter,
-// so the separator is only emitted when there is existing content above it. Used by the CLI/MCP and the server.
-export function appendNoteToBody(body: string, note: string, author?: string, now = new Date()) {
-  const timestamp = now.toISOString().replace('T', ' ').slice(0, 16)
-  const existing = body.trim()
-  const prefix = existing ? `${existing}\n\n---\n` : ''
-  return `${prefix}**Note** _(${timestamp})_${author?.trim() ? ` by ${author.trim()}` : ''}\n\n${note.trim()}`
 }
 
 // ── Log ───────────────────────────────────────────────────────────────────────
@@ -98,7 +62,7 @@ export function buildLog(ops: Ops, opts: LogOptions = {}): LogEntry[] {
   const authorFilter = opts.author?.toLowerCase()
   for (const t of ops.listTasks({ project: opts.project })) {
     const base = { project: t.project, task: t.slug, title: t.title }
-    const notes = parseNotes(t.body)
+    const notes: ParsedNote[] = t.notes
     notes.forEach((n, i) => entries.push({ ...base, at: n.at.toISOString(), type: 'note', author: n.author, detail: firstLine(n.text), seq: i }))
 
     // Frontmatter dates: createdAt is date-only, updatedAt a full timestamp (set by every API write).

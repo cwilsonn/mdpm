@@ -1,4 +1,4 @@
-import { splitNotes } from './log'
+import { formatNote, NOTE_SEPARATOR, type ParsedNote } from './notes'
 
 // Presentation-layer shaping shared by the CLI and the MCP server: how many rows, which fields, how much text.
 // Nothing here touches `ops`: bulk operations, the log, hooks, the dependency graph and export all need the
@@ -81,31 +81,32 @@ export const noteSummary = (text: string, max = 100) => summarize(text, max)
 
 const NOTE_CHARS = 600
 
-// One task for a read. The spec is capped; notes (appended history) are reduced to the newest few, each
-// shortened, with a count of what was left out. `full` returns the body untouched.
-export type ShapedTask<T> = T & { truncated: boolean; olderNotes?: number; note?: string }
+// One task for a read: `body` is the spec (capped), `notes` the newest few notes as markdown (each shortened),
+// with a count of what was left out. `full` returns the whole spec and every note. Spec and notes stay separate
+// fields, so a client that edits the body and writes it back as the description never copies notes into it.
+export type ShapedTask<T> = Omit<T, 'notes'> & { notes?: string; truncated: boolean; olderNotes?: number; note?: string }
 
-export function shapeTask<T extends { body: string }>(task: T, opts: { full?: boolean; maxChars?: number; notes?: number } = {}): ShapedTask<T> {
-  if (opts.full) return { ...task, truncated: false }
+export function shapeTask<T extends { body: string; notes: ParsedNote[] }>(task: T, opts: { full?: boolean; maxChars?: number; notes?: number } = {}): ShapedTask<T> {
+  const { notes, ...rest } = task
+  const join = (list: string[]) => list.length ? { notes: list.join(NOTE_SEPARATOR) } : {}
+  if (opts.full) return { ...rest, ...join(notes.map(formatNote)), truncated: false }
   const max = opts.maxChars ?? DEFAULT_MAX_CHARS
   const keep = opts.notes ?? 3
-  const { spec, notes } = splitNotes(task.body)
-  const specOut = truncateChars(spec, max)
-  const recent = notes.slice(-keep)
-  const stamp = (n: (typeof notes)[number]) => n.at.toISOString().replace('T', ' ').slice(0, 16)
+  const specOut = truncateChars(task.body, max)
+  const recent = keep > 0 ? notes.slice(-keep) : []
   const noteText = recent.map((n) => {
     const t = truncateChars(n.text, NOTE_CHARS)
-    return `**Note** _(${stamp(n)})_${n.author ? ` by ${n.author}` : ''}\n\n${t.text}${t.truncated ? ' …' : ''}`
+    return formatNote({ ...n, text: `${t.text}${t.truncated ? ' …' : ''}` })
   })
   const hidden = notes.length - recent.length
-  const body = [specOut.text + (specOut.truncated ? '\n\n…' : ''), ...noteText].filter(Boolean).join('\n\n---\n')
   const truncated = specOut.truncated || hidden > 0 || recent.some(n => n.text.length > NOTE_CHARS)
   return {
-    ...task,
-    body,
+    ...rest,
+    body: specOut.text + (specOut.truncated ? '\n\n…' : ''),
+    ...join(noteText),
     truncated,
     ...(hidden > 0 && { olderNotes: hidden }),
-    ...(truncated && { note: `body shortened (spec ${specOut.total} chars, ${notes.length} notes); pass full to read it all` }),
+    ...(truncated && { note: `shortened (spec ${specOut.total} chars, ${notes.length} notes); pass full to read it all` }),
   }
 }
 
@@ -126,14 +127,13 @@ export const DOC_FIELDS = ['project', 'slug', 'title', 'tags', 'parent', 'create
 
 // A task as a list row: everything but the body, plus derived `summary` (first prose line of the spec),
 // `noteCount`, and, for a search, `match` (the first line containing the query).
-export function taskRow<T extends { body: string }>(task: T, query?: string) {
-  const { body, ...rest } = task
-  const { spec, notes } = splitNotes(body)
+export function taskRow<T extends { body: string; notes: ParsedNote[] }>(task: T, query?: string) {
+  const { body, notes, ...rest } = task
   const q = query?.toLowerCase()
-  const line = q ? body.split('\n').find(l => l.toLowerCase().includes(q))?.trim() : undefined
+  const line = q ? [body, ...notes.map(n => n.text)].join('\n').split('\n').find(l => l.toLowerCase().includes(q))?.trim() : undefined
   return {
     ...rest,
-    summary: summarize(spec),
+    summary: summarize(body),
     noteCount: notes.length,
     match: line ? (line.length > 120 ? `${line.slice(0, 119)}…` : line) : '',
   }

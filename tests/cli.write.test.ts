@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { mockApi, readContent, resetContent, runCli, scratchDir } from './helpers'
+import { mockApi, readContent, readNotes, resetContent, runCli, scratchDir } from './helpers'
 
 // Writes go straight to the files (no server), so these assert on the scratch copy of the fixtures.
 const scratch = scratchDir()
@@ -66,9 +66,11 @@ describe('task writes go to the files', () => {
     assert.match(t.data.completedAt, /^\d{4}-/)
   })
 
-  it('note appends a timestamped note to the existing body', async () => {
+  it('note appends a timestamped note to the notes file, leaving the spec alone', async () => {
+    const spec = task('write-parser')!.body
     await cli(['task', 'note', 'write-parser', 'hello note', '--project', 'alpha', '--author', 'Sam'])
-    assert.match(task('write-parser')!.body, /^Implement the parser[\s\S]*\n\n---\n\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_ by Sam\n\nhello note$/)
+    assert.equal(task('write-parser')!.body, spec)
+    assert.match(readNotes(scratch.dir, 'alpha', 'write-parser'), /^\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_ by Sam\n\nhello note$/)
   })
 
   it('archive and unarchive toggle archivedAt', async () => {
@@ -98,6 +100,7 @@ describe('task writes go to the files', () => {
     await cli(['task', 'note', 'write-parser', 'one', '--project', 'alpha'])
     await cli(['task', 'add', 'Another', '--project', 'alpha'])
     assert.deepEqual(tasksIn('alpha').filter(f => f.startsWith('.')), [])
+    assert.deepEqual(readdirSync(join(content, 'projects', 'alpha', 'tasks', 'notes')), ['write-parser.md'])
   })
 })
 

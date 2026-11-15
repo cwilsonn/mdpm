@@ -69,6 +69,12 @@ export function readContent(scratch: string, rel: string) {
   return { data: file.data as Record<string, any>, body: file.content.trim() }
 }
 
+// A task's notes file as written (tasks/notes/<slug>.md), trimmed; '' when the task has none.
+export function readNotes(scratch: string, project: string, slug: string) {
+  const full = join(scratchContent(scratch), 'projects', project, 'tasks', 'notes', `${slug}.md`)
+  return existsSync(full) ? readFileSync(full, 'utf8').trim() : ''
+}
+
 // Environment that can't see the developer's real setup: no MDPM_* leakage, no config file,
 // a scratch copy of the fixture content, and state (pid files) in a scratch dir.
 export function isolatedEnv(scratch: string, extra: Record<string, string | undefined> = {}) {

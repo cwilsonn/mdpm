@@ -3,7 +3,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import matter from 'gray-matter'
 import type { z } from 'zod'
 import { ConflictError, LimitError, NotFoundError, ValidationError, WriteBusyError } from './errors'
-import { appendNoteToBody } from './log'
+import { addNotesToText, makeNote, notesFileOf, type ParsedNote, readNotesFile, splitNotes } from './notes'
 import { slugify, uniqueSlug } from './slug'
 import { DocUpdate, formatIssues, ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate } from './write-schemas'
 
@@ -285,8 +285,15 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       createdAt: today(),
       order: taskCount,
     }
-    const text = body.note?.trim() ? appendNoteToBody(body.description ?? '', body.note, body.noteAuthor) : (body.description ?? '')
-    const slug = createUnique(['projects', body.project, 'tasks'], base, frontmatter, text)
+    // Notes go to the notes file, also any pasted into the description by a client that still sees one body.
+    const given = splitNotes(body.description ?? '')
+    const explicit = body.note?.trim() ? [makeNote(body.note, body.noteAuthor)] : []
+    const slug = createUnique(['projects', body.project, 'tasks'], base, frontmatter, given.spec)
+    // A notes file left by a deleted task of the same slug (hand `rm`, older mdpm) is not this task's history.
+    // (Only touched when needed: a task without notes creates no notes directory.)
+    const notesFile = notesFileOf(path('projects', body.project, 'tasks'), slug)
+    if (given.notes.length || explicit.length) withFileLock(notesFile, () => atomicWrite(notesFile, addNotesToText('', given.notes, explicit)!))
+    else if (existsSync(notesFile)) rmSync(notesFile, { force: true })
     return { slug, id: `${body.project}/${slug}`, status }
   }
 
@@ -303,16 +310,35 @@ export function createWriter(contentRoot: string, opts: WriterOptions = {}) {
       data.updatedAt = now
       if (status === 'done' && !file.data.completedAt) data.completedAt = now
       else if (status !== 'done') delete data.completedAt
-      let text = description !== undefined ? String(description) : file.content
-      if (note?.trim()) text = appendNoteToBody(text, note, noteAuthor, nowDate)
+      // `description` is the spec only: it never touches the notes. Notes still in the body (older content, older
+      // mdpm) move to the notes file on any update, so replacing the spec can't drop them; so do notes pasted
+      // into a description by a client that read spec and notes as one text.
+      const inline = splitNotes(file.content)
+      const given = description !== undefined ? splitNotes(String(description)) : undefined
+      const moved = [...inline.notes, ...(given?.notes ?? [])]
+      const explicit = note?.trim() ? [makeNote(note, noteAuthor, nowDate)] : []
+      if (moved.length || explicit.length) addNotes(project, slug, moved, explicit)
+      const text = given ? given.spec : inline.notes.length ? inline.spec : file.content
       // Only an editor doing optimistic concurrency needs the new stamp (to send back next time); CLI/MCP answers stay small.
       return { data, body: text, result: { ok: true as const, id: `${project}/${slug}`, status, ...(expectedUpdatedAt !== undefined && { updatedAt: now }) } }
     })!
   }
 
+  /** Add notes to a task's notes file: `moved` deduped, `appended` as given (locked; called under the task's own lock, so the order is task, then notes). */
+  function addNotes(project: string, slug: string, moved: ParsedNote[], appended: ParsedNote[]) {
+    const tasksDir = path('projects', project, 'tasks')
+    const full = notesFileOf(tasksDir, slug)
+    withFileLock(full, () => {
+      const next = addNotesToText(readNotesFile(tasksDir, slug), moved, appended)
+      if (next !== null) atomicWrite(full, next)
+    })
+  }
+
   function deleteTask(project: string, slug: string) {
     assertSafeSlug(project, slug)
+    const tasksDir = path('projects', project, 'tasks')
     rmSync(path('projects', project, 'tasks', `${slug}.md`), { force: true })
+    rmSync(notesFileOf(tasksDir, slug), { force: true })
     return { ok: true }
   }
 

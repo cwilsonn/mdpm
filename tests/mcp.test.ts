@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { isolatedEnv, readContent, REPO, scratchDir } from './helpers'
+import { createCore } from '../lib/core'
+import { isolatedEnv, readContent, readNotes, REPO, scratchContent, scratchDir } from './helpers'
 
 // Drives the real MCP server over stdio, so reads and writes (both on the files, no server) are checked
 // through the shared core, exactly as Claude Code would call them. Content is a scratch copy of the fixtures.
@@ -11,6 +12,8 @@ const scratch = scratchDir()
 after(scratch.cleanup)
 
 const task = (slug: string) => readContent(scratch.dir, `projects/alpha/tasks/${slug}.md`)
+const notes = (slug: string) => readNotes(scratch.dir, 'alpha', slug)
+const core = () => createCore({ contentPath: scratchContent(scratch.dir), baseUrl: 'http://127.0.0.1:1' })
 let child: ReturnType<typeof spawn>
 let nextId = 1
 let serverInfo: { name: string; version: string }
@@ -144,7 +147,19 @@ describe('MCP server through core', () => {
     await tool('update_task', { project: 'alpha', slug: 'old-idea', archived: false })
     assert.equal(task('old-idea')!.data.archivedAt, undefined)
     await tool('update_task', { project: 'alpha', slug: 'write-parser', note: 'second', noteAuthor: 'Sam' })
-    assert.match(task('write-parser')!.body, /\*\*Note\*\* _\([^)]+\)_ by Sam\n\nsecond$/)
+    assert.match(notes('write-parser'), /\*\*Note\*\* _\([^)]+\)_ by Sam\n\nsecond$/)
+  })
+
+  it('get_task keeps spec and notes apart, so writing the body back as the description keeps every note', async () => {
+    await tool('create_task', { project: 'alpha', title: 'Round trip', description: 'The spec.' })
+    for (const n of ['one', 'two', 'three', 'four']) await tool('update_task', { project: 'alpha', slug: 'round-trip', note: n })
+    const got = (await tool('get_task', { project: 'alpha', slug: 'round-trip' })).json
+    assert.equal(got.body, 'The spec.')
+    assert.match(got.notes, /two[\s\S]*three[\s\S]*four$/)
+    assert.equal(got.olderNotes, 1)
+    await tool('update_task', { project: 'alpha', slug: 'round-trip', description: `${got.body}\n\nEdited.` })
+    assert.equal(task('round-trip')!.body, 'The spec.\n\nEdited.')
+    assert.deepEqual(core().getTask('alpha', 'round-trip').notes.map(n => n.text), ['one', 'two', 'three', 'four'])
   })
 
   it('has no project-write, delete, link or ping tools', async () => {
@@ -162,9 +177,9 @@ describe('MCP server through core', () => {
     assert.equal(batch.isError, false)
     assert.deepEqual(batch.json, { ok: 1, failed: 0, results: [{ index: 0, ok: true, id: 'alpha/write-tests', status: 'done' }] })
     assert.equal(task('write-tests')!.data.status, 'done')
-    assert.match(task('write-tests')!.body, /by claude\n\nfinished$/)
+    assert.match(notes('write-tests'), /by claude\n\nfinished$/)
     await tool('update_task', { project: 'alpha', slug: 'write-tests', note: 'n' })
-    assert.match(task('write-tests')!.body, /by claude\n\nn$/)
+    assert.match(notes('write-tests'), /by claude\n\nn$/)
   })
 
   it('start_task creates an unknown task directly in-progress', async () => {

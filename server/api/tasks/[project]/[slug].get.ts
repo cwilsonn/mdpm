@@ -1,3 +1,5 @@
+import { readNotesFile, taskNotes } from '../../../../lib/core/notes'
+
 export default defineEventHandler((event) => {
   const project = getRouterParam(event, 'project')!
   const slug = getRouterParam(event, 'slug')!
@@ -5,6 +7,9 @@ export default defineEventHandler((event) => {
 
   const file = readMarkdown(`projects/${project}/tasks/${slug}.md`)
   if (!file) throw createError({ statusCode: 404, message: 'Task not found' })
+
+  // `body` is the spec; `notes` the history, oldest first (the notes file plus any still in the body).
+  const { spec, notes } = taskNotes(file.content, readNotesFile(contentPath('projects', project, 'tasks'), slug))
 
   return {
     slug,
@@ -22,6 +27,7 @@ export default defineEventHandler((event) => {
     updatedAt: file.data.updatedAt instanceof Date ? file.data.updatedAt.toISOString() : (file.data.updatedAt as string | undefined) ?? null,
     completedAt: (file.data.completedAt as string | undefined) ?? undefined,
     order: (file.data.order as number) ?? 0,
-    body: file.content,
+    body: spec,
+    notes: notes.map(n => ({ at: n.at.toISOString(), author: n.author ?? null, text: n.text })),
   }
 })

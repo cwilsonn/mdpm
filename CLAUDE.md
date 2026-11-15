@@ -35,12 +35,16 @@ content/
     <slug>/
       index.md          # project metadata (frontmatter only)
       tasks/
-        <slug>.md       # task: frontmatter + markdown body
+        <slug>.md       # task: frontmatter + markdown spec
+        notes/
+          <slug>.md     # that task's notes (history), oldest first; no frontmatter
       docs/
         <slug>.md       # reference doc: frontmatter + markdown body
 ```
 
 Collections defined in `content.config.ts`: `projects`, `tasks`, `docs`.
+
+**Task notes** live in `tasks/notes/<slug>.md` (`lib/core/notes.ts`), so the task body is only the spec. The subdirectory is deliberate: everything that lists `tasks/*.md` skips it without knowing. `description` writes the spec and never touches notes; a note is appended to the notes file under its own lock, inside the task's lock. Older content and older mdpm versions keep notes appended to the body, so readers always merge both places (deduped, oldest first), and any update moves body notes into the notes file before replacing the spec. Reads return `body` (spec) and `notes` as separate fields, so a client that writes the body back can't copy notes into the spec. Delete removes both files; a create clears a leftover notes file for its slug.
 
 ## API Routes
 
@@ -86,7 +90,7 @@ Token cost is a design constraint: agents pay for every byte they read. Shared p
 
 There are no link fields and no providers (audit decision 2026-11-13). Related URLs live in task and doc markdown, conventionally a `## Links` list at the end of the spec. A project has one `repo` URL (any host), which `inferProject` matches against a checkout's `origin` as a host-independent `owner/repo` key and which `mdpm init` records from the remote (`repoUrlFromRemote`: ssh becomes https, credentials dropped). The write schema accepts only http(s) URLs (no credentials) or a bare `owner/repo`.
 
-`mdpm migrate` (`lib/core/migrate/`, migration 002 in `links-to-body.ts`) converts older content: `links`, `githubIssues` and `githubPRs` become a `## Links` section inserted before any notes, and `githubRepo` (or a repo link) becomes `repo`. Dry run by default; `--apply` takes a backup under `~/.local/state/mdpm/backups/`, edits only those frontmatter keys textually, verifies frontmatter, spec and notes by parsing the result back, and stamps `content/.mdpm-schema.json` (schema version 3). Until content is migrated, the reader treats a legacy `githubRepo` as the repo URL (`repoOf` in `lib/core/read.ts`) so project detection keeps working; that fallback and the migration are deleted together once every content directory has run it. **Always pass `--content-path` (or set `MDPM_CONTENT_PATH`) when experimenting: `--apply` on the default path migrates real content.**
+`mdpm migrate` (`lib/core/migrate/`; migration 002 in `links-to-body.ts`, 003 in `notes-to-sidecar.ts`) converts older content. Migration 003 moves task notes out of the body into `tasks/notes/<slug>.md` (byte for byte, merged without duplicates into an existing notes file, notes file written before the task file) and stamps schema version 4; the migrations chain per file. Migration 002: `links`, `githubIssues` and `githubPRs` become a `## Links` section inserted before any notes, and `githubRepo` (or a repo link) becomes `repo`. Dry run by default; `--apply` takes a backup under `~/.local/state/mdpm/backups/`, edits only those frontmatter keys textually, verifies frontmatter, spec and notes by parsing the result back, and stamps `content/.mdpm-schema.json` (schema version 3). Until content is migrated, the reader treats a legacy `githubRepo` as the repo URL (`repoOf` in `lib/core/read.ts`) so project detection keeps working; that fallback and the migration are deleted together once every content directory has run it. **Always pass `--content-path` (or set `MDPM_CONTENT_PATH`) when experimenting: `--apply` on the default path migrates real content.**
 
 ## Claude Code Skills
 

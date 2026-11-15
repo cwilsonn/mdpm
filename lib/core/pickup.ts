@@ -1,5 +1,5 @@
 import { blockedTasks, buildGraph } from './deps'
-import { buildLog, parseNotes, splitNotes, type LogEntry } from './log'
+import { buildLog, type LogEntry } from './log'
 import { summarize, truncateChars } from './shape'
 
 export { summarize }
@@ -77,7 +77,7 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
       priority: t.priority,
       ...(t.tags.length && { tags: t.tags }),
       // Todo titles carry enough for a briefing; work already under way gets its one-line summary.
-      ...((status !== 'todo' || opts.full) && { summary: summarize(splitNotes(t.body).spec, SUMMARY_CHARS) }),
+      ...((status !== 'todo' || opts.full) && { summary: summarize(t.body, SUMMARY_CHARS) }),
     }))]
   })) as Record<typeof OPEN_STATUSES[number], { slug: string; title: string; priority: string; tags?: string[]; summary?: string }[]>
 
@@ -100,7 +100,7 @@ export function buildPickup(ops: Ops, project: string, opts: PickupOptions = {})
   const graph = buildGraph(ops.listTasks({ includeArchived: true }))
   const allBlockers = [
     ...open.filter(t => t.status === 'blocked').map((t) => {
-      const last = parseNotes(t.body).at(-1)
+      const last = t.notes.at(-1)
       return { slug: t.slug, title: t.title, reason: last ? firstLine(last.text) : 'marked blocked' }
     }),
     ...blockedTasks(graph).filter(b => b.task.project === project && b.task.status !== 'blocked').map(b => ({

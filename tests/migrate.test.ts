@@ -185,18 +185,23 @@ describe('planning and applying', () => {
     assert.match(read('docs/standalone.md').content, /\(https:\/\/example\.com\/guide\)/)
     assert.equal(read('projects/acme/tasks/plain.md').content, 'Body.\n', 'empty arrays removed without a section')
 
-    // Notes are untouched, byte for byte; the section sits between spec and notes.
+    // Both migrations ran on the file: the Links section ends the spec, and the notes moved, byte for byte, to
+    // the notes file (002 is applied first, 003 on its output).
     const original = before['/projects/acme/tasks/with-notes.md']!
-    const withNotes = readFileSync(join(root, 'projects/acme/tasks/with-notes.md'), 'utf8')
-    assert.ok(withNotes.endsWith(original.slice(original.indexOf('**Note**'))))
-    assert.match(withNotes, /The spec\.\n\n## Links\n\n- \[PR #9\]\(https:\/\/github\.com\/acme\/widgets\/pull\/9\)\n\n---\n\*\*Note\*\*/)
+    assert.equal(readFileSync(join(root, 'projects/acme/tasks/with-notes.md'), 'utf8'), FM(['title: With notes'], `The spec.\n\n## Links\n\n- [PR #9](${REPO}/pull/9)\n`))
+    assert.equal(readFileSync(join(root, 'projects/acme/tasks/notes/with-notes.md'), 'utf8'), original.slice(original.indexOf('**Note**')))
+    assert.equal(readFileSync(join(root, 'projects/acme/tasks/note-only.md'), 'utf8'), FM(['title: Note only'], `## Links\n\n- [Issue #5](${REPO}/issues/5)\n`))
+    assert.deepEqual(planMigration(root).entries, [])
   })
 
-  it('a migrated task still reads its notes the same way', () => {
-    const notes = () => createCore({ contentPath: root, baseUrl: 'http://127.0.0.1:1' }).getTask('acme', 'with-notes').body.match(/\*\*Note\*\*/g)?.length
-    assert.equal(notes(), 2)
+  it('a migrated task still reads its spec and notes the same way', () => {
+    const read = () => createCore({ contentPath: root, baseUrl: 'http://127.0.0.1:1' }).getTask('acme', 'with-notes')
+    const before = read()
+    assert.deepEqual(before.notes.map(n => n.text), ['Shipped it.', 'Second.'])
     applyMigration(planMigration(root))
-    assert.equal(notes(), 2)
+    const after = read()
+    assert.deepEqual(after.notes, before.notes)
+    assert.equal(after.body, `${before.body}\n\n## Links\n\n- [PR #9](${REPO}/pull/9)`)
   })
 
   it('a project keeps being found by its repo before and after migrating', () => {
@@ -249,6 +254,74 @@ describe('planning and applying', () => {
   it('a marker from a newer mdpm is flagged', () => {
     writeFileSync(join(root, '.mdpm-schema.json'), JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1, migratedAt: 'x', migratedBy: 'y' }))
     assert.equal(schemaStatus(root).newerThanCode, true)
+  })
+})
+
+describe('migration 003: notes move to the notes file', () => {
+  let root: string
+  const task = (slug: string) => join(root, 'projects/p/tasks', `${slug}.md`)
+  const notesFile = (slug: string) => join(root, 'projects/p/tasks/notes', `${slug}.md`)
+  const NOTE2 = '**Note** _(2026-10-02 08:30)_\n\nSecond.\n'
+  beforeEach(() => {
+    root = join(scratch.dir, `notes-${n++}`)
+    mkdirSync(join(root, 'projects/p/tasks'), { recursive: true })
+    writeFileSync(join(root, 'projects/p/index.md'), FM(['title: P'], ''))
+    process.env.MDPM_STATE_DIR = join(scratch.dir, `state-notes-${n}`)
+  })
+  after(() => { delete process.env.MDPM_STATE_DIR })
+
+  it('moves the notes byte for byte and keeps frontmatter and spec; content without links is at version 3 until then', () => {
+    writeFileSync(task('t'), FM(['title: T', '# a comment', 'due: 2026-07-01'], `The spec.\n\n---\n\nA rule in the spec.\n\n---\n${NOTE}\n---\n${NOTE2}`))
+    writeFileSync(task('plain'), FM(['title: Plain'], 'No notes.\n'))
+    assert.deepEqual([schemaStatus(root).version, schemaStatus(root).pendingBy], [3, { links: 0, notes: 1 }])
+    const plan = planMigration(root)
+    assert.deepEqual(plan.entries.map(e => [e.file, e.migrations, e.changes]), [['projects/p/tasks/t.md', ['notes'], ['2 note(s) move to projects/p/tasks/notes/t.md']]])
+    applyMigration(plan, { backup: false })
+    assert.equal(readFileSync(task('t'), 'utf8'), FM(['title: T', '# a comment', 'due: 2026-07-01'], 'The spec.\n\n---\n\nA rule in the spec.\n'))
+    assert.equal(readFileSync(notesFile('t'), 'utf8'), `${NOTE}\n---\n${NOTE2}`)
+    assert.ok(!existsSync(notesFile('plain')))
+    assert.deepEqual([schemaStatus(root).version, readSchemaMarker(root)?.schemaVersion], [SCHEMA_VERSION, SCHEMA_VERSION])
+  })
+
+  it('merges into an existing notes file without duplicates (old code kept writing to the body)', () => {
+    writeFileSync(task('t'), FM(['title: T'], `Spec.\n\n---\n${NOTE}`))
+    mkdirSync(join(root, 'projects/p/tasks/notes'))
+    writeFileSync(notesFile('t'), NOTE2)
+    applyMigration(planMigration(root), { backup: false })
+    assert.equal(readFileSync(notesFile('t'), 'utf8'), `${NOTE.trim()}\n\n---\n${NOTE2}`, 'the older note goes in front')
+    assert.equal(readFileSync(task('t'), 'utf8'), FM(['title: T'], 'Spec.\n'))
+  })
+
+  it('finishes a run that stopped between the notes file and the task file, without duplicating notes', () => {
+    writeFileSync(task('t'), FM(['title: T'], `Spec.\n\n---\n${NOTE}`))
+    const entry = planMigration(root).entries[0]!
+    mkdirSync(join(root, 'projects/p/tasks/notes'))
+    writeFileSync(join(root, entry.sidecar!.file), entry.sidecar!.text) // the crash: notes written, task not yet
+    const again = planMigration(root)
+    assert.equal(again.entries[0]!.sidecar, undefined, 'the notes file already holds every note')
+    applyMigration(again, { backup: false })
+    assert.equal(readFileSync(notesFile('t'), 'utf8'), NOTE)
+    assert.equal(readFileSync(task('t'), 'utf8'), FM(['title: T'], 'Spec.\n'))
+  })
+
+  it('refuses to overwrite a task or notes file that changed after planning (a note landed meanwhile)', () => {
+    writeFileSync(task('t'), FM(['title: T'], `Spec.\n\n---\n${NOTE}`))
+    mkdirSync(join(root, 'projects/p/tasks/notes'))
+    writeFileSync(notesFile('t'), NOTE2)
+    const plan = planMigration(root)
+    writeFileSync(notesFile('t'), `${NOTE2}\n---\n**Note** _(2026-10-03 09:00)_\n\nLanded meanwhile.\n`)
+    assert.throws(() => applyMigration(plan, { backup: false }), /changed since it was planned/)
+    assert.match(readFileSync(notesFile('t'), 'utf8'), /Landed meanwhile/)
+    assert.match(readFileSync(task('t'), 'utf8'), /Shipped it/, 'the task file is untouched')
+    applyMigration(planMigration(root), { backup: false })
+    assert.match(readFileSync(notesFile('t'), 'utf8'), /Shipped it[\s\S]*Second[\s\S]*Landed meanwhile/)
+  })
+
+  it('a task that is only notes keeps an empty body', () => {
+    writeFileSync(task('t'), FM(['title: T'], NOTE))
+    applyMigration(planMigration(root), { backup: false })
+    assert.equal(readFileSync(task('t'), 'utf8'), FM(['title: T'], ''))
+    assert.equal(readFileSync(notesFile('t'), 'utf8'), NOTE)
   })
 })
 
