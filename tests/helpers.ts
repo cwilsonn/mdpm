@@ -132,10 +132,28 @@ export async function mockApi(respond: (req: RecordedRequest) => { status?: numb
   }
 }
 
+// A port for a test server that the CLI starts later. Not the OS's pick (listen(0)): that comes from the
+// ephemeral range, and once released it can be handed straight to another test file's mockApi(), which
+// answers 200 to /api/health and makes `mdpm status` see a running server (the CI flake, run 36968114365).
+// Ports below every OS's ephemeral range (Linux starts at 32768, macOS and Windows at 49152) are never
+// handed out by listen(0) or used for outgoing connections, so only an explicit bind could take one.
+// Each is checked free on both loopbacks; successive calls in a process never repeat a port.
+const PORT_BASE = 20000
+const PORT_SPAN = 10000
+let nextPortOffset = Math.floor(Math.random() * PORT_SPAN)
+
+function canBind(port: number, host: string) {
+  return new Promise<boolean>((resolve) => {
+    const server = createNetServer()
+    server.once('error', (err: NodeJS.ErrnoException) => resolve(err.code === 'EADDRNOTAVAIL')) // no IPv6 loopback
+    server.listen(port, host, () => server.close(() => resolve(true)))
+  })
+}
+
 export async function freePort() {
-  const server = createNetServer()
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address() as { port: number }
-  await new Promise(resolve => server.close(resolve))
-  return port
+  for (let tries = 0; tries < 50; tries++) {
+    const port = PORT_BASE + (nextPortOffset++ % PORT_SPAN)
+    if (await canBind(port, '127.0.0.1') && await canBind(port, '::1')) return port
+  }
+  throw new Error('freePort: no free port found in the test range')
 }
