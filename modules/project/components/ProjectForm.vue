@@ -125,7 +125,7 @@ async function create() {
     emit('saved')
   }
   catch (e: unknown) {
-    createError.value = (e as { data?: { message?: string } })?.data?.message ?? 'An error occurred'
+    createError.value = apiErrorMessage(e, 'An error occurred')
   }
   finally {
     creating.value = false
@@ -307,27 +307,7 @@ async function create() {
         v-if="isEdit"
         class="flex items-center gap-1.5 w-full text-xs text-muted"
       >
-        <UIcon
-          v-if="saving"
-          name="i-lucide-loader-2"
-          class="size-3.5 animate-spin shrink-0"
-        />
-        <UIcon
-          v-else-if="saveError"
-          name="i-lucide-triangle-alert"
-          class="size-3.5 shrink-0 text-error"
-        />
-        <UIcon
-          v-else-if="savedAt"
-          name="i-lucide-check"
-          class="size-3.5 shrink-0 text-success"
-        />
-        <span :class="saveError ? 'text-error' : ''">
-          <template v-if="saving">Saving…</template>
-          <template v-else-if="saveError">{{ saveError }}</template>
-          <template v-else-if="savedAt">Saved {{ savedAgo }}</template>
-          <template v-else>Changes save automatically</template>
-        </span>
+        <AppSaveStatus :saving="saving" :save-error="saveError" :saved-at="savedAt" :saved-ago="savedAgo" />
       </div>
       <div
         v-else

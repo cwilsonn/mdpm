@@ -124,8 +124,8 @@ async function handleReparent(payload: { slug: string; parent: string | null; or
     await updateDoc(group.projectSlug, payload.slug, { parent: payload.parent, order: payload.order })
     emit('changed')
   }
-  catch (e: any) {
-    toast.add({ title: 'Failed to move doc', description: e?.data?.message ?? String(e), color: 'error' })
+  catch (e: unknown) {
+    toast.add({ title: 'Failed to move doc', description: apiErrorMessage(e, String(e)), color: 'error' })
   }
 }
 
@@ -139,8 +139,8 @@ async function handleCreateFolder(payload: { parent: string | null; name: string
     })
     emit('changed')
   }
-  catch (e: any) {
-    toast.add({ title: 'Failed to create folder', description: e?.data?.message ?? String(e), color: 'error' })
+  catch (e: unknown) {
+    toast.add({ title: 'Failed to create folder', description: apiErrorMessage(e, String(e)), color: 'error' })
   }
 }
 </script>
