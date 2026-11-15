@@ -1,5 +1,5 @@
 import { repoOf } from '../../../lib/core/read'
-const ALL_TASK_STATUSES = ['todo', 'in-progress', 'in-review', 'done', 'blocked', 'on-hold']
+import { TASK_STATUSES } from '../../../lib/core/schema'
 
 export default defineEventHandler((event) => {
   const slug = getRouterParam(event, 'slug')!
@@ -17,7 +17,7 @@ export default defineEventHandler((event) => {
     tags: (file.data.tags as string[]) ?? [],
     createdAt: (file.data.createdAt as string) ?? '',
     updatedAt: (file.data.updatedAt as string | undefined) ?? undefined,
-    availableStatuses: (file.data.availableStatuses as string[] | undefined) ?? ALL_TASK_STATUSES,
+    availableStatuses: (file.data.availableStatuses as string[] | undefined) ?? [...TASK_STATUSES],
     defaultStatus: (file.data.defaultStatus as string | undefined) ?? undefined,
     defaultPriority: (file.data.defaultPriority as string | undefined) ?? undefined,
     defaultAssignee: (file.data.defaultAssignee as string | undefined) ?? undefined,
