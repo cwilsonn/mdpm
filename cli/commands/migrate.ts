@@ -10,7 +10,8 @@ export default defineCommand({
     apply: { type: 'boolean', description: 'Write the changes (default is a dry run that shows them)', default: false },
     file: { type: 'string', description: 'Only this file (a project index, task or doc .md)' },
     project: { type: 'string', description: 'Only this project' },
-    'no-backup': { type: 'boolean', description: 'Skip the backup of the content directory that --apply takes first', default: false },
+    // citty reads `--no-backup` as `backup: false`, so the flag is declared positively.
+    backup: { type: 'boolean', description: 'Back up the content directory before --apply writes (--no-backup skips it)', default: true },
     check: { type: 'boolean', description: 'Exit 1 when a migration is pending (for scripts and CI); writes nothing', default: false },
   },
   run({ args }) {
@@ -37,7 +38,7 @@ export default defineCommand({
       return
     }
 
-    const result = args.apply ? applyMigration(plan, { backup: !args['no-backup'] }) : undefined
+    const result = args.apply ? applyMigration(plan, { backup: args.backup !== false }) : undefined
 
     emit(ctx.json, {
       dryRun: !args.apply,
