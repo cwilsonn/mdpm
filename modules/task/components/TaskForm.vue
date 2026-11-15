@@ -83,7 +83,7 @@ const authorNames = ref<string[]>([])
 // undefined until the task has been loaded: autosave doesn't start without it.
 const baseUpdatedAt = ref<string | null | undefined>(undefined)
 
-const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
+const { saving, busy, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave, quietly, resolveConflict, initAutoSave, cleanupAutoSave } = useAutoSave(
   isEdit,
   async () => {
     const res = await updateTask(props.projectSlug, slugFromPath(props.task!.path), {
@@ -104,8 +104,15 @@ const { saving, savedAt, saveError, savedAgo, conflict, scheduleSave, flushSave,
 type RawTask = Omit<Task, 'updatedAt'> & { body: string, updatedAt: string | null }
 
 // Load (or reload) the task: form fields, body, and the base for the conflict check.
+function fetchTask() {
+  return $fetch<RawTask>(`/api/tasks/${props.projectSlug}/${slugFromPath(props.task!.path)}`)
+}
+
 async function loadTask() {
-  const raw = await $fetch<RawTask>(`/api/tasks/${props.projectSlug}/${slugFromPath(props.task!.path)}`)
+  applyTask(await fetchTask())
+}
+
+function applyTask(raw: RawTask) {
   Object.assign(form, {
     title: raw.title,
     status: raw.status,
@@ -127,6 +134,7 @@ async function reloadAfterConflict() {
     await loadTask()
     // Let the field watchers run (and no-op, autosave is still stopped) before saving again.
     await nextTick()
+    remote.dismiss()
     resolveConflict()
   }
   catch {
@@ -136,6 +144,18 @@ async function reloadAfterConflict() {
     reloading.value = false
   }
 }
+
+// Live updates: a change made elsewhere (a note from the CLI or an agent) is offered, never swapped in
+// under the cursor; editing on regardless ends in the 409 conflict above.
+const remote = useRemoteRecord<RawTask>({
+  match: e => e.kind === 'task' && e.project === props.projectSlug && !!props.task && e.slug === slugFromPath(props.task.path),
+  base: baseUpdatedAt,
+  busy,
+  blocked: computed(() => conflict.value || baseUpdatedAt.value === undefined),
+  fetchLatest: fetchTask,
+  apply: raw => quietly(() => applyTask(raw)),
+  silent: () => false,
+})
 
 onMounted(async () => {
   listAuthors().then((data) => {
@@ -415,6 +435,19 @@ async function create() {
           :loading="reloading"
           @click="reloadAfterConflict"
         />
+        <template v-else-if="remote.changed.value">
+          <span class="text-warning">· Changed elsewhere</span>
+          <UButton
+            label="Load"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="xs"
+            class="shrink-0"
+            :loading="remote.loading.value"
+            @click="remote.loadLatest"
+          />
+        </template>
         <UButton
           :label="isArchived ? 'Unarchive' : 'Archive'"
           :icon="isArchived ? 'i-lucide-archive-restore' : 'i-lucide-archive'"
