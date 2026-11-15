@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, beforeEach, describe, it } from 'node:test'
 import matter from 'gray-matter'
@@ -15,6 +15,8 @@ let root: string
 let n = 0
 const put = (rel: string, text: string) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text) }
 const read = (rel: string) => matter(readFileSync(join(root, rel), 'utf8'))
+const notesFile = (slug: string) => join(root, 'projects/p/tasks/notes', `${slug}.md`)
+const notesOf = (slug: string) => existsSync(notesFile(slug)) ? readFileSync(notesFile(slug), 'utf8') : ''
 beforeEach(() => {
   root = join(scratch.dir, `w${n++}`)
   put('projects/p/index.md', '---\ntitle: P\n---\n')
@@ -66,7 +68,8 @@ describe('writer', () => {
     const f = read('projects/p/tasks/two.md')
     assert.equal(f.data.order, 1)
     assert.ok(f.data.completedAt)
-    assert.match(f.content.trim(), /^\*\*Note\*\* _\([^)]+\)_ by Sam\n\nshipped$/)
+    assert.equal(f.content.trim(), '')
+    assert.match(notesOf('two'), /^\*\*Note\*\* _\([^)]+\)_ by Sam\n\nshipped\n$/)
   })
 
   it('refuses bad input with typed errors', () => {
@@ -91,6 +94,69 @@ describe('writer', () => {
   })
 })
 
+// Notes live in tasks/notes/<slug>.md; `description` is the spec only and can never drop a note.
+describe('notes file', () => {
+  const NOTE = (stamp: string, text: string) => `**Note** _(${stamp})_ by Sam\n\n${text}`
+
+  it('replacing the description keeps every note (the old body layout lost the ones a read had hidden)', () => {
+    const w = createWriter(root)
+    for (const n of ['a', 'b', 'c', 'd', 'e']) w.updateTask('p', 'one', { note: n })
+    w.updateTask('p', 'one', { description: 'New spec.' })
+    assert.equal(read('projects/p/tasks/one.md').content.trim(), 'New spec.')
+    assert.deepEqual([...notesOf('one').matchAll(/\n\n(\w)(?=\n|$)/g)].map(m => m[1]), ['a', 'b', 'c', 'd', 'e'])
+  })
+
+  it('notes still in an old-layout body move to the notes file on the next update, before the spec is replaced', () => {
+    put('projects/p/tasks/old.md', `---\ntitle: Old\nstatus: todo\n---\nOld spec.\n\n---\n${NOTE('2026-10-01 10:00', 'first')}\n\n---\n${NOTE('2026-10-02 10:00', 'second')}\n`)
+    put('projects/p/tasks/notes/old.md', `${NOTE('2026-10-03 10:00', 'third (written by a newer mdpm)')}\n`)
+    createWriter(root).updateTask('p', 'old', { description: 'Rewritten.' })
+    assert.equal(read('projects/p/tasks/old.md').content.trim(), 'Rewritten.')
+    assert.equal(notesOf('old'), `${[NOTE('2026-10-01 10:00', 'first'), NOTE('2026-10-02 10:00', 'second'), NOTE('2026-10-03 10:00', 'third (written by a newer mdpm)')].join('\n\n---\n')}\n`)
+  })
+
+  it('a status-only update also moves old-layout notes out, and a second one changes nothing', () => {
+    put('projects/p/tasks/old.md', `---\ntitle: Old\nstatus: todo\n---\nSpec.\n\n---\n${NOTE('2026-10-01 10:00', 'first')}\n`)
+    const w = createWriter(root)
+    w.updateTask('p', 'old', { status: 'done' })
+    assert.equal(read('projects/p/tasks/old.md').content.trim(), 'Spec.')
+    const once = notesOf('old')
+    w.updateTask('p', 'old', { status: 'todo' })
+    assert.equal(notesOf('old'), once)
+  })
+
+  it('notes pasted into a description go to the notes file once, not into the spec', () => {
+    const w = createWriter(root)
+    w.updateTask('p', 'one', { note: 'kept', noteAuthor: 'Sam' })
+    const stored = notesOf('one').trim()
+    w.updateTask('p', 'one', { description: `Spec.\n\n---\n${stored}\n\n---\n${NOTE('2026-10-05 10:00', 'pasted')}` })
+    assert.equal(read('projects/p/tasks/one.md').content.trim(), 'Spec.')
+    assert.equal((notesOf('one').match(/\*\*Note\*\*/g) ?? []).length, 2)
+  })
+
+  it('the same note written twice in a minute is kept twice', () => {
+    const w = createWriter(root)
+    w.updateTask('p', 'one', { note: 'wip' })
+    w.updateTask('p', 'one', { note: 'wip' })
+    assert.equal((notesOf('one').match(/\n\nwip(\n|$)/g) ?? []).length, 2)
+  })
+
+  it('a task without notes has no notes file or directory; delete removes both files', () => {
+    const w = createWriter(root)
+    w.createTask({ project: 'p', title: 'Quiet' })
+    assert.equal(existsSync(join(root, 'projects/p/tasks/notes')), false)
+    w.createTask({ project: 'p', title: 'Noted', note: 'hello' })
+    assert.match(notesOf('noted'), /hello/)
+    w.deleteTask('p', 'noted')
+    assert.deepEqual([existsSync(join(root, 'projects/p/tasks/noted.md')), existsSync(notesFile('noted'))], [false, false])
+  })
+
+  it('a new task does not inherit a notes file left behind under its slug', () => {
+    put('projects/p/tasks/notes/fresh.md', `${NOTE('2026-10-01 10:00', 'someone else')}\n`)
+    createWriter(root).createTask({ project: 'p', title: 'Fresh' })
+    assert.equal(existsSync(notesFile('fresh')), false)
+  })
+})
+
 // An editor that sends a whole body back (the task form's autosave) must not overwrite a note appended meanwhile.
 describe('stale updates (expectedUpdatedAt)', () => {
   it('refuses an update against an older version and keeps the note that landed in between', () => {
@@ -99,7 +165,7 @@ describe('stale updates (expectedUpdatedAt)', () => {
     assert.ok(first.updatedAt, 'an editor gets the new stamp back')
     w.updateTask('p', 'one', { note: 'from an agent', noteAuthor: 'claude' })
     assert.throws(() => w.updateTask('p', 'one', { description: 'Body as the form saw it', expectedUpdatedAt: first.updatedAt }), ConflictError)
-    assert.match(read('projects/p/tasks/one.md').content, /from an agent/)
+    assert.match(notesOf('one'), /from an agent/)
   })
 
   it('accepts a matching base, chains on the returned stamp, and never stores the field', () => {

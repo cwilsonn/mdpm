@@ -14,6 +14,8 @@ let root: string
 let n = 0
 const put = (rel: string, text: string) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text) }
 const read = (rel: string) => matter(readFileSync(join(root, rel), 'utf8'))
+// A task's notes file (tasks/notes/<slug>.md), trimmed.
+const notesOf = (slug: string) => readFileSync(join(root, 'projects/p/tasks/notes', `${slug}.md`), 'utf8').trim()
 const task = (title: string, status = 'todo', body = 'Body.') => `---\ntitle: ${title}\nstatus: ${status}\npriority: medium\ncreatedAt: '2026-10-01'\norder: 0\n---\n${body}\n`
 
 beforeEach(() => {
@@ -46,13 +48,20 @@ describe('write responses', () => {
     assert.ok(f.data.completedAt)
     assert.equal('note' in f.data, false)
     assert.equal('noteAuthor' in f.data, false)
-    assert.match(f.content.trim(), /^Spec\.\n\n---\n\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_ by Sam\n\nAll verified\.$/)
+    assert.equal(f.content.trim(), 'Spec.')
+    assert.match(notesOf('two'), /^\*\*Note\*\* _\(\d{4}-\d\d-\d\d \d\d:\d\d\)_ by Sam\n\nAll verified\.$/)
+    // The task page reads the spec and the notes as separate fields.
+    const got = await (await route('tasks/[project]/[slug].get'))({ params: { project: 'p', slug: 'two' } })
+    assert.equal(got.body, 'Spec.')
+    assert.deepEqual(got.notes.map((n: { author: string, text: string }) => [n.author, n.text]), [['Sam', 'All verified.']])
+    assert.match(got.notes[0].at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:00\.000Z$/)
   })
 
   it('create can carry a first note', async () => {
     const post = await route('tasks/index.post')
     await post({ body: { project: 'p', title: 'Noted', description: 'Scope.', note: 'Kickoff.', noteAuthor: 'claude' } })
-    assert.match(read('projects/p/tasks/noted.md').content.trim(), /^Scope\.\n\n---\n\*\*Note\*\* .* by claude\n\nKickoff\.$/)
+    assert.equal(read('projects/p/tasks/noted.md').content.trim(), 'Scope.')
+    assert.match(notesOf('noted'), /^\*\*Note\*\* .* by claude\n\nKickoff\.$/)
   })
 })
 
@@ -69,8 +78,8 @@ describe('POST /api/tasks/batch', () => {
       { index: 1, ok: true, id: 'p/one', status: 'done' },
       { index: 2, ok: true, id: 'p/two', status: 'in-progress' },
     ] })
-    assert.match(read('projects/p/tasks/one.md').content.trim(), /shipped$/)
-    assert.match(read('projects/p/tasks/two.md').content.trim(), /halfway$/)
+    assert.match(notesOf('one'), /shipped$/)
+    assert.match(notesOf('two'), /halfway$/)
   })
 
   it('a failing item is reported and does not stop the rest', async () => {
@@ -109,8 +118,8 @@ describe('batchTasks and startTask (core)', () => {
     ])
     assert.deepEqual(r.results.map(x => [x.ok, x.id, x.status]), [[true, 'p/one', 'done'], [true, 'p/two', 'in-progress'], [true, 'p/new', 'todo']])
     assert.equal(read('projects/p/tasks/one.md').data.status, 'done')
-    assert.match(read('projects/p/tasks/one.md').content.trim(), /by Sam\n\nok$/)
-    assert.match(read('projects/p/tasks/two.md').content.trim(), /\n\nn$/)
+    assert.match(notesOf('one'), /by Sam\n\nok$/)
+    assert.match(notesOf('two'), /\n\nn$/)
     assert.equal(read('projects/p/tasks/new.md').data.title, 'New')
   })
 
@@ -149,8 +158,8 @@ describe('CLI', () => {
     })
     assert.equal(r.code, 0, r.stderr)
     assert.equal(r.json.ok, 2)
-    assert.match(read('projects/p/tasks/one.md').content.trim(), /by Sam\n\nfin$/)
-    assert.match(read('projects/p/tasks/two.md').content.trim(), /by Sam\n\nmid$/)
+    assert.match(notesOf('one'), /by Sam\n\nfin$/)
+    assert.match(notesOf('two'), /by Sam\n\nmid$/)
   })
 
   it('task batch rejects bad JSON and bad statuses before sending anything', async () => {
@@ -165,7 +174,7 @@ describe('CLI', () => {
     assert.deepEqual(r.json, { id: 'p/one', status: 'done', noted: true })
     const f = read('projects/p/tasks/one.md')
     assert.equal(f.data.status, 'done')
-    assert.match(f.content.trim(), /by Sam\n\nverified$/)
+    assert.match(notesOf('one'), /by Sam\n\nverified$/)
   })
 
   it('task start creates and starts in one write', async () => {
@@ -182,7 +191,7 @@ describe('concurrent writers', () => {
     const runs = await Promise.all(Array.from({ length: 6 }, (_, i) =>
       runCli(['task', 'note', 'one', `note ${i}`, '--project', 'p'], { scratch: scratch.dir, env })))
     assert.deepEqual(runs.map(r => r.code), [0, 0, 0, 0, 0, 0], runs.map(r => r.stderr).join('\n'))
-    const body = read('projects/p/tasks/one.md').content
+    const body = notesOf('one')
     for (let i = 0; i < 6; i++) assert.match(body, new RegExp(`\\n\\nnote ${i}(\\n|$)`))
   })
 

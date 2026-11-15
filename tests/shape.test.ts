@@ -1,10 +1,12 @@
 import { strict as assert } from 'node:assert'
 import { after, describe, it } from 'node:test'
-import { pageFooter, paginate, parseFields, shapeDoc, shapeTask, splitNotes, taskRow, toTsv, truncateChars } from '../lib/core'
+import { pageFooter, paginate, parseFields, shapeDoc, shapeTask, splitNotes, taskNotes, taskRow, toTsv, truncateChars } from '../lib/core'
 import { runCli, scratchDir } from './helpers'
 
 const note = (day: string, text: string, by = 'claude') => `**Note** _(2026-10-${day} 10:00)_ by ${by}\n\n${text}`
 const bodyWith = (spec: string, notes: string[]) => [spec, ...notes].join('\n\n---\n')
+// A task as the reader returns it: `body` the spec, `notes` parsed.
+const asTask = (text: string) => { const { spec, notes } = taskNotes(text, ''); return { body: spec, notes } }
 
 describe('paginate', () => {
   const rows = Array.from({ length: 45 }, (_, i) => i)
@@ -59,34 +61,40 @@ describe('task bodies: spec versus notes', () => {
   })
 
   it('keeps the spec and the newest 3 notes, says how many are hidden', () => {
-    const s = shapeTask({ body }, {})
+    const s = shapeTask(asTask(body), {})
     assert.equal(s.truncated, true)
     assert.equal(s.olderNotes, 2)
-    assert.match(s.body, /Spec line one/)
-    assert.match(s.body, /note number 5/)
-    assert.doesNotMatch(s.body, /note number 1\b/)
+    assert.equal(s.body, 'Spec line one.\n\nMore spec.', 'body is the spec alone')
+    assert.match(s.notes!, /note number 3[\s\S]*note number 5$/)
+    assert.doesNotMatch(s.notes!, /note number 1\b/)
     assert.match(s.note!, /full/)
   })
 
-  it('full returns the body untouched', () => {
-    assert.equal(shapeTask({ body }, { full: true }).body, body)
+  it('full returns the whole spec and every note, as stored', () => {
+    const s = shapeTask(asTask(body), { full: true })
+    assert.equal([s.body, s.notes].join('\n\n---\n'), body)
+  })
+
+  it('notes: 0 leaves the notes out (and counts them)', () => {
+    const s = shapeTask(asTask(body), { notes: 0 })
+    assert.deepEqual([s.notes, s.olderNotes], [undefined, 5])
   })
 
   it('caps a long spec and a long note', () => {
-    const s = shapeTask({ body: bodyWith('x'.repeat(500), [note('11', 'y'.repeat(2000))]) }, { maxChars: 100 })
-    assert.ok(s.body.length < 900)
+    const s = shapeTask(asTask(bodyWith('x'.repeat(500), [note('11', 'y'.repeat(2000))])), { maxChars: 100 })
+    assert.ok(s.body.length < 110 && s.notes!.length < 700)
     assert.equal(s.truncated, true)
   })
 
   it('a short task is not marked truncated', () => {
-    const s = shapeTask({ body: bodyWith('short', [note('11', 'one')]) })
+    const s = shapeTask(asTask(bodyWith('short', [note('11', 'one')])))
     assert.equal(s.truncated, false)
     assert.equal(s.olderNotes, undefined)
   })
 
   it('a list row has no body but a one-line summary and a note count', () => {
-    const row = taskRow({ slug: 'a', body }, 'note number 3')
-    assert.equal('body' in row, false)
+    const row = taskRow({ slug: 'a', ...asTask(body) }, 'note number 3')
+    assert.equal('body' in row || 'notes' in row, false)
     assert.equal(row.summary, 'Spec line one.')
     assert.equal(row.noteCount, 5)
     assert.equal(row.match, 'note number 3')

@@ -11,7 +11,7 @@ export default defineCommand({
     ...projectArgs,
     all: { type: 'boolean', description: 'Search across all projects', default: false },
     ...refArg,
-    full: { type: 'boolean', description: 'The whole body, every note included (default: spec capped, newest 3 notes)', default: false },
+    full: { type: 'boolean', description: 'The whole spec and every note (default: spec capped, newest 3 notes)', default: false },
     notes: { type: 'string', description: 'How many of the newest notes to show (default 3)' },
   },
   async run({ args }) {
@@ -31,7 +31,7 @@ export default defineCommand({
         task.dependencies.length && `depends on: ${task.dependencies.join(', ')}`,
         task.archivedAt && 'archived',
       ].filter(Boolean).join('  ')
-      return [s.bold(task.title), s.dim(`${task.project}/${task.slug}`), meta, ...(task.body ? ['', task.body] : []), ...(task.truncated ? ['', s.dim(`(${task.olderNotes ? `${task.olderNotes} older notes hidden; ` : ''}shortened: --full for everything)`)] : [])].join('\n')
+      return [s.bold(task.title), s.dim(`${task.project}/${task.slug}`), meta, ...(task.body ? ['', task.body] : []), ...(task.notes ? ['', s.dim('── notes ──'), '', task.notes] : []), ...(task.truncated ? ['', s.dim(`(${task.olderNotes ? `${task.olderNotes} older notes hidden; ` : ''}shortened: --full for everything)`)] : [])].join('\n')
     })
   },
 })

@@ -13,7 +13,7 @@ describe('export', () => {
 
   it('builds a self-describing JSON document, leaving out archived items by default', () => {
     const doc = buildExport(core, {}, at)
-    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 3, '2026-10-01T12:00:00.000Z'])
+    assert.deepEqual([doc.format, doc.formatVersion, doc.exportedAt], ['mdpm-export', 4, '2026-10-01T12:00:00.000Z'])
     assert.deepEqual(doc.projects.map(p => p.slug).sort(), ['alpha', 'beta'])
     const alpha = doc.projects.find(p => p.slug === 'alpha')!
     assert.ok(!alpha.tasks.some(t => t.slug === 'old-idea'), 'archived task left out')
@@ -22,6 +22,7 @@ describe('export', () => {
     const parser = alpha.tasks.find(t => t.slug === 'write-parser')!
     assert.deepEqual([parser.status, parser.priority, parser.tags, parser.dependencies], ['in-progress', 'high', ['backend'], ['shared-task']])
     assert.match(parser.description, /Implement the parser/)
+    assert.deepEqual(parser.notes, [])
   })
 
   it('--include-archived brings archived items back; a single project drops standalone docs; --no-docs drops docs', () => {
@@ -34,16 +35,17 @@ describe('export', () => {
     assert.ok(bare.projects.every(p => p.docs.length === 0) && bare.standaloneDocs.length === 0)
   })
 
-  it('CSV quotes commas, quotes, and line breaks', () => {
-    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 3, exportedAt: '', standaloneDocs: [], projects: [{
+  it('CSV quotes commas, quotes, and line breaks; notes get their own column', () => {
+    const doc: ExportDocument = { format: 'mdpm-export', formatVersion: 4, exportedAt: '', standaloneDocs: [], projects: [{
       slug: 'p', title: 'P', status: 'active', icon: null, description: null, tags: [], repo: null, createdAt: '', archivedAt: null, docs: [],
-      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma' }],
+      tasks: [{ slug: 'x', title: 'Say "hi", then leave', status: 'todo', priority: 'low', tags: ['a', 'b'], assignees: [], due: '2026-12-01', dependencies: ['y'], createdAt: '2026-01-01', updatedAt: null, archivedAt: null, description: 'line one\nline two, with comma', notes: [{ at: '2026-10-01T12:00:00.000Z', author: 'Sam', text: 'done' }] }],
     }] }
     const csv = toCsv(doc)
     assert.ok(csv.startsWith(`${CSV_COLUMNS.join(',')}\n`))
     assert.ok(csv.includes('"Say ""hi"", then leave"'), 'quotes doubled inside a quoted field')
     assert.ok(csv.includes('"line one\nline two, with comma"'), 'line breaks and commas kept inside quotes')
     assert.ok(csv.includes(',a;b,'), 'list columns joined with ;')
+    assert.ok(csv.trimEnd().endsWith('"line one\nline two, with comma","**Note** _(2026-10-01 12:00)_ by Sam\n\ndone"'), 'notes as stored, after the spec')
   })
 
   it('markdown groups tasks by status with checkboxes and lists docs', () => {

@@ -37,6 +37,10 @@ export function mapContentPath(rel: string): Target | null {
     if (parts.length === 4 && md && (parts[2] === 'tasks' || parts[2] === 'docs')) {
       return { kind: parts[2] === 'tasks' ? 'task' : 'doc', project, slug: base, file: rel }
     }
+    // A task's notes file is part of that task: report the task, stamped from the task file (notes have no frontmatter).
+    if (parts.length === 5 && md && parts[2] === 'tasks' && parts[3] === 'notes') {
+      return { kind: 'task', project, slug: base, file: ['projects', project, 'tasks', `${base}.md`].join('/') }
+    }
     // tasks/ or docs/ directory itself (created or removed with the project): report the project.
     if (parts.length === 3 && !md) return { kind: 'project', project, slug: project }
     return null

@@ -1,10 +1,10 @@
 import { defineCommand } from 'citty'
-import { applyMigration, MigrationError, planMigration, schemaStatus, type PlanEntry } from '../../lib/core'
+import { applyMigration, MigrationError, pendingSummary, planMigration, schemaStatus, type PlanEntry } from '../../lib/core'
 import { createContext, globalArgs } from '../context'
 import { CliError, emit, ExitCode } from '../output'
 
 export default defineCommand({
-  meta: { name: 'migrate', description: 'Move links out of frontmatter: task/doc links and GitHub issue/PR numbers become a Links section in the body, a project repo becomes `repo:`. Dry run unless --apply; reads and writes files, no server needed' },
+  meta: { name: 'migrate', description: 'Bring content to the current schema: links leave frontmatter (task/doc links and GitHub issue/PR numbers become a Links section, a project repo becomes `repo:`), and task notes move out of the body into tasks/notes/<slug>.md. Dry run unless --apply; reads and writes files, no server needed' },
   args: {
     ...globalArgs,
     apply: { type: 'boolean', description: 'Write the changes (default is a dry run that shows them)', default: false },
@@ -32,7 +32,7 @@ export default defineCommand({
     if (args.check) {
       const status = schemaStatus(root)
       emit(ctx.json, { pending: status.pendingFiles > 0, ...status }, () => status.pendingFiles
-        ? `${style.yellow('!')} ${status.pendingFiles} file(s) still carry link fields; run \`mdpm migrate\``
+        ? `${style.yellow('!')} ${pendingSummary(status.pendingBy)}; run \`mdpm migrate\``
         : `${style.green('✓')} content is up to date`)
       if (status.pendingFiles) process.exitCode = ExitCode.error
       return
@@ -44,7 +44,7 @@ export default defineCommand({
       dryRun: !args.apply,
       contentRoot: root,
       scanned: plan.scanned,
-      files: plan.entries.map(({ newText: _, ...e }) => e),
+      files: plan.entries.map(({ newText: _, sidecar, basis: __, ...e }) => ({ ...e, ...(sidecar && { notesFile: sidecar.file }) })),
       ...(result && { applied: result.applied, backupDir: result.backupDir ?? null, stamped: result.stamped }),
     }, () => {
       const lines: string[] = []
@@ -57,7 +57,7 @@ export default defineCommand({
       plan.entries.forEach(show)
       if (!plan.entries.length) lines.push(`${style.green('✓')} nothing to migrate (${plan.scanned} files checked)`)
       else if (result) {
-        lines.push('', `${style.green('✓')} migrated ${result.applied.length} file(s)${result.backupDir ? `; backup: ${result.backupDir}` : ''}${result.stamped ? '' : ' (marker not written: link fields remain elsewhere)'}`)
+        lines.push('', `${style.green('✓')} migrated ${result.applied.length} file(s)${result.backupDir ? `; backup: ${result.backupDir}` : ''}${result.stamped ? '' : ' (marker not written: other files are still pending)'}`)
       }
       else if (pending.length) {
         lines.push('', `${pending.length} of ${plan.scanned} file(s) would change. Re-run with ${style.bold('--apply')} to write them (a backup is taken first).`)

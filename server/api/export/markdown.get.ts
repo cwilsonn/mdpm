@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs'
+import { formatNote, NOTE_SEPARATOR, readNotesFile, taskNotes } from '../../../lib/core/notes'
 
 const STATUS_ORDER = ['todo', 'in-progress', 'in-review', 'blocked', 'on-hold', 'done']
 
@@ -76,7 +77,10 @@ export default defineEventHandler((event) => {
           title: (taskTitle as string) ?? file.replace('.md', ''),
           priority: (priority as string) ?? 'medium',
           due: due as string | undefined,
-          body: task.content?.trim() ?? '',
+          // The spec and then the notes (the notes file plus any still in the body), as one text.
+          body: (({ spec, notes }) => [spec, ...notes.map(formatNote)].filter(Boolean).join(NOTE_SEPARATOR))(
+            taskNotes(task.content ?? '', readNotesFile(tasksDir, file.replace(/\.md$/, ''))),
+          ),
         })
       }
 

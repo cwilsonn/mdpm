@@ -19,6 +19,12 @@ describe('mapContentPath', () => {
     assert.deepEqual(mapContentPath('authors/me.md'), { kind: 'author', slug: 'me', file: 'authors/me.md' })
   })
 
+  it('maps a notes file to its task, stamped from the task file; the notes directory itself is nothing', () => {
+    assert.deepEqual(mapContentPath('projects/p/tasks/notes/one.md'), { kind: 'task', project: 'p', slug: 'one', file: 'projects/p/tasks/one.md' })
+    assert.equal(mapContentPath('projects/p/tasks/notes'), null)
+    assert.equal(mapContentPath('projects/p/tasks/notes/.one.md.lock'), null)
+  })
+
   it('maps a bare project directory to the project (a delete removes the directory)', () => {
     assert.deepEqual(mapContentPath('projects/p'), { kind: 'project', project: 'p', slug: 'p' })
     assert.deepEqual(mapContentPath('projects/p/tasks'), { kind: 'project', project: 'p', slug: 'p' })

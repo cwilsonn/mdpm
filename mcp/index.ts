@@ -83,7 +83,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'list_tasks',
-      description: `List or search tasks as a compact page (default ${DEFAULT_LIMIT} rows, summary columns only: no bodies). Filter by project and status; query searches titles and bodies and adds a match column. Archived tasks are excluded unless includeArchived is set. get_task returns one task's body.`,
+      description: `List or search tasks as a compact page (default ${DEFAULT_LIMIT} rows, summary columns only: no bodies). Filter by project and status; query searches titles, specs and notes and adds a match column. Archived tasks are excluded unless includeArchived is set. get_task returns one task's body.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -101,13 +101,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'get_task',
-      description: `Get one task with its description. The body is capped (spec up to ${DEFAULT_MAX_CHARS} chars, newest 3 notes shortened) and says what was left out; pass full for everything.`,
+      description: `Get one task: body is the spec (capped at ${DEFAULT_MAX_CHARS} chars), notes the newest 3 notes (shortened); says what was left out; pass full for everything.`,
       inputSchema: {
         type: 'object',
         properties: {
           project: { type: 'string' },
           slug: { type: 'string' },
-          full: { type: 'boolean', description: 'Return the whole body, every note included.' },
+          full: { type: 'boolean', description: 'Return the whole spec and every note.' },
           notes: { type: 'number', description: 'How many of the newest notes to include (default 3).' },
         },
         required: ['project', 'slug'],
@@ -126,7 +126,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string', description: 'YYYY-MM-DD' },
-          description: { type: 'string', description: 'Markdown body. Put related links (PRs, tickets) in a "## Links" list in the body.' },
+          description: { type: 'string', description: 'Markdown spec (notes are kept apart). Put related links (PRs, tickets) in a "## Links" list in it.' },
           note: { type: 'string', description: 'Appended as a timestamped note in the same write.' },
           noteAuthor: { type: 'string', description: 'Author of the note; defaults to $MDPM_AUTHOR, else "claude".' },
         },
@@ -147,7 +147,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'array', items: { type: 'string' } },
           assignees: { type: 'array', items: { type: 'string' } },
           due: { type: 'string' },
-          description: { type: 'string', description: 'Markdown body. Put related links (PRs, tickets) in a "## Links" list in the body.' },
+          description: { type: 'string', description: 'Markdown spec (notes are kept apart). Put related links (PRs, tickets) in a "## Links" list in it.' },
           note: { type: 'string', description: 'Appended as a timestamped note in the same write (status + note in one call).' },
           noteAuthor: { type: 'string', description: 'Author of the note; defaults to $MDPM_AUTHOR, else "claude".' },
           archived: { type: 'boolean', description: 'true archives the task, false restores it.' },
@@ -176,7 +176,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                 status: STATUS,
                 priority: PRIORITY,
                 tags: { type: 'array', items: { type: 'string' } },
-                description: { type: 'string', description: 'Markdown body (replaces it on update).' },
+                description: { type: 'string', description: 'Markdown spec (replaces it on update; notes are kept).' },
                 note: { type: 'string', description: 'Appended as a timestamped note in the same write.' },
                 author: { type: 'string', description: 'Note author; defaults to $MDPM_AUTHOR, else "claude".' },
               },
@@ -287,7 +287,7 @@ async function callTool(name: string, rawArgs: Record<string, unknown>) {
       case 'list_tasks': {
         const { query, limit, offset, fields, format, ...rest } = args as Parameters<typeof core.listTasks>[0] & { query?: string } & ListArgs
         const q = query?.trim().toLowerCase()
-        const tasks = core.listTasks(rest).filter(t => !q || t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q))
+        const tasks = core.listTasks(rest).filter(t => !q || t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || t.notes.some(n => n.text.toLowerCase().includes(q)))
         return text(listResult(tasks.map(t => taskRow(t, q)), { limit, offset, fields, format }, TASK_FIELDS, q ? [...TASK_LIST_FIELDS, 'match'] : TASK_LIST_FIELDS))
       }
 

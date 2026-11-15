@@ -1,10 +1,10 @@
 import { strict as assert } from 'node:assert'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { buildLog, createCore, parseNotes, parseSince, resolveAuthor } from '../lib/core'
-import { readContent, runCli, scratchDir } from './helpers'
+import { readNotes, runCli, scratchDir } from './helpers'
 
 const scratch = scratchDir()
 after(scratch.cleanup)
@@ -36,13 +36,21 @@ describe('note parsing', () => {
     assert.equal(parseNotes(readBody('gamma'))[0]!.author, 'sam')
   })
 
+  it('the reader splits notes still in a body from the spec, oldest first', () => {
+    const t = core.getTask('proj', 'alpha')
+    assert.equal(t.body, 'Body text.')
+    assert.deepEqual(t.notes.map(n => n.at.toISOString()), ['2026-09-30T08:00:00.000Z', '2026-10-01T10:05:00.000Z'])
+    assert.equal(core.getTask('proj', 'gamma').body, '')
+  })
+
   it('ignores text that merely mentions a note', () => {
     assert.deepEqual(parseNotes('We should add a **Note** about this later.'), [])
   })
 })
 
+// The raw task file: these fixtures keep their notes in the body (the layout before notes files).
 function readBody(slug: string) {
-  return core.getTask('proj', slug).body
+  return readFileSync(join(content, 'projects/proj/tasks', `${slug}.md`), 'utf8')
 }
 
 describe('buildLog', () => {
@@ -149,7 +157,7 @@ describe('mdpm log CLI', () => {
 describe('authors on written notes', () => {
   it('task note stamps the resolved author, with --author winning', async () => {
     const run = (args: string[], env: Record<string, string>) => runCli(['task', 'note', 'write-parser', 'a note', '--project', 'alpha', ...args], { scratch: scratch.dir, env: { CLAUDECODE: '', ...env } })
-    const body = () => readContent(scratch.dir, 'projects/alpha/tasks/write-parser.md')!.body
+    const body = () => readNotes(scratch.dir, 'alpha', 'write-parser')
     await run([], { MDPM_AUTHOR: 'EnvAuthor' })
     assert.match(body(), /_ by EnvAuthor\n\na note$/)
     await run(['--author', 'Flagged'], { MDPM_AUTHOR: 'EnvAuthor' })

@@ -1,3 +1,4 @@
+import { formatNote, NOTE_SEPARATOR } from './notes'
 import type { Ops } from './ops'
 
 // Export tasks and docs to JSON (full fidelity), CSV (tasks, for spreadsheets), or markdown
@@ -5,9 +6,10 @@ import type { Ops } from './ops'
 // export is the way data leaves mdpm (backups, other tools).
 //
 // Format version 3: links live in task and doc bodies (no `links` field); a project carries its `repo` URL.
+// Format version 4: a task's `description` is its spec only; its history is the separate `notes` list.
 
 export const EXPORT_FORMAT = 'mdpm-export'
-export const EXPORT_FORMAT_VERSION = 3
+export const EXPORT_FORMAT_VERSION = 4
 
 export interface ExportedTask {
   slug: string
@@ -22,6 +24,8 @@ export interface ExportedTask {
   updatedAt: string | null
   archivedAt: string | null
   description: string
+  /** Oldest first; `at` is UTC to the minute. */
+  notes: { at: string; author: string | null; text: string }[]
 }
 
 export interface ExportedDoc {
@@ -86,6 +90,7 @@ export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()
         slug: t.slug, title: t.title, status: t.status, priority: t.priority, tags: t.tags, assignees: t.assignees, due: t.due,
         dependencies: t.dependencies,
         createdAt: t.createdAt, updatedAt: t.updatedAt, archivedAt: t.archivedAt, description: t.body,
+        notes: t.notes.map(n => ({ at: n.at.toISOString(), author: n.author ?? null, text: n.text })),
       })),
       docs: withDocs ? ops.listDocsWithBody({ project: p.slug, includeArchived: opts.includeArchived }).map(asDoc) : [],
     }))
@@ -100,7 +105,10 @@ export function buildExport(ops: Ops, opts: ExportOptions = {}, now = new Date()
 
 // ── CSV ───────────────────────────────────────────────────────────────────────
 
-export const CSV_COLUMNS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'created_at', 'updated_at', 'archived_at', 'description'] as const
+// A task's notes as stored (markdown, oldest first), for the flat formats.
+const notesText = (t: ExportedTask) => t.notes.map(n => formatNote({ at: new Date(n.at), author: n.author ?? undefined, text: n.text })).join(NOTE_SEPARATOR)
+
+export const CSV_COLUMNS = ['project', 'slug', 'title', 'status', 'priority', 'tags', 'assignees', 'due', 'dependencies', 'created_at', 'updated_at', 'archived_at', 'description', 'notes'] as const
 
 // RFC 4180 quoting: wrap in quotes when the value has a comma, quote, or line break; double inner quotes.
 const cell = (value: unknown) => {
@@ -112,7 +120,7 @@ const cell = (value: unknown) => {
 export function toCsv(doc: ExportDocument): string {
   const rows = doc.projects.flatMap(p => p.tasks.map(t => [
     p.slug, t.slug, t.title, t.status, t.priority, t.tags.join(';'), t.assignees.join(';'), t.due, t.dependencies.join(';'),
-    t.createdAt, t.updatedAt, t.archivedAt, t.description,
+    t.createdAt, t.updatedAt, t.archivedAt, t.description, notesText(t),
   ]))
   return `${[CSV_COLUMNS as readonly string[], ...rows].map(r => r.map(cell).join(',')).join('\n')}\n`
 }
@@ -139,7 +147,8 @@ export function toMarkdown(doc: ExportDocument): string {
           const meta = [t.priority, t.tags.length && t.tags.join(', '), t.assignees.length && `@${t.assignees.join(' @')}`, t.due && `due ${t.due}`, t.archivedAt && 'archived'].filter(Boolean).join(' · ')
           out.push(`- [${status === 'done' ? 'x' : ' '}] **${t.title}** \`${t.slug}\`${meta ? ` (${meta})` : ''}`)
           if (t.dependencies.length) out.push(`  - waits on: ${t.dependencies.map(d => `\`${d}\``).join(', ')}`)
-          if (t.description.trim()) out.push(...t.description.trim().split('\n').map(l => l ? `  > ${l}` : '  >'))
+          const text = [t.description.trim(), notesText(t)].filter(Boolean).join(NOTE_SEPARATOR)
+          if (text) out.push(...text.split('\n').map(l => l ? `  > ${l}` : '  >'))
         }
       }
     }

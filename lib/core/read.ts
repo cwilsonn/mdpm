@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import matter from 'gray-matter'
 import { contentPathOf, type CoreConfig } from './config'
+import { readNotesFile, notesSlugs, taskNotes } from './notes'
 
 // YAML parses an unquoted `2026-07-01` into a Date. The API writes quoted strings, but hand-edited
 // files won't, so normalize: date-only values become YYYY-MM-DD, anything with a time stays ISO.
@@ -70,12 +71,15 @@ export function createReader(config: CoreConfig) {
 
   function getTasks(projectSlug: string, statusFilter?: string[]) {
     const tasksDir = contentPath('projects', projectSlug, 'tasks')
+    const withNotes = notesSlugs(tasksDir)
     return listMdFiles(tasksDir).flatMap((f) => {
       const slug = f.replace('.md', '')
       const file = readMd(`projects/${projectSlug}/tasks/${slug}.md`)
       if (!file) return []
       const status = (file.data.status as string) ?? 'todo'
       if (statusFilter?.length && !statusFilter.includes(status)) return []
+      // `body` is the spec; `notes` the history, from the notes file and from any notes still in the body.
+      const { spec, notes } = taskNotes(file.content, withNotes.has(slug) ? readNotesFile(tasksDir, slug) : '')
       return [{
         slug,
         project: projectSlug,
@@ -90,7 +94,8 @@ export function createReader(config: CoreConfig) {
         updatedAt: dateString(file.data.updatedAt),
         archivedAt: dateString(file.data.archivedAt),
         order: (file.data.order as number) ?? 0,
-        body: file.content.trim(),
+        body: spec,
+        notes,
       }]
     }).sort((a, b) => a.order - b.order)
   }
@@ -167,7 +172,7 @@ export function createReader(config: CoreConfig) {
     const q = query.toLowerCase()
     const tasks = projectSlug ? getTasks(projectSlug, statusFilter) : getAllTasks(statusFilter)
     return tasks.filter(t =>
-      t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q),
+      t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q) || t.notes.some(n => n.text.toLowerCase().includes(q)),
     )
   }
 
