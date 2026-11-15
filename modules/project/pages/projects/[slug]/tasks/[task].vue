@@ -232,6 +232,13 @@ const mobileActions = computed(() => [
       >
         <MDC :value="task!.body" />
       </div>
+
+      <TaskNotes
+        :project-slug="projectSlug"
+        :task-slug="taskSlug"
+        :notes="task!.notes ?? []"
+        @added="refresh()"
+      />
     </div>
     </div>
 
