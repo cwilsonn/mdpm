@@ -233,7 +233,7 @@ export function createOps(config: CoreConfig, reader: Reader, writer: Writer, ap
     return write(() => writer.createDoc(project, fields))
   }
 
-  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null }) {
+  function updateDoc(doc: { project?: string | null; slug: string }, fields: { title?: string; body?: string; tags?: string[]; parent?: string | null; archivedAt?: string | null; expectedUpdatedAt?: string | null }) {
     return write(() => writer.updateDoc(doc.project, doc.slug, fields))
   }
 

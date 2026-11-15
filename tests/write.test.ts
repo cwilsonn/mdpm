@@ -132,6 +132,11 @@ describe('stale updates (expectedUpdatedAt)', () => {
     assert.doesNotThrow(() => w.updateTask('p', 'one', { title: 'x', expectedUpdatedAt: '2026-11-01T10:00:00.000Z' }))
   })
 
+  it('accepts the same instant in another spelling (the reader shortens a midnight date)', () => {
+    put('projects/p/tasks/one.md', '---\ntitle: One\nstatus: todo\nupdatedAt: 2026-10-01\n---\nBody.\n')
+    assert.doesNotThrow(() => createWriter(root).updateTask('p', 'one', { title: 'x', expectedUpdatedAt: '2026-10-01' }))
+  })
+
   it('leaves answers unchanged for callers that do not ask', () => {
     assert.deepEqual(createWriter(root).updateTask('p', 'one', { status: 'done' }), { ok: true, id: 'p/one', status: 'done' })
   })
