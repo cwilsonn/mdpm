@@ -2,17 +2,6 @@
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
-interface ProjectDetail {
-  slug: string; path: string; title: string; status: string
-  icon?: string; description?: string; tags: string[]
-  createdAt: string; updatedAt?: string
-  availableStatuses: string[]
-  defaultStatus?: string
-  defaultPriority?: string
-  defaultAssignee?: string
-  repo?: string
-}
-
 const { data: project, refresh: refreshProject } = await useAsyncData(
   () => `project-${slug.value}`,
   () => $fetch<ProjectDetail>(`/api/projects/${slug.value}`).catch(() => null),

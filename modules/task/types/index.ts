@@ -22,6 +22,11 @@ export interface Task {
   order?: number
 }
 
+/** A single task with its markdown body (`GET /api/tasks/[project]/[slug]`). */
+export interface TaskDetail extends Task {
+  body: string
+}
+
 /** A status column descriptor (shape of a `STATUS_CONFIG` entry, mutable). */
 export interface StatusCfg {
   id: string

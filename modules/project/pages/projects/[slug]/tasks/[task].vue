@@ -3,16 +3,7 @@ const route = useRoute()
 const projectSlug = computed(() => route.params.slug as string)
 const taskSlug = computed(() => route.params.task as string)
 
-interface TaskDetail {
-  slug: string; path: string; project: string; title: string
-  status: string; priority: string; tags: string[]; assignees: string[]
-  dependencies: string[]; due?: string; createdAt: string
-  updatedAt?: string; order: number; body: string
-}
-
-interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
-
-const project = inject<Ref<ProjectHeader>>('project')!
+const project = inject<Ref<ProjectDetail>>('project')!
 
 const { data: task, refresh } = await useAsyncData(
   () => `task-${projectSlug.value}-${taskSlug.value}`,
@@ -23,7 +14,7 @@ type ProjectTask = { slug: string, title: string, status: string }
 const { data: depTasks } = await useAsyncData(
   () => `task-deps-${projectSlug.value}-${taskSlug.value}`,
   async () => {
-    const deps = (task.value as any)?.dependencies as string[] | undefined
+    const deps = task.value?.dependencies
     if (!deps?.length) return []
     const all = await $fetch<ProjectTask[]>(`/api/tasks/${projectSlug.value}`)
     return all.filter(t => deps.includes(t.slug))
@@ -240,7 +231,7 @@ const mobileActions = computed(() => [
         v-if="task!.body"
         class="prose prose-sm dark:prose-invert max-w-none border-t border-default pt-4"
       >
-        <MDC :value="(task!.body as string)" />
+        <MDC :value="task!.body" />
       </div>
     </div>
     </div>

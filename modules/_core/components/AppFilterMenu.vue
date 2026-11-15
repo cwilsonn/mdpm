@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
-export interface FilterItem {
-  label: string
-  value: string
-  icon?: string
-  color?: string
-  avatar?: { alt: string }
-}
-
 const props = defineProps<{
   items: FilterItem[]
   placeholder: string

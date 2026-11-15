@@ -1,18 +1,11 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Docs', icon: 'i-lucide-book-open' })
 
-import type { DocTreeItem } from '~/components/DocTreeList.vue'
 import type { DocGroup } from '~/components/DocList.vue'
 
-interface AllDoc extends DocTreeItem {
-  project: string | null
-}
-
-interface ProjectHeader { slug: string; title: string; icon?: string; status: string }
-
 const [{ data: allDocs, pending, refresh: refreshDocs }, { data: projects }] = await Promise.all([
-  useAsyncData('all-docs', () => $fetch<AllDoc[]>('/api/docs')),
-  useAsyncData('all-projects', () => $fetch<ProjectHeader[]>('/api/projects')),
+  useAsyncData('all-docs', () => $fetch<DocTreeItem[]>('/api/docs')),
+  useAsyncData('all-projects', () => $fetch<Project[]>('/api/projects')),
 ])
 
 const { createDoc } = useDocs()
@@ -35,7 +28,7 @@ const groups = computed((): DocGroup[] => {
   if (!allDocs.value?.length) return []
 
   const standalone = allDocs.value.filter(d => d.project === null)
-  const projectMap = new Map<string, AllDoc[]>()
+  const projectMap = new Map<string, DocTreeItem[]>()
   for (const doc of allDocs.value.filter(d => d.project !== null)) {
     const arr = projectMap.get(doc.project!) ?? []
     arr.push(doc)

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { DocTreeItem } from './DocTreeList.vue'
 import type { AppTreeItem } from '../../_core/components/AppTree.vue'
 
 export interface DocGroup {

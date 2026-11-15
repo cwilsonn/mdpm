@@ -7,7 +7,7 @@ const { projects, tasks, refreshAll } = await useProjectTasks(
   { statuses: ['todo', 'in-progress', 'in-review', 'blocked', 'on-hold'] },
 )
 
-const inboxStatuses = (STATUS_SELECT_ITEMS as Array<{ label: string; value: string; icon?: string; color?: string }>)
+const inboxStatuses: FilterItem[] = STATUS_SELECT_ITEMS
   .filter(s => ['todo', 'in-progress', 'blocked'].includes(s.value))
 </script>
 
@@ -17,9 +17,9 @@ const inboxStatuses = (STATUS_SELECT_ITEMS as Array<{ label: string; value: stri
     icon="i-lucide-inbox"
   >
     <InboxTaskList
-      :tasks="((tasks ?? []) as any[])"
-      :projects="((projects ?? []) as any[])"
-      :preset-statuses="(inboxStatuses as any[])"
+      :tasks="(tasks ?? []) as Task[]"
+      :projects="projects ?? []"
+      :preset-statuses="inboxStatuses"
       @refresh="refreshAll"
     />
   </AppPageBase>

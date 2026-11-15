@@ -2,7 +2,7 @@
 defineProps<{ collapsed: boolean }>()
 
 const { data: projects } = await useAsyncData('sidebar-projects', () =>
-  $fetch('/api/projects').then((list: any) => [...list].sort((a: any, b: any) => a.title.localeCompare(b.title))),
+  $fetch<Project[]>('/api/projects').then(list => [...list].sort((a, b) => a.title.localeCompare(b.title))),
 )
 
 const navigation = computed(() => [
@@ -17,7 +17,7 @@ const navigation = computed(() => [
           defaultOpen: true,
           children: projects.value.map(p => ({
             label: p.title,
-            icon: (p as any).icon || 'i-lucide-folder',
+            icon: p.icon || 'i-lucide-folder',
             to: `/projects/${slugFromPath(p.path)}`,
           })),
         }

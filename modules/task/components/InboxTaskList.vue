@@ -1,34 +1,26 @@
 <script setup lang="ts">
-interface Project {
-  path: string
-  title: string
-  icon?: string
-}
-
 const props = defineProps<{
   tasks: Task[]
   projects: Project[]
-  presetStatuses?: SelectItem[]
+  presetStatuses?: FilterItem[]
 }>()
 
 const emit = defineEmits<{ refresh: [] }>()
 
-interface SelectItem { label: string; value: string; icon?: string; color?: string; avatar?: { alt: string } }
-
 // Filters — empty array = no filter (show all)
 const search = ref('')
-const filterStatuses = ref<SelectItem[]>(
-  props.presetStatuses ?? (STATUS_SELECT_ITEMS as SelectItem[]).filter(s => s.value !== 'done'),
+const filterStatuses = ref<FilterItem[]>(
+  props.presetStatuses ?? (STATUS_SELECT_ITEMS as FilterItem[]).filter(s => s.value !== 'done'),
 )
 
 watch(() => props.presetStatuses, (val) => {
   filterStatuses.value = val ?? []
 })
-const filterPriorities = ref<SelectItem[]>([])
-const filterProjects = ref<SelectItem[]>([])
-const filterAssignees = ref<SelectItem[]>([])
+const filterPriorities = ref<FilterItem[]>([])
+const filterProjects = ref<FilterItem[]>([])
+const filterAssignees = ref<FilterItem[]>([])
 
-const projectSelectItems = computed(() =>
+const projectFilterItems = computed(() =>
   props.projects.map(p => ({
     label: p.title,
     value: slugFromPath(p.path),
@@ -37,7 +29,7 @@ const projectSelectItems = computed(() =>
 
 const allAssignees = computed(() => getAssigneeNames(props.tasks))
 
-const assigneeFilterItems = computed<SelectItem[]>(() =>
+const assigneeFilterItems = computed<FilterItem[]>(() =>
   allAssignees.value.map(name => ({ label: name, value: name, avatar: { alt: name } })),
 )
 
@@ -244,17 +236,17 @@ function clearFilters() {
     />
     <AppFilterMenu
       v-model="filterProjects"
-      :items="projectSelectItems"
+      :items="projectFilterItems"
       placeholder="Projects"
     />
     <AppFilterMenu
       v-model="filterStatuses"
-      :items="(STATUS_SELECT_ITEMS as SelectItem[])"
+      :items="(STATUS_SELECT_ITEMS as FilterItem[])"
       placeholder="Status"
     />
     <AppFilterMenu
       v-model="filterPriorities"
-      :items="(PRIORITY_SELECT_ITEMS as SelectItem[])"
+      :items="(PRIORITY_SELECT_ITEMS as FilterItem[])"
       placeholder="Priority"
     />
     <AppFilterMenu
