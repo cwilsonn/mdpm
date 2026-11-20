@@ -26,3 +26,21 @@ jobs:
 
       - run: pnpm typecheck:cli
       - run: pnpm test
+
+  # Accessibility gate: axe-core scans of the production build (tests/a11y/), light and dark, on a copy of the
+  # test fixtures. Separate from `test` because it needs the Nuxt build and a browser.
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - run: corepack enable
+
+      # With scripts this time: `postinstall` runs `nuxt prepare`, which the build needs.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:a11y

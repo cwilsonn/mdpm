@@ -7,7 +7,7 @@
       name="i-lucide-square-check-big"
       class="size-6 shrink-0 text-primary"
     />
-    <span v-if="!isCollapsed" class="text-lg font-bold font-mono truncate">.mdpm</span>
+    <span :class="isCollapsed ? 'sr-only' : 'text-lg font-bold font-mono truncate'">.mdpm</span>
   </NuxtLink>
 </template>
 

@@ -54,6 +54,7 @@ function onColumnUpdate() {
   <div
     class="flex gap-3 overflow-x-auto flex-1 min-h-0"
     :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
+    :aria-busy="pending || undefined"
   >
     <div
       v-for="col in visibleColumns"
@@ -80,6 +81,7 @@ function onColumnUpdate() {
           variant="ghost"
           size="sm"
           class="ml-auto"
+          :aria-label="`Add task to ${col.label}`"
           @click="emit('add-task', col.id)"
         />
       </div>
@@ -96,10 +98,11 @@ function onColumnUpdate() {
         <button
           v-if="!(columns[col.id] ?? []).length && !isDragging"
           type="button"
-          class="drag-ignore group flex items-center justify-center flex-1 min-h-16 rounded-lg cursor-pointer transition-colors hover:bg-elevated/60"
+          class="drag-ignore group flex items-center justify-center flex-1 min-h-16 rounded-lg cursor-pointer transition-colors hover:bg-elevated/60 focus-visible:outline-2 focus-visible:outline-primary"
+          :aria-label="`Add task to ${col.label}`"
           @click="emit('add-task', col.id)"
         >
-          <div class="flex items-center gap-1.5 text-xs text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="flex items-center gap-1.5 text-xs text-muted opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
             <UIcon name="i-lucide-plus" class="size-3.5 shrink-0" />
             Add task
           </div>

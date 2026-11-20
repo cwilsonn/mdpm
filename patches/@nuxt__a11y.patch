@@ -1,0 +1,26 @@
+diff --git a/dist/runtime/utils/active-tab-tracker.js b/dist/runtime/utils/active-tab-tracker.js
+index 6078994b6b26920ac62bbf4d5c83c802c3a6f4d9..a0cf5688adef24c55a6e452378e56d551c6fc99c 100644
+--- a/dist/runtime/utils/active-tab-tracker.js
++++ b/dist/runtime/utils/active-tab-tracker.js
+@@ -1,3 +1,7 @@
++// crypto.randomUUID exists only in secure contexts (https, localhost); mdpm runs on http://mdpm.local.
++function newTabId() {
++  return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
++}
+ const ACTIVE_TAB_CHANNEL_NAME = "nuxt-a11y-active-tab";
+ const TAB_ID_STORAGE_KEY = "nuxt-a11y-tab-id";
+ const ACTIVE_TAB_STORAGE_KEY = "nuxt-a11y-active-tab-id";
+@@ -8,11 +12,11 @@ export function createActiveTabTracker(onStatusChange) {
+     if (storedId) {
+       TAB_ID = storedId;
+     } else {
+-      TAB_ID = crypto.randomUUID();
++      TAB_ID = newTabId();
+       sessionStorage.setItem(TAB_ID_STORAGE_KEY, TAB_ID);
+     }
+   } catch {
+-    TAB_ID = crypto.randomUUID();
++    TAB_ID = newTabId();
+   }
+   let isActive = false;
+   let tabChannel = null;

@@ -5,6 +5,8 @@ const props = defineProps<{
   editorProps?: EditorProps,
   editorToolbarProps?: EditorToolbarProps,
   variant?: 'none' | 'outline',
+  /** Accessible name of the editing area (it has no <label>; a UFormField label can't point at a contenteditable). */
+  ariaLabel?: string,
 }>();
 
 const model = defineModel<string>({ default: '' })
@@ -74,6 +76,8 @@ const computedEditorUi = computed(() => {
     v-model="model"
     content-type="markdown"
     placeholder="Add a description…"
+    :aria-label="ariaLabel ?? 'Description'"
+    aria-multiline="true"
     :class="computedEditorClasses"
     :ui="computedEditorUi"
   >

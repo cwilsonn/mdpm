@@ -94,11 +94,12 @@ function toggleSection(g: DocGroup) {
         v-model="q"
         icon="i-lucide-search"
         placeholder="Search docs…"
+        aria-label="Search docs"
         size="sm"
         class="flex-1"
       >
         <template v-if="q" #trailing>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="() => { q = '' }" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Clear search" @click="() => { q = '' }" />
         </template>
       </UInput>
       <UButton
@@ -136,12 +137,13 @@ function toggleSection(g: DocGroup) {
         <button
           v-if="groups"
           type="button"
+          :aria-expanded="!collapsed[sectionKey(group)]"
           class="w-full flex items-center gap-1.5 px-4 py-1.5 border-b border-default bg-muted/30 sticky top-0 z-10 hover:bg-muted/50 transition-colors"
           @click="toggleSection(group)"
         >
           <UIcon v-if="group.icon" :name="group.icon" class="size-3.5 text-muted shrink-0" />
           <span class="text-xs font-medium text-muted uppercase tracking-wide flex-1 text-left">{{ group.label }}</span>
-          <span class="text-xs text-muted">{{ group.docs.length }}</span>
+          <span class="text-xs text-muted">{{ group.docs.length }}<span class="sr-only"> {{ group.docs.length === 1 ? 'doc' : 'docs' }}</span></span>
           <UIcon
             name="i-lucide-chevron-down"
             class="size-3.5 text-muted transition-transform duration-150 ml-1"

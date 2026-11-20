@@ -2,3 +2,5 @@ allowBuilds:
   '@parcel/watcher': true
   esbuild: true
   vue-demi: true
+patchedDependencies:
+  '@nuxt/a11y': patches/@nuxt__a11y.patch

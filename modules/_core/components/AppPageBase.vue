@@ -98,7 +98,7 @@ const normalizedEmptyProps = computed(() => ({
 </script>
 
 <template>
-  <UDashboardPanel :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', body: 'flex flex-col flex-1 overflow-hidden' }">
+  <UDashboardPanel role="main" :ui="{ root: 'w-full min-w-0 flex-1 max-w-none', body: 'flex flex-col flex-1 overflow-hidden' }">
     <template #header>
       <UDashboardNavbar :ui="{ title: 'flex items-center gap-1.5 font-semibold text-highlighted min-w-0 overflow-hidden' }">
         <template #leading>
@@ -112,6 +112,7 @@ const normalizedEmptyProps = computed(() => ({
             variant="ghost"
             size="sm"
             :to="backTo"
+            aria-label="Back"
           />
           <!-- Mobile breadcrumb back button (only when no backTo already set) -->
           <UButton
@@ -122,6 +123,7 @@ const normalizedEmptyProps = computed(() => ({
             size="sm"
             class="md:hidden"
             :to="mobileBreadcrumbBack.to"
+            :aria-label="`Back to ${mobileBreadcrumbBack.label}`"
           />
           <slot name="leading" />
         </template>
@@ -208,6 +210,7 @@ const normalizedEmptyProps = computed(() => ({
 
       <UNavigationMenu
         v-if="tabs.length"
+        aria-label="Sections"
         :items="tabs"
         highlight
         pill
@@ -220,7 +223,7 @@ const normalizedEmptyProps = computed(() => ({
         v-if="loading"
         name="loading"
       >
-        <div class="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <div role="status" class="flex flex-col items-center justify-center gap-3 py-12 text-center">
           <UIcon
             name="i-lucide-loader-2"
             class="size-6 animate-spin text-muted"

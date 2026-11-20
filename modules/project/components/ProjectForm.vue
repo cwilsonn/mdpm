@@ -116,12 +116,10 @@ async function create() {
 <template>
   <UModal
     :open="true"
+    :title="isEdit ? 'Edit Project' : 'New Project'"
     :ui="{ content: 'max-w-lg' }"
     @update:open="$emit('close')"
   >
-    <template #title>
-      {{ isEdit ? 'Edit Project' : 'New Project' }}
-    </template>
 
     <template #body>
       <div class="space-y-4">

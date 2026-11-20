@@ -53,6 +53,7 @@ async function addNote() {
       <UTextarea
         v-model="draft"
         placeholder="Add a note: a decision, a blocker, what was verified…"
+        aria-label="Add a note"
         class="w-full"
         :rows="2"
         autoresize

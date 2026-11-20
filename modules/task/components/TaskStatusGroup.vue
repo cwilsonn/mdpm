@@ -32,28 +32,34 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <button
-    class="flex items-center gap-1.5 w-full px-4 py-2.5 transition-colors text-left border-b border-default"
+  <div
+    class="flex items-center gap-1.5 w-full pe-4 transition-colors border-b border-default"
     :class="muted ? 'bg-muted hover:bg-elevated' : 'hover:bg-muted/50'"
-    @click="emit('toggle')"
   >
-    <UIcon
-      name="i-lucide-chevron-right"
-      class="size-3.5 shrink-0 transition-transform duration-150"
-      :class="isOpen ? 'rotate-90' : ''"
-    />
-    <UIcon
-      :name="statusCfg.icon"
-      :class="`text-${statusCfg.color}`"
-      class="size-3.5 shrink-0"
-    />
-    <span class="text-sm font-medium" :class="muted ? 'text-muted' : ''">{{ statusCfg.label }}</span>
-    <UBadge
-      :label="String(tasks.length)"
-      color="neutral"
-      variant="subtle"
-      size="sm"
-    />
+    <button
+      type="button"
+      class="flex flex-1 min-w-0 items-center gap-1.5 ps-4 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+      :aria-expanded="isOpen"
+      @click="emit('toggle')"
+    >
+      <UIcon
+        name="i-lucide-chevron-right"
+        class="size-3.5 shrink-0 transition-transform duration-150"
+        :class="isOpen ? 'rotate-90' : ''"
+      />
+      <UIcon
+        :name="statusCfg.icon"
+        :class="`text-${statusCfg.color}`"
+        class="size-3.5 shrink-0"
+      />
+      <span class="text-sm font-medium" :class="muted ? 'text-muted' : ''">{{ statusCfg.label }}</span>
+      <UBadge
+        :label="String(tasks.length)"
+        color="neutral"
+        variant="subtle"
+        size="sm"
+      />
+    </button>
     <UButton
       v-if="showAddButton"
       trailing-icon="i-lucide-plus"
@@ -61,11 +67,11 @@ const emit = defineEmits<{
       color="neutral"
       variant="ghost"
       size="sm"
-      class="ml-auto"
-      :tooltip="{ text: `Add ${statusCfg.label} task` }"
+      class="ml-auto shrink-0"
+      :aria-label="`Add task to ${statusCfg.label}`"
       @click.stop="emit('add-task')"
     />
-  </button>
+  </div>
 
   <AppDragList
     v-if="isOpen"

@@ -33,7 +33,7 @@ const items = computed(() =>
       </template>
     </USelectMenu>
 
-    <div class="flex items-center justify-center size-9 border border-default rounded-md shrink-0 bg-muted/30">
+    <div aria-hidden="true" class="flex items-center justify-center size-9 border border-default rounded-md shrink-0 bg-muted/30">
       <UIcon
         v-if="model"
         :name="model"
@@ -52,6 +52,7 @@ const items = computed(() =>
       color="neutral"
       variant="ghost"
       size="sm"
+      aria-label="Clear icon"
       @click="() => { model = '' }"
     />
   </div>

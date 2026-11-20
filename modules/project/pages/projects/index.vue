@@ -162,7 +162,7 @@ async function executeDelete() {
       ],
     }"
   >
-    <div class="overflow-y-auto flex-1 min-h-0" :class="projectsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+    <div class="overflow-y-auto flex-1 min-h-0" :class="projectsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'" :aria-busy="projectsPending || undefined">
       <!-- Pinned section -->
       <div v-if="pinnedProjects.length && mounted" class="mb-6">
         <p class="text-xs font-medium text-muted uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -182,84 +182,88 @@ async function executeDelete() {
             class="group relative h-full"
             :class="{ 'opacity-60': isArchived(project) }"
           >
-            <NuxtLink
-              :to="`/projects/${projectSlug(project.path)}`"
-              class="block h-full"
-            >
-              <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
-                <div class="flex flex-col h-full gap-3">
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <UIcon
-                        :name="project.icon || 'i-lucide-folder'"
-                        class="size-4 shrink-0 text-primary"
-                      />
-                      <h3 class="font-semibold truncate">{{ project.title }}</h3>
-                      <UButton
-                        icon="i-lucide-pin"
-                        color="primary"
-                        variant="soft"
-                        size="sm"
-                        class="shrink-0"
-                        :tooltip="{ text: 'Unpin' }"
-                        @click.prevent="togglePin(project)"
-                      />
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                      <UBadge
-                        v-if="project.archivedAt"
-                        label="Archived"
-                        color="neutral"
-                        variant="subtle"
-                        size="sm"
-                        icon="i-lucide-archive"
-                      />
-                      <UBadge
-                        v-else
-                        :label="project.status"
-                        :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
-                        variant="subtle"
-                        size="sm"
-                      />
-                      <UDropdownMenu :items="cardActions(project)">
-                        <UButton
-                          icon="i-lucide-ellipsis-vertical"
-                          color="neutral"
-                          variant="ghost"
-                          size="sm"
-                          @click.prevent
-                        />
-                      </UDropdownMenu>
-                    </div>
-                  </div>
-
-                  <p v-if="project.description" class="text-sm text-muted line-clamp-2">
-                    {{ project.description }}
-                  </p>
-
-                  <div class="mt-auto flex flex-col gap-3">
-                    <div v-if="project.tags?.length" class="flex flex-wrap gap-1">
-                      <UBadge
-                        v-for="tag in project.tags"
-                        :key="tag"
-                        :label="tag"
-                        color="neutral"
-                        variant="outline"
-                        size="sm"
-                      />
-                    </div>
-                    <ProjectCardStats
-                      :project-slug="projectSlug(project.path)!"
-                      :task-counts="taskCountsByProject[projectSlug(project.path)!]"
-                      :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
-                      :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
-                      :created-at="project.createdAt"
-                      :repo="project.repo"
+            <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary group-has-[[data-card-link]:focus-visible]:ring-2 group-has-[[data-card-link]:focus-visible]:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
+              <div class="flex flex-col h-full gap-3">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UIcon
+                      :name="project.icon || 'i-lucide-folder'"
+                      class="size-4 shrink-0 text-primary"
+                    />
+                    <h2 class="font-semibold truncate">
+                      <NuxtLink
+                        :to="`/projects/${projectSlug(project.path)}`"
+                        data-card-link
+                        class="outline-none after:absolute after:inset-0 after:content-['']"
+                      >
+                        {{ project.title }}
+                      </NuxtLink>
+                    </h2>
+                    <UButton
+                      icon="i-lucide-pin"
+                      color="primary"
+                      variant="soft"
+                      size="sm"
+                      class="relative z-10 shrink-0"
+                      :aria-label="`Unpin ${project.title}`"
+                      @click="togglePin(project)"
                     />
                   </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <UBadge
+                      v-if="project.archivedAt"
+                      label="Archived"
+                      color="neutral"
+                      variant="subtle"
+                      size="sm"
+                      icon="i-lucide-archive"
+                    />
+                    <UBadge
+                      v-else
+                      :label="project.status"
+                      :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
+                      variant="subtle"
+                      size="sm"
+                    />
+                    <UDropdownMenu :items="cardActions(project)">
+                      <UButton
+                        icon="i-lucide-ellipsis-vertical"
+                        color="neutral"
+                        variant="ghost"
+                        size="sm"
+                        class="relative z-10"
+                        :aria-label="`Actions for ${project.title}`"
+                      />
+                    </UDropdownMenu>
+                  </div>
                 </div>
-              </UCard>
-            </NuxtLink>
+
+                <p v-if="project.description" class="text-sm text-muted line-clamp-2">
+                  {{ project.description }}
+                </p>
+
+                <div class="mt-auto flex flex-col gap-3">
+                  <div v-if="project.tags?.length" class="flex flex-wrap gap-1">
+                    <UBadge
+                      v-for="tag in project.tags"
+                      :key="tag"
+                      :label="tag"
+                      color="neutral"
+                      variant="outline"
+                      size="sm"
+                    />
+                  </div>
+                  <ProjectCardStats
+                    :project-slug="projectSlug(project.path)!"
+                    :task-counts="taskCountsByProject[projectSlug(project.path)!]"
+                    :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
+                    :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
+                    :created-at="project.createdAt"
+                    :repo="project.repo"
+                  />
+                </div>
+              </div>
+            </UCard>
           </div>
           <div
             v-if="!pinnedProjects.length"
@@ -286,84 +290,88 @@ async function executeDelete() {
             class="group relative h-full"
             :class="{ 'opacity-60': isArchived(project) }"
           >
-            <NuxtLink
-              :to="`/projects/${projectSlug(project.path)}`"
-              class="block h-full"
-            >
-              <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
-                <div class="flex flex-col h-full gap-3">
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <UIcon
-                        :name="project.icon || 'i-lucide-folder'"
-                        class="size-4 shrink-0 text-primary"
-                      />
-                      <h3 class="font-semibold truncate">{{ project.title }}</h3>
+            <UCard class="h-full ring-inset group-hover:ring-1 group-hover:ring-primary group-has-[[data-card-link]:focus-visible]:ring-2 group-has-[[data-card-link]:focus-visible]:ring-primary transition-all" :ui="{ body: 'p-4! h-full' }">
+              <div class="flex flex-col h-full gap-3">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UIcon
+                      :name="project.icon || 'i-lucide-folder'"
+                      class="size-4 shrink-0 text-primary"
+                    />
+                    <h2 class="font-semibold truncate">
+                      <NuxtLink
+                        :to="`/projects/${projectSlug(project.path)}`"
+                        data-card-link
+                        class="outline-none after:absolute after:inset-0 after:content-['']"
+                      >
+                        {{ project.title }}
+                      </NuxtLink>
+                    </h2>
+                    <UButton
+                      icon="i-lucide-pin"
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      class="relative z-10 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                      :aria-label="`Pin ${project.title}`"
+                      @click="togglePin(project)"
+                    />
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <UBadge
+                      v-if="project.archivedAt"
+                      label="Archived"
+                      color="neutral"
+                      variant="subtle"
+                      size="sm"
+                      icon="i-lucide-archive"
+                    />
+                    <UBadge
+                      v-else
+                      :label="project.status"
+                      :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
+                      variant="subtle"
+                      size="sm"
+                    />
+                    <UDropdownMenu :items="cardActions(project)">
                       <UButton
-                        icon="i-lucide-pin"
+                        icon="i-lucide-ellipsis-vertical"
                         color="neutral"
                         variant="ghost"
                         size="sm"
-                        class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        :tooltip="{ text: 'Pin' }"
-                        @click.prevent="togglePin(project)"
+                        class="relative z-10"
+                        :aria-label="`Actions for ${project.title}`"
                       />
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                      <UBadge
-                        v-if="project.archivedAt"
-                        label="Archived"
-                        color="neutral"
-                        variant="subtle"
-                        size="sm"
-                        icon="i-lucide-archive"
-                      />
-                      <UBadge
-                        v-else
-                        :label="project.status"
-                        :color="PROJECT_STATUS_MAP[project.status ?? 'active']?.color ?? 'neutral'"
-                        variant="subtle"
-                        size="sm"
-                      />
-                      <UDropdownMenu :items="cardActions(project)">
-                        <UButton
-                          icon="i-lucide-ellipsis-vertical"
-                          color="neutral"
-                          variant="ghost"
-                          size="sm"
-                          @click.prevent
-                        />
-                      </UDropdownMenu>
-                    </div>
-                  </div>
-
-                  <p v-if="project.description" class="text-sm text-muted line-clamp-2">
-                    {{ project.description }}
-                  </p>
-
-                  <div class="mt-auto flex flex-col gap-3">
-                    <div v-if="project.tags?.length" class="flex flex-wrap gap-1">
-                      <UBadge
-                        v-for="tag in project.tags"
-                        :key="tag"
-                        :label="tag"
-                        color="neutral"
-                        variant="outline"
-                        size="sm"
-                      />
-                    </div>
-                    <ProjectCardStats
-                      :project-slug="projectSlug(project.path)!"
-                      :task-counts="taskCountsByProject[projectSlug(project.path)!]"
-                      :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
-                      :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
-                      :created-at="project.createdAt"
-                      :repo="project.repo"
-                    />
+                    </UDropdownMenu>
                   </div>
                 </div>
-              </UCard>
-            </NuxtLink>
+
+                <p v-if="project.description" class="text-sm text-muted line-clamp-2">
+                  {{ project.description }}
+                </p>
+
+                <div class="mt-auto flex flex-col gap-3">
+                  <div v-if="project.tags?.length" class="flex flex-wrap gap-1">
+                    <UBadge
+                      v-for="tag in project.tags"
+                      :key="tag"
+                      :label="tag"
+                      color="neutral"
+                      variant="outline"
+                      size="sm"
+                    />
+                  </div>
+                  <ProjectCardStats
+                    :project-slug="projectSlug(project.path)!"
+                    :task-counts="taskCountsByProject[projectSlug(project.path)!]"
+                    :overdue-count="overdueCounts[projectSlug(project.path)!] ?? 0"
+                    :doc-count="docCountsByProject[projectSlug(project.path)!] ?? 0"
+                    :created-at="project.createdAt"
+                    :repo="project.repo"
+                  />
+                </div>
+              </div>
+            </UCard>
           </div>
         </AppDragList>
       </div>
