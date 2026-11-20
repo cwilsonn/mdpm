@@ -56,7 +56,7 @@ const mobileActions = [
     <div class="flex flex-col h-full space-y-3">
       <ProjectMetaBar :project="project" class="shrink-0" />
 
-      <div class="flex flex-col flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+      <div class="flex flex-col flex-1 min-h-0" :class="docsPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'" :aria-busy="docsPending || undefined">
         <div v-if="!docs?.length" class="flex flex-col items-center justify-center py-16 text-center gap-3">
           <UIcon :name="DOC_ICON" class="size-10 text-muted" />
           <p class="text-muted text-sm">No docs yet for this project.</p>

@@ -115,6 +115,7 @@ const mobileActions = computed(() => [
         color="error"
         variant="ghost"
         size="sm"
+        aria-label="Delete task"
         @click="showDeleteConfirm = true"
       />
     </template>
@@ -198,6 +199,7 @@ const mobileActions = computed(() => [
               class="size-4 shrink-0"
               :class="`text-${STATUS_MAP[dep.status]?.color ?? 'neutral'}`"
             />
+            <span class="sr-only">{{ STATUS_MAP[dep.status]?.label ?? dep.status }}:</span>
             <NuxtLink
               :to="`/projects/${projectSlug}/tasks/${dep.slug}`"
               class="text-sm hover:underline"

@@ -18,6 +18,7 @@ defineProps<{
       <UIcon name="i-lucide-file-text" class="size-4 shrink-0 text-muted" />
       <span class="text-sm font-medium truncate flex-1">{{ doc.title }}</span>
       <UIcon v-if="doc.archivedAt" name="i-lucide-archive" class="size-3.5 shrink-0 text-muted" />
+      <span v-if="doc.archivedAt" class="sr-only">(archived)</span>
       <span v-if="groupLabel" class="text-xs text-muted shrink-0 flex items-center gap-1">
         <UIcon v-if="groupIcon" :name="groupIcon" class="size-3" />
         {{ groupLabel }}

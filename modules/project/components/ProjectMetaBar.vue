@@ -41,7 +41,7 @@ defineProps<{
         class="flex items-center gap-1 text-xs text-muted hover:text-primary transition-colors"
       >
         <UIcon name="i-lucide-folder-git-2" class="size-3.5 shrink-0" />
-        {{ repoLabel(project.repo) }}
+        {{ repoLabel(project.repo) }}<span class="sr-only"> (opens in a new tab)</span>
       </a>
     </div>
     <p v-if="project.description" class="text-sm text-muted">

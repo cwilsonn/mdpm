@@ -31,20 +31,15 @@ function handleConfirm() {
 </script>
 
 <template>
-  <UModal v-model:open="open" :ui="{ content: 'max-w-sm' }">
-    <template #header>
-      <div>
-        <h3 class="text-base font-semibold">
-          {{ title }}
-        </h3>
-        <p
-          v-if="message"
-          class="mt-1 text-sm text-muted"
-        >
-          {{ message }}
-        </p>
-      </div>
-    </template>
+  <!-- title/description as props, not a #header slot: only then are they the dialog's title and description
+       (aria-labelledby/-describedby). A #header override leaves the dialog with an empty accessible name. -->
+  <UModal
+    v-model:open="open"
+    :title="title"
+    :description="message || undefined"
+    :close="false"
+    :ui="{ content: 'max-w-sm' }"
+  >
 
     <template v-if="$slots.default" #body>
       <slot />

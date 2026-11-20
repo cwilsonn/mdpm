@@ -69,7 +69,7 @@ const groups = computed((): DocGroup[] => {
       actions: [{ label: 'New Doc', icon: 'i-lucide-plus', onClick: createBlankDoc }],
     }"
   >
-    <div class="flex flex-col flex-1 min-h-0" :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'">
+    <div class="flex flex-col flex-1 min-h-0" :class="pending ? 'opacity-50 pointer-events-none' : 'transition-opacity'" :aria-busy="pending || undefined">
       <DocList
         v-if="hasAnyDocs"
         :groups="groups"

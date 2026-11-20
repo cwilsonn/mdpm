@@ -26,13 +26,21 @@ const {
   >
     <!-- Title + actions -->
     <div class="flex items-start gap-1.5">
-      <span class="flex-1 text-sm font-medium leading-snug">{{ task.title }}</span>
+      <!-- The card is clickable as a whole for the mouse; this button is how the keyboard and screen readers open it. -->
+      <button
+        type="button"
+        class="flex-1 text-left text-sm font-medium leading-snug rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        @click.stop="emit('click')"
+      >
+        {{ task.title }}
+      </button>
       <UButton
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
         size="xs"
-        class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 -mt-0.5"
+        class="opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:!opacity-100 focus-visible:!opacity-100 transition-opacity shrink-0 -mt-0.5"
+        aria-label="Delete task"
         @click.stop="emit('delete')"
       />
       <UButton
@@ -41,7 +49,7 @@ const {
         color="neutral"
         variant="ghost"
         size="xs"
-        class="opacity-30 group-hover:opacity-100 group-hover:text-success transition-opacity shrink-0 -mt-0.5 -mr-1"
+        class="opacity-30 group-hover:opacity-100 group-hover:text-success focus-visible:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         aria-label="Mark done"
         @click.stop="emit('mark-done')"
       />
@@ -51,7 +59,7 @@ const {
         color="success"
         variant="ghost"
         size="xs"
-        class="opacity-60 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
+        class="opacity-60 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0 -mt-0.5 -mr-1"
         aria-label="Re-open task"
         @click.stop="emit('reopen')"
       />
@@ -96,6 +104,7 @@ const {
         >
           <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" />
           {{ depCount }}
+          <span class="sr-only">{{ depCount === 1 ? 'dependency' : 'dependencies' }}, {{ hasBlockingDeps ? 'unresolved' : 'all resolved' }}</span>
         </span>
       </div>
     </template>

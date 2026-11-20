@@ -199,6 +199,7 @@ function clearFilters() {
     <UInput
       v-model="search"
       placeholder="Search tasks…"
+      aria-label="Search tasks"
       icon="i-lucide-search"
       size="sm"
       class="w-44"
@@ -223,6 +224,7 @@ function clearFilters() {
       :items="SORT_ITEMS"
       value-key="value"
       size="sm"
+      aria-label="Sort by"
       class="w-36"
     />
     <UButton
@@ -257,33 +259,36 @@ function clearFilters() {
       :key="pSlug"
       :ui="{ root: 'overflow-hidden', body: 'p-0!' }"
     >
-      <!-- Project header -->
-      <button
-        class="flex items-center gap-2 w-full px-4 py-2.5 hover:bg-muted transition-colors text-left border-b border-default"
-        @click="openProjects.toggle(pSlug)"
-      >
-        <UIcon
-          name="i-lucide-chevron-right"
-          class="size-3.5 shrink-0 transition-transform duration-150"
-          :class="openProjects.has(pSlug) ? 'rotate-90' : ''"
-        />
-        <UIcon :name="projectIconOf(pSlug)" class="size-4 shrink-0 text-primary" />
-        <span class="font-medium text-sm flex-1 truncate">{{ projectNameOf(pSlug) }}</span>
-        <UBadge
-          :label="String(projectTaskCount(pSlug))"
-          color="neutral"
-          variant="subtle"
-          size="sm"
-          class="shrink-0"
-        />
+      <!-- Project header: the disclosure button and the project link are siblings (no link inside a button) -->
+      <div class="flex items-center gap-2 w-full pe-4 hover:bg-muted transition-colors border-b border-default">
+        <button
+          type="button"
+          class="flex flex-1 min-w-0 items-center gap-2 ps-4 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+          :aria-expanded="openProjects.has(pSlug)"
+          @click="openProjects.toggle(pSlug)"
+        >
+          <UIcon
+            name="i-lucide-chevron-right"
+            class="size-3.5 shrink-0 transition-transform duration-150"
+            :class="openProjects.has(pSlug) ? 'rotate-90' : ''"
+          />
+          <UIcon :name="projectIconOf(pSlug)" class="size-4 shrink-0 text-primary" />
+          <span class="font-medium text-sm flex-1 truncate">{{ projectNameOf(pSlug) }}</span>
+          <UBadge
+            :label="String(projectTaskCount(pSlug))"
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            class="shrink-0"
+          />
+        </button>
         <NuxtLink
           :to="`/projects/${pSlug}`"
-          class="text-xs text-muted hover:text-primary shrink-0"
-          @click.stop
+          class="inline-flex items-center min-h-6 px-1 rounded-sm text-xs text-muted hover:text-primary shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
         >
-          Open →
+          Open<span class="sr-only"> {{ projectNameOf(pSlug) }}</span>&nbsp;<span aria-hidden="true">→</span>
         </NuxtLink>
-      </button>
+      </div>
 
       <!-- Status subgroups -->
       <div

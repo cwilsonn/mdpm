@@ -212,7 +212,8 @@ const mobileActions = computed(() => [
           size="sm"
           :ui="{ base: 'rounded-none' }"
           title="Kanban"
-          aria-label="Switch to kanban view"
+          aria-label="Kanban view"
+          :aria-pressed="taskView === 'kanban'"
           @click="taskView = 'kanban'"
         />
         <UButton
@@ -222,7 +223,8 @@ const mobileActions = computed(() => [
           size="sm"
           :ui="{ base: 'rounded-none' }"
           title="List"
-          aria-label="Switch to list view"
+          aria-label="List view"
+          :aria-pressed="taskView === 'list'"
           @click="taskView = 'list'"
         />
       </div>
@@ -250,6 +252,7 @@ const mobileActions = computed(() => [
           <UInput
             v-model="searchQuery"
             placeholder="Search…"
+            aria-label="Search tasks"
             icon="i-lucide-search"
             size="sm"
             class="w-36"
@@ -315,6 +318,7 @@ const mobileActions = computed(() => [
         v-else
         class="overflow-y-auto flex-1 min-h-0"
         :class="tasksPending ? 'opacity-50 pointer-events-none' : 'transition-opacity'"
+        :aria-busy="tasksPending || undefined"
       >
         <TaskStatusGroup
           v-for="col in visibleColumns"

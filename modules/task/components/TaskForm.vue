@@ -218,23 +218,21 @@ async function create() {
 <template>
   <UModal
     :open="true"
+    :title="isEdit ? 'Edit Task' : 'New Task'"
     :ui="{ content: 'max-w-2xl' }"
     @update:open="$emit('close')"
   >
-    <template #title>
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="truncate">{{ isEdit ? 'Edit Task' : 'New Task' }}</span>
-        <UButton
-          v-if="isEdit && taskPageUrl"
-          :to="taskPageUrl"
-          icon="i-lucide-arrow-up-right"
-          label="Full page"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="shrink-0"
-        />
-      </div>
+    <!-- In #actions, not #title: inside the title the link became part of the dialog's name ("Edit Task Full page"). -->
+    <template v-if="isEdit && taskPageUrl" #actions>
+      <UButton
+        :to="taskPageUrl"
+        icon="i-lucide-arrow-up-right"
+        label="Full page"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        class="shrink-0"
+      />
     </template>
 
     <template #body>
@@ -344,6 +342,7 @@ async function create() {
         <UFormField label="Description">
           <div
             v-if="descriptionLoading"
+            role="status"
             class="flex items-center gap-2 py-4 text-sm text-muted"
           >
             <UIcon
@@ -356,6 +355,7 @@ async function create() {
             v-else
             v-model="description"
             variant="outline"
+            aria-label="Description"
           />
         </UFormField>
       </div>

@@ -5,11 +5,13 @@ const { data: projects } = await useAsyncData('sidebar-projects', () =>
   $fetch<Project[]>('/api/projects').then(list => [...list].sort((a, b) => a.title.localeCompare(b.title))),
 )
 
+// aria-label repeats the label: collapsed, the menu renders icon-only links whose label is only a tooltip.
 const navigation = computed(() => [
-  { label: 'Inbox', icon: 'i-lucide-inbox', to: '/inbox' },
-  { label: 'Docs', icon: 'i-lucide-book-open', to: '/docs' },
+  { label: 'Inbox', 'aria-label': 'Inbox', icon: 'i-lucide-inbox', to: '/inbox' },
+  { label: 'Docs', 'aria-label': 'Docs', icon: 'i-lucide-book-open', to: '/docs' },
   {
     label: 'Projects',
+    'aria-label': 'Projects',
     icon: 'i-lucide-notebook',
     to: '/projects',
     ...(projects.value?.length
@@ -17,6 +19,7 @@ const navigation = computed(() => [
           defaultOpen: true,
           children: projects.value.map(p => ({
             label: p.title,
+            'aria-label': p.title,
             icon: p.icon || 'i-lucide-folder',
             to: `/projects/${slugFromPath(p.path)}`,
           })),
@@ -40,6 +43,7 @@ function openSearch() {
         color="neutral"
         variant="outline"
         size="sm"
+        aria-label="Search"
         @click="openSearch"
       />
     </UTooltip>
@@ -53,7 +57,7 @@ function openSearch() {
       @click="openSearch"
     >
       <template #trailing>
-        <div class="ms-auto me-0 inline-flex gap-x-1">
+        <div class="ms-auto me-0 inline-flex gap-x-1" aria-hidden="true">
           <UKbd :ui="{ base: 'p-0!' }">⌘</UKbd>
           <UKbd :ui="{ base: 'p-0!' }">K</UKbd>
         </div>
@@ -61,6 +65,7 @@ function openSearch() {
     </UButton>
     <hr class="border-default" />
     <UNavigationMenu
+      aria-label="Main"
       :items="navigation"
       :collapsed="collapsed"
       orientation="vertical"

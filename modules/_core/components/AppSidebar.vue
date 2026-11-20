@@ -12,6 +12,8 @@ defineShortcuts({
   <UDashboardSidebar
     v-model:collapsed="isCollapsed"
     :collapsible="true"
+    role="banner"
+    aria-label="Sidebar"
     :ui="{
       root: 'bg-muted',
       header: 'border-b border-default',
