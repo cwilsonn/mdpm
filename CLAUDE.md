@@ -183,6 +183,10 @@ Project pages use route-linked tabs via `AppPageBase`:
 
 `AppPageBase` accepts `tabs: PageTab[]`; renders `UNavigationMenu` with `highlight` + `pill`. Do not use `UTabs` + `?tab=` query params for project-level navigation.
 
+## Accessibility
+
+`pnpm test:a11y` builds the app and runs axe-core scans (Playwright, `tests/a11y/`) of every page and the overlays they open, in light, dark and phone width, on a throwaway copy of `tests/fixtures/content`; CI runs it as the `a11y` job. A violation fails unless it matches an entry in `ALLOWED` in `tests/a11y/pages.spec.ts` (rule plus HTML substring or theme), and each entry is an open decision: remove it when the decision lands, never widen it to get a PR green. `@nuxt/a11y` (dev server only) shows the same axe results in the browser console and DevTools while you work; `patches/@nuxt__a11y.patch` replaces its `crypto.randomUUID()` call, which browsers only expose on https or localhost and so crashed the UI on `http://mdpm.local` (drop the patch once upstream fixes it). Icon-only controls need an `aria-label`; `UButton` has no `tooltip` prop (wrap it in `UTooltip`).
+
 ## Seed / Reset Safety
 
 Demo mode is the public sandbox's behaviour: the seed plugin (`server/plugins/seed.ts`) wipes and re-seeds content at boot, the hourly reset task (`server/tasks/reset.ts`) does the same, creation is capped (projects, tasks, docs), and `/api/health` hides the content root. All of it is gated by `isDemo()` (`server/utils/demo.ts`): **`MDPM_DEMO=1` only**, read at runtime. Never gate server behaviour on `NODE_ENV`: the production build inlines it, which once made a local `pnpm build && pnpm start` wipe `content/projects` at boot. A test (`tests/demo-mode.test.ts`) fails if `server/` or `nuxt.config.ts` mention `process.env.NODE_ENV`. Without `MDPM_DEMO=1`, neither `pnpm dev` nor a built server ever seeds, resets, or caps.
