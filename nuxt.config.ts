@@ -7,6 +7,11 @@ export default defineNuxtConfig({
     './modules/doc',
   ],
   modules: ['@nuxt/ui', '@nuxtjs/mdc'],
+  // @nuxt/a11y: axe-core hints in the browser console and a Nuxt DevTools tab, dev server only (it is a
+  // devDependency, so a production build must not load it). The enforced check is `pnpm test:a11y` (tests/a11y/).
+  $development: {
+    modules: ['@nuxt/a11y'],
+  },
   css: ['~/assets/css/main.css'],
   compatibilityDate: '2025-01-15',
   devtools: { enabled: true },
