@@ -31,7 +31,7 @@ const {
       color="neutral"
       variant="ghost"
       size="sm"
-      class="opacity-30 group-hover:opacity-100 group-hover:text-success transition-opacity shrink-0"
+      class="opacity-30 group-hover:opacity-100 group-hover:text-success focus-visible:opacity-100 transition-opacity shrink-0"
       aria-label="Mark done"
       @click.stop="emit('mark-done')"
     />
@@ -41,7 +41,7 @@ const {
       color="success"
       variant="ghost"
       size="sm"
-      class="opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
+      class="opacity-60 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0"
       aria-label="Re-open task"
       @click.stop="emit('reopen')"
     />
@@ -57,9 +57,17 @@ const {
         :class="`text-${status.color}`"
       />
     </UTooltip>
+    <span v-if="showStatus && status" class="sr-only">{{ status.label }}:</span>
 
-    <!-- Title -->
-    <span class="flex-1 text-sm truncate" :class="task.status === 'done' ? 'line-through text-muted' : ''">{{ task.title }}</span>
+    <!-- Title: the row is clickable as a whole for the mouse; this button is the keyboard and screen reader way in. -->
+    <button
+      type="button"
+      class="flex-1 min-w-0 text-left text-sm truncate rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      :class="task.status === 'done' ? 'line-through text-muted' : ''"
+      @click.stop="emit('click')"
+    >
+      {{ task.title }}
+    </button>
 
     <!-- Right-side metadata -->
     <div class="flex items-center gap-1.5 shrink-0">
@@ -88,6 +96,7 @@ const {
           class="size-3 text-muted shrink-0 hidden sm:block"
           :title="`${depCount} dependenc${depCount === 1 ? 'y' : 'ies'}`"
         />
+        <span v-if="depCount" class="sr-only">{{ depCount }} dependenc{{ depCount === 1 ? 'y' : 'ies' }}</span>
       </template>
 
       <!-- Delete (always visible on hover) -->
@@ -96,7 +105,7 @@ const {
         color="error"
         variant="ghost"
         size="sm"
-        class="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0"
+        class="opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:!opacity-100 focus-visible:!opacity-100 transition-opacity shrink-0"
         aria-label="Delete task"
         @click.stop="emit('delete')"
       />

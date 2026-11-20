@@ -174,6 +174,7 @@ const mobileActions = computed(() => [
         color="error"
         variant="ghost"
         size="sm"
+        aria-label="Delete doc"
         @click="() => { showDeleteConfirm = true }"
       />
     </template>
@@ -209,11 +210,12 @@ const mobileActions = computed(() => [
         <UInputTags
           v-model="tags"
           placeholder="Add tags…"
+          aria-label="Tags"
           variant="none"
           :ui="{ root: 'w-full p-0!' }"
         />
 
-        <div v-if="!bodyLoaded" class="flex items-center gap-2 py-4 text-sm text-muted">
+        <div v-if="!bodyLoaded" role="status" class="flex items-center gap-2 py-4 text-sm text-muted">
           <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
           Loading…
         </div>
@@ -221,6 +223,7 @@ const mobileActions = computed(() => [
           v-else
           v-model="body"
           variant="none"
+          aria-label="Doc content"
         />
       </div>
     </div>

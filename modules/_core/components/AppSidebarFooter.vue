@@ -80,6 +80,7 @@ function toggleColorMode() {
           color="neutral"
           variant="ghost"
           size="sm"
+          aria-label="Export"
         />
       </UDropdownMenu>
     </UTooltip>

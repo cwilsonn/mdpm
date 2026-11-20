@@ -19,6 +19,7 @@ export default defineNuxtConfig({
   future: { compatibilityVersion: 4 },
   app: {
     head: {
+      htmlAttrs: { lang: 'en' },
       titleTemplate: '%s | .mdpm',
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
