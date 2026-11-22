@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.24.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.23.0...mdpm-v0.24.0) (2026-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** `--parent` on `mdpm doc create|edit` and `parent` on the upsert_doc tool are gone; API callers sending `parent` or `order` on a doc update get a 400; export format is v6. Run `mdpm migrate --apply` after updating.
+* **core:** API and MCP callers that send `assignees` or `defaultAssignee` get a 400; `--assignee`/`--assignees`/ `--default-assignee` are gone; export format is v5. Run `mdpm migrate --apply` after updating.
+
+### Features
+
+* **core:** cap new slugs at 40 characters on a word boundary ([b42c314](https://github.com/cwilsonn/mdpm/commit/b42c3142a077722ba0a337024e5728c3a1e9fab5))
+* **core:** make docs flat (drop parent, isFolder and doc order) ([7681936](https://github.com/cwilsonn/mdpm/commit/7681936424876aca0e1d6d477b3b39ed6e4c2b91))
+* **core:** remove assignees and the authors collection ([1386765](https://github.com/cwilsonn/mdpm/commit/13867658d21e56f7ab4fa440b47bb8245890a1dd))
+
+
+### Bug Fixes
+
+* **ui:** fix accessibility issues found by an axe-core audit ([7a25602](https://github.com/cwilsonn/mdpm/commit/7a25602237efc4ab929444d79ca7697ad5a065d3))
+* **ui:** let AppSaveStatus take a null savedAgo before the first save ([13502a4](https://github.com/cwilsonn/mdpm/commit/13502a477e3dbf25698634ddcee8ca9db3430822))
+* **ui:** pick the color-mode icon in CSS so SSR and client match ([b64af28](https://github.com/cwilsonn/mdpm/commit/b64af282e0052dbf37b1d6777c22294ea24770f7))
+
+
+### Refactoring
+
+* **core:** omit empty list fields and skip unchanged reorders ([914fe52](https://github.com/cwilsonn/mdpm/commit/914fe525ef20f2aa826ebf734a49a67913d3f6ed))
+* **server:** remove the unused POST /api/tasks/batch route ([1ab7149](https://github.com/cwilsonn/mdpm/commit/1ab7149f59834e86d19ae624026d2c7c05f90c90))
+* **ui:** render markdown with @nuxtjs/mdc, drop @nuxt/content and better-sqlite3 ([a2818a8](https://github.com/cwilsonn/mdpm/commit/a2818a87acd5bfdfc21d475bc6723c762ce2b009))
+
 ## [0.23.0](https://github.com/cwilsonn/mdpm/compare/mdpm-v0.22.0...mdpm-v0.23.0) (2026-11-15)
 
 
